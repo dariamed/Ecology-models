@@ -1,0 +1,238 @@
+---
+#title: "Generalized joint attribute modeling (GJAM) "
+title : "Gjam package decription"
+#author: Daria Bystrova
+date: "`r Sys.Date()`"
+output:
+  rmdformats::html_clean:
+    highlight: kate
+    toc: true
+    thumbnails: true
+    lightbox: true
+    gallery: false
+    fig_width: 20
+    fig_height: 20
+    #number_sections: true
+---
+
+
+```{r knitr_init, echo=FALSE, cache=FALSE,message=FALSE, warning=FALSE}
+library(knitr)
+library(rmdformats)
+library(lattice)
+
+## Global options
+options(max.print="75")
+opts_chunk$set(echo=FALSE,
+	             cache=TRUE,
+               prompt=FALSE,
+               tidy=TRUE,
+               comment=NA,
+               message=FALSE,
+               warning=FALSE)
+opts_knit$set(width=75)
+```
+
+```{r install, echo=FALSE, cache=FALSE}
+library(gjam)
+
+```
+
+# Model description
+
+The model underlying the "gjam" package is described in the article "Generalized joint attribute modeling for biodiversity analysis: Median-zero, multivariate, multifarious data" (Clark et al. (2016)).\
+GJAM model accommodates the median-zero, multivariate, multifarious data and allows joint modeling of continuous and discrete observations (multifarious observations), avoiding non-linear transformation (link) functions. 
+Combination of the different types of observations is implemented with the use of censoring and effort, where censoring allows to transfer from continuous to discrete cases and effort allows combining discrete and continuous observations with appropriate weight.\
+Works with data inputs which could be:  presence-absence, ordinal, continuous, discrete, zero-inflated or censored.
+Joint species distribution provides inference on sensitivity to input variables, the correlation between species on data scale, prediction, the definition of community structure and missing data imputation. Inverse prediction - prediction of environmental conditions from species.
+
+#### The model address the following  challenges
+* Median-zero: most of the values in data sets are 0
+* Multivariate: species are not independent
+* Multifarious: different data types. (combine responses on different scales, eg species count + plot condition)
+
+#### Data types
+ * _CA_ continous abundance 
+ * _DA_ discrete abundance
+ * _PA_ presence-absence
+ * _OC_ ordinal count
+ * _CC_ composition-count
+ * _FC_ fractional composition
+ * _CAT_ categorical data
+
+
+## General model
+Observations: $(x_i,y_i)$ - sample , $i=1 \dots n$, $x_i$ vector of predictors $q=1 \dots Q$, $y_i$ vector of responses, $y_{is}$, $s=1 \dots S$, could consist of different types of observations\. Observed values of Y are represetned by continous W values and discrete Z values.\
+$w_i \in R^S$ locates $y_i$ in continous space.$w_{is}$ is known if the response $y_{is}$ is continous, or unknown if the $y_{is}$ is discrete.\
+ $z_i \in \{0, \dots ,K-1\}^S$ locates $y_i$ in discrete space.Each observed $y_{is}$ is placed in the interval $z_{is}$. Number of intervals could differ for species and observations.\
+Each ecological attribute is accomodated by different combinations of known and unknown $\{W,Z,P\}$, with C subset of censoring intervals. W, Z latent variables and partition P.\
+Partition P: the partition of continous space at points $p_{is,k} \in P$ on $\mathbb{R}$ defines discrete intervals $z_{is}$, $(p_{is,k},p_{is,k+1}]$ boudns $k^{th}$ interval of s in observation i. For discrete observations, k is censored and $w_{is}$ is latent variable.
+
+$$
+  y_{is}=\begin{cases}
+               w_{is}  \text{ }\text{ continous}\\
+               z_{is} , w_{is} \in (p_{z_{is}},p_{z_{is}+1}] \text{  discrete}\\
+            \end{cases}
+$$
+ 
+ Effort $E_{is}$ affects the partition for discrete data. Partition for interval k depends on $E_{is}$\
+ When effort varies between observations:
+ $$(p_{i,k}, p_{i,k+1}] = (\frac{k-1/2}{E_i},\frac{k+1/2}{E_i}]$$
+ 
+ $$w_i \mid x_i,y_i,E_i \sim MVN(\mu_i, \Sigma) \times \prod_{s=1}^{S}I_{is}$$
+ $$\mu_i= B'x_i$$
+ $$I_{is} = \prod_{k \in C} I_{is,k}^{I(y_{is}=k)} (1- I_{is})^{I(y_{is} \neq k)}$$
+where $I_{is}= I(p_{z_{is}} < w_{is}< p_{z_{is}}] \text{ C set of discrete intervals}$, B matrix of coefficients, $\Sigma$ covariance matrix.\ 
+
+
+**Algorithm**:\
+Input **X**  is centred  and standartized.  **B**  and $\Sigma$ are sampled \
+1. $\Sigma \mid W,B$\
+2. $B \mid \Sigma, W$\
+3. For unknown partition, the partition is sampled $P \mid Z,W$ \ 
+4. For ordinal, presence-absence and categorical data, latent variables are drawn on correlation scale $W \mid R,\alpha, P$, where $R= D^{-\frac{1}{2}}\Sigma D^{\frac{1}{2}}$, $\alpha = D^{-\frac{1}{2}}B$, $P= D^{-\frac{1}{2}}P$ , $D=diag(\Sigma)$. For other that are discrete or censored, latent variables are sampled on the covariance scale $W \mid \Sigma, B,P$
+
+
+## Model with dimension reduction
+Model is defined in the article *D.Taylor-Rodriguez, K. Kaufeld, E.M. Schilep,J.S. Clark, A.E. Gelfand "Joint Species Distribution Modeling: Dimension Reduction Using Dirichlet Processes"(2017)*
+$$V_i= Bx_i + \epsilon_i, \text{ with }\epsilon_i \sim N_S(0_s,\Sigma)$$
+Approximate $\Sigma$ with $\Sigma'$
+$$\Sigma' = AA^T + \sigma^2I, \text{ where A is } S\times r \text{ matrix}$$ 
+
+$$V_i= Bx_i + Aw_i+\epsilon_i , \text{with } \epsilon_i \sim N_S(0_s,\sigma^2I), w_i \sim N_r(0_r,I_r)$$
+
+
+
+```{r , echo=FALSE,out.width='150%', fig.align='center', fig.cap='Data types'}
+#knitr::include_graphics("data_types.png")
+```
+
+## Gjam for simluated data
+
+Using "gjamSimData" function.
+
+```{r simulation, echo=TRUE, cache=FALSE}
+library(gjam)
+library(ggplot2)
+library(gridExtra)
+#by default n=1000,S=10, Q=5
+#f<- gjamSimData(n=500,S=10,Q=5, typeNames = "CA")
+#summary(f)
+
+#f$formula
+#f$xdata
+
+#x3_mean<-mean(f$xdata$x3)
+#x4_mean<-mean(f$xdata$x4)
+#x5_mean<-mean(f$xdata$x5)
+#max_x2<-max(f$xdata$x2)
+#min_x2<-min(f$xdata$x2)
+
+
+## Example:
+S <-5
+f <- gjamSimData(n = 200, S = S, Q = 3, typeNames = 'PA')
+ml <- list(ng = 50, burnin = 5, typeNames = f$typeNames, holdoutN = 10) 
+out <- gjam(f$formula, f$xdata, f$ydata, modelList = ml)
+
+##Predicted 5 Species and 
+
+# predict data
+#par(mfrow=c(1,3),bty='n')
+#gjamPredict(out, y2plot = colnames(f$ydata)) #predict the data in-sample
+#title('full sample')
+
+# out-of-sample prediction
+xdata     <- f$xdata[1:20,]
+xdata[,3] <- mean(f$xdata[,3])     # mean for x[,3]
+xdata[,2] <- seq(-2,2,length=20)   # gradient x[,2]
+newdata   <- list(xdata = xdata, nsim = 50 )
+p1 <- gjamPredict(out, newdata = newdata)
+# plus/minus 1 prediction SE, default effort = 1000
+x2   <- p1$x[,2]
+ylim <- c(0, max(p1$sdList$yMu[,1] + p1$sdList$yPe[,1]))
+plot(x2, p1$sdList$yMu[,1],type='l',lwd=2, ylim=ylim, xlab='x2',
+     ylab = 'Predicted')
+lines(x2, p1$sdList$yMu[,2],type='l',lwd=3, ylim=ylim, xlab='x2',
+      ylab = 'Predicted')
+lines(x2, p1$sdList$yMu[,3],type='l',lwd=3, ylim=ylim, xlab='x2',
+      ylab = 'Predicted')
+lines(x2, p1$sdList$yMu[,4],type='l',lwd=3, ylim=ylim, xlab='x2',
+      ylab = 'Predicted')
+lines(x2, p1$sdList$yMu[,5],type='l',lwd=3, ylim=ylim, xlab='x2',
+      ylab = 'Predicted')
+#lines(x2, p1$sdList$yMu[,1] + p1$sdList$yPe[,1], lty=2)
+#lines(x2, p1$sdList$yMu[,1] - p1$sdList$yPe[,1], lty=2)
+# .95 prediction error
+#lines(x2, p1$piList$yLo[,1], lty=3)
+#lines(x2, p1$piList$yHi[,1], lty=3)
+title('SE and prediction, Sp 1')
+
+#ind<-which((p1$sdList$yMu[,1]>0.5))
+#densityplot(xdata[ind,2])
+#hist(xdata[ind,2])
+#ind<-which((p1$sdList$yMu[,1]>0.5))
+#hist(xdata[ind,2])
+#densityplot(xdata[ind,2])
+
+#hist(xdata[,2])
+#densityplot(xdata[,2])
+
+
+
+########## Partial Dependence plot 
+n.sample<- 200
+#xseq <- seq(-2,2,length=20)   # gradient x[,2]
+
+presence_array<- matrix(nrow=n.sample, ncol =5)
+for (i in 1:n.sample) {
+  xtrain    <- f$xdata[1:200,]
+  #xtrain[,2] <- xseq[i]    # value for ith predictor duplicate for all set 
+  xtrain[,2] <-xtrain[i,2] 
+  newdata   <- list(xdata = xtrain, nsim = 50)
+  p_tr <- gjamPredict(out, newdata = newdata)
+  presence_array[i,]<- colSums(p_tr$prPresent)/n.sample
+}
+plot(f$xdata[1:200,2],presence_array[,1],xlab=expression(x[2]),main="",ylab="Prediction of occurence S1",lwd=2, lty=1)
+rug(f$xdata[1:200,2], col="red")
+plot(f$xdata[1:200,2],presence_array[,2],xlab=expression(x[2]),main="",ylab="Prediction of occurence S2",lwd=2)
+rug(f$xdata[1:200,2], col="red")
+plot(f$xdata[1:200,2],presence_array[,3],xlab=expression(x[2]),main="",ylab="Prediction of occurence S3",lwd=2)
+rug(f$xdata[1:200,2], col="red")
+plot(f$xdata[1:200,2],presence_array[,4],xlab=expression(x[2]),main="",ylab="Prediction of occurence S4",lwd=2)
+rug(f$xdata[1:200,2], col="red")
+plot(f$xdata[1:200,2],presence_array[,5],xlab=expression(x[2]),main="",ylab="Prediction of occurence S5",lwd=2)
+rug(f$xdata[1:200,2], col="red")
+
+```
+
+
+```{r cond, echo=FALSE,out.width='100%', fig.align='center', fig.cap='Data types'}
+########## Partial Dependence plot 
+n.sample<- 200
+#xseq <- seq(-2,2,length=20)   # gradient x[,2]
+
+presence_array<- matrix(nrow=n.sample, ncol =5)
+for (i in 1:n.sample) {
+  xtrain    <- f$xdata[1:200,]
+  #xtrain[,2] <- xseq[i]    # value for ith predictor duplicate for all set 
+  xtrain[,2] <-xtrain[i,2] 
+  newdata   <- list(xdata = xtrain, nsim = 50)
+  p_tr <- gjamPredict(out, newdata = newdata)
+  presence_array[i,]<- colSums(p_tr$prPresent)/n.sample
+}
+plot(f$xdata[1:200,2],presence_array[,1],xlab=expression(x[2]),main="",ylab="Prediction of occurence S1",lwd=2, lty=1)
+rug(f$xdata[1:200,2], col="red")
+plot(f$xdata[1:200,2],presence_array[,2],xlab=expression(x[2]),main="",ylab="Prediction of occurence S2",lwd=2)
+rug(f$xdata[1:200,2], col="red")
+plot(f$xdata[1:200,2],presence_array[,3],xlab=expression(x[2]),main="",ylab="Prediction of occurence S3",lwd=2)
+rug(f$xdata[1:200,2], col="red")
+plot(f$xdata[1:200,2],presence_array[,4],xlab=expression(x[2]),main="",ylab="Prediction of occurence S4",lwd=2)
+rug(f$xdata[1:200,2], col="red")
+plot(f$xdata[1:200,2],presence_array[,5],xlab=expression(x[2]),main="",ylab="Prediction of occurence S5",lwd=2)
+rug(f$xdata[1:200,2], col="red")
+
+
+
+```
+
