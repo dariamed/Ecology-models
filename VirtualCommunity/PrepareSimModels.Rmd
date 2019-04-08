@@ -1,0 +1,72 @@
+#' ---
+#' title: "Community Assembly Simulations"
+#' author: "LJ Pollock"
+#' date: "`r Sys.Date()`"
+#' output: pdf_document
+#'  
+#' ---
+
+#+ setup, message=FALSE
+
+
+
+Input parameters and run functions from 'RunSimModels.Rmd'
+
+
+```{r, eval=FALSE}
+
+setwd("~/Dropbox/JSDMCommunities/SimulateCommunities/ExampleFiles")
+
+
+lapply(list.files(path = "."),load,.GlobalEnv)
+
+
+
+test.coms <- simulate_community()
+  
+
+
+sim_data <- mapply(
+  simulate_community,
+  niche_optima = 2,
+  type         = "original",
+  comp_inter   = NA,
+  fac_inter    = NA,
+  beta_comp    = 5,
+  beta_fac     = 0,
+  K            = 40, 
+  competition  = "facilitation",
+  intra_sp_com = 0,
+  SIMPLIFY = FALSE
+)
+
+
+
+
+sim_data =
+  list(
+    niche_optima = unlist(replicate(7, lapply(c(5, 10, 20), function(x) seq(2, 98, length.out = x)), FALSE), FALSE), 
+    type         = list("original", "manual")[c(rep(1, 3), rep(2, 18))],
+    comp_inter   = comp_inter,
+    fac_inter    = fac_inter,
+    beta_comp    = rep(list(0, 10, 4), each = 7),
+    beta_fac     = rep(list(0, 3, 3, 0, 0, 1, 2), each = 3),
+    K            = rep(list(10, 20, 40), 7), 
+    competition  = list("symmetric", "both")[c(rep(1, 3), rep(2, 18))],
+    intra_sp_com = rep(list(1), 21) 
+  ) 
+  %>%
+  pmap(sim_com) %>%
+  #map(abund2occur) %>%
+  set_names(sim_names) 
+
+
+
+
+
+```
+
+
+
+
+
