@@ -1,6 +1,11 @@
 ---
-title: "JSDM model test"
-output: html_document
+title: "JSDM models test"
+output:
+  html_document:
+    toc: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
 ---
 
 ```{r setup, include=FALSE}
@@ -25,8 +30,15 @@ lapply(list.files(path = "."),load,.GlobalEnv)
 ```
 
 
-Data was simulated using VirtualCommunity code.
-Model was fitted using JAGS 
+
+## Data 
+
+Data was simulated using VirtualCommunity code.\
+Simulated data contains 20 data sets. \
+Models : Po
+Models were fitted for 2 datasets : \
+1.Env5Sp - environmental filetering only for 5 species (asssuming no interactions).\
+2.FacDen10Sp - environmental filetering + facilitation for 10 species.\
 
 ```{r load_m}
 load("model-2019-04-09-19-02-16.rda")
@@ -36,9 +48,8 @@ model$n.eff
 model$mcmc.info[1:7]
 ```
 
-##Test run 
-Model is defined for the simulation  $\textbf{EnvEvenSp5}$
-
+## Test run 
+Model for $\textbf{EnvEvenSp5}$
 
 
 ```{r draw, echo=FALSE}
@@ -158,10 +169,7 @@ ggplot(mean_correlations) +
 
 ## Partial correlation
 
-<<<<<<< HEAD
-=======
 
->>>>>>> 5eccd1f5bd79cc818213f6f780b752ee7bf5312a
 ```{r heat, include=TRUE}
 data<-sim_data$EnvEvenSp5
 data <- list(
@@ -183,13 +191,7 @@ for (j in 1:dim(model$mean$Tau)[1]) {
   }
 }
 
-<<<<<<< HEAD
-=======
-
-
-library(corrplot)
->>>>>>> 5eccd1f5bd79cc818213f6f780b752ee7bf5312a
-par(mfrow=c(2,2))
+par(mfrow=c(2,2),oma = c(3, 1, 2, 1))
 corrplot(Y_cor, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
 title("Correlation cor(Y)")
 corrplot(model$mean$Rho, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
@@ -202,7 +204,7 @@ title("Tau")
 ```
 
 
-### Add GJAM tests
+### GJAM tests
 ```{r gjam, include=TRUE}
 data<-sim_data$EnvEvenSp5
 
@@ -229,6 +231,17 @@ ml   <- list(ng = 2500, burnin = 500, typeNames = 'PA')
 out3  <- gjam(formula, xdata = xdata, ydata = ydata, modelList = ml)
 summary(out3)
 
+
+par(mfrow=c(1,3),oma = c(1, 1, 1, 1))
+corrplot(cor(ydata), diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+title("Correlation cor(Y)")
+corrplot(out3$parameters$corMu, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+title("R")
+corrplot(out3$parameters$ematrix, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+title("E matrix")
+#corrplot(Tau_n, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+#title("Tau")
+
 ```
 
 
@@ -239,12 +252,44 @@ summary(out3)
 ```
 
 
-<<<<<<< HEAD
+
 
 ### Add HMSC tests
-```{r hmsc, include=TRUE}
-=======
-### Model 2
+
+Here are some warnings " In get(x, envir = ns) : internal error -5 in R_decompress1"? 
+
+```{r hmsc, include=TRUE, results=FALSE}
+#on mac install gcc, gfortran from source(install separately).
+##https://github.com/fxcoudert/gfortran-for-macOS/releases
+library(devtools)
+install_url('https://cran.r-project.org/src/contrib/Archive/BayesLogit/BayesLogit_0.6.tar.gz')
+install_github("hmsc-r/HMSC")
+library(Hmsc)
+Y<- as.matrix(data$Y)
+X<- as.matrix(data$X[,-1])
+colnames(X)<-c("env","env2")
+
+m = Hmsc(Y=Y, X=X, XFormula = ~env+ env2)
+m = sampleMcmc(m, 1000, thin=10, adaptNf=c(2000,2000), nChains=2 )
+mpost<- convertToCodaObject(m)
+summary(mpost$Beta)
+
+```
+
+Convergence:
+
+```{r hmsc convergence, include=TRUE}
+effectiveSize(mpost$Beta)
+
+gelman.diag(mpost$Beta)
+
+plot(mpost$Beta)
+```
+
+
+
+
+## Model for 10 species
 
 ```{r model2, echo=FALSE}
 load("model-2019-04-10-15-13-15.rda")
@@ -355,84 +400,102 @@ for (j in 1:dim(model$mean$Tau)[1]) {
   }
 }
 
-
-
-library(corrplot)
-par(mfrow=c(3,2))
+par(mfrow=c(2,2))
 corrplot(Y_cor, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
 title("Correlation cor(Y)")
-corrplot(model$mean$Rho, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
-title("Rho")
 corrplot(model$mean$EnvRho, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
 title("EnvRho")
+corrplot(model$mean$Rho, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+title("Rho")
 corrplot(Tau_n, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
 title("Tau")
-corrplot(fac_inter[[5]], diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
-title("True fac_inter[5]")
-
-
 
 ```
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+## Visualization for true interactions
 
 ```{r inter_patter_fac, echo=FALSE}
-par(mfrow=c(3,3))
+par(mfrow=c(1,3))
 corrplot(fac_inter[[4]], diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
-title("fac_inter[[4]]")
+title("FacDenseSp5")
 corrplot(fac_inter[[5]], diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
-title("fac_inter[[5]]")
+title("FacDenseSp10")
 corrplot(fac_inter[[6]], diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
-title("fac_inter[[6]]")
+title("FacDenseSp20")
+mtext("Facilitation Dense", outer = TRUE, cex = 1.5,side=1,line=-1)
+
+par(mfrow=c(1,3))
 corrplot(fac_inter[[7]], diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
-title("fac_inter[[7]]")
+title("FacSparseSp5")
 corrplot(fac_inter[[8]], diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
-title("fac_inter[[8]]")
+title("FacSparseSp10")
 corrplot(fac_inter[[9]], diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
-title("fac_inter[[9]]")
-
-
-
+title("FacSparseSp20")
+mtext("Facilitation Sparse", outer = TRUE, cex = 1.5,side=1,line=-1)
 ```
 
-
-
-
 ```{r inter_pattern_comp, echo=FALSE}
-par(mfrow=c(3,3))
+par(mfrow=c(1,3))
 corrplot(comp_inter[[10]], diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
 title("CompDenseSp5")
 corrplot(comp_inter[[11]], diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
 title("CompDenseSp10")
 corrplot(comp_inter[[12]], diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
 title("CompDenseSp20")
+mtext("Competition Dense", outer = TRUE, cex = 1.5,side=1,line=-1)
+
+par(mfrow=c(1,3))
 corrplot(comp_inter[[13]], diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
 title("CompSparseSp5")
 corrplot(comp_inter[[14]], diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
 title("CompSparseSp10")
 corrplot(comp_inter[[15]], diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
 title("CompSparseSp20")
+mtext("Competition Sparse", outer = TRUE, cex = 1.5,side=1,line=-1)
 
 
 ```
 
 ```{r inter_pattern_both, echo=FALSE}
-par(mfrow=c(3,3))
+par(mfrow=c(1,3))
 corrplot(comp_inter[[16]], diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
 title("FacCompDenseSp5")
 corrplot(comp_inter[[17]], diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
 title("FacCompDenseSp10")
 corrplot(comp_inter[[18]], diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
 title("FacCompDenseSp20")
+mtext("Both types Dense", outer = TRUE, cex = 1.5,side=1,line=-1)
+
+
+par(mfrow=c(1,3))
 corrplot(comp_inter[[19]], diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
 title("FacCompSparseSp5")
 corrplot(comp_inter[[20]], diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
 title("FacCompSparseSp10")
 corrplot(comp_inter[[21]], diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
 title("FacCompSparseSp20")
-
->>>>>>> 5eccd1f5bd79cc818213f6f780b752ee7bf5312a
+mtext("Both types Sparse", outer = TRUE, cex = 1.5,side=1,line=-1)
 
 ```
+
+
+
+
+
+
 
