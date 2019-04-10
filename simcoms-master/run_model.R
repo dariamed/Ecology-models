@@ -328,7 +328,7 @@ prob_cooccur_es <- function(Y) {
 #+ fit-models, message=FALSE
 #models <- lapply(sim_data, run_model)
 
-data<-  sim_data$EnvEvenSp5
+data<-  sim_data$FacDenseSp10
 m<- run_model(data)
 #load("models.rda")
 
@@ -419,6 +419,4 @@ ggplot(mean_correlations) +
 #prediction_means <- sapply(predictions, apply, 1:2, mean)
 
 #prediction_sds <- sapply(predictions, apply, 1:2, sd)
-
-
 

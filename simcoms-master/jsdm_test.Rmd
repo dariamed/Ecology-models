@@ -152,6 +152,8 @@ ggplot(mean_correlations) +
 ```
 
 
+
+
 ```{r heat, include=FALSE}
 data<-sim_data$EnvEvenSp5
 data <- list(
@@ -166,11 +168,29 @@ data <- list(
 )
 
 Y_cor<-cor(data$Y) 
-par(mfrow=c(1,3)) 
-Yc <- heatmap(Y_cor, Rowv=NA, Colv=NA,scale="column")
-R <- heatmap(model$mean$Rho, Rowv=NA, Colv=NA, scale="column")
-E <- heatmap(model$mean$EnvRho, Rowv=NA, Colv=NA, scale="column")
+Tau_n<-matrix(nrow=dim(model$mean$Tau)[1], ncol=dim(model$mean$Tau)[1])
+for (j in 1:dim(model$mean$Tau)[1]) {
+  for (k in 1:dim(model$mean$Tau)[1]){
+    Tau_n[j, k] <-  -model$mean$Tau[j, k] / sqrt((model$mean$Tau[j,j]*model$mean$Tau[k,k]))
+  }
+}
 
+
+
+par(mfrow=c(1,3)) 
+
+library(corrplot)
+par(mfrow=c(2,2))
+corrplot(Y_cor, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+title("Correlation cor(Y)")
+corrplot(model$mean$Rho, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+title("Rho")
+corrplot(model$mean$EnvRho, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+title("EnvRho")
+corrplot(Tau_n, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+title("Tau")
 
 
 ```
+
+
