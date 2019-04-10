@@ -154,7 +154,7 @@ ggplot(mean_correlations) +
 
 
 
-```{r heat, include=FALSE}
+```{r heat, include=TRUE}
 data<-sim_data$EnvEvenSp5
 data <- list(
   Y = subset(data, select = -env),
@@ -177,8 +177,6 @@ for (j in 1:dim(model$mean$Tau)[1]) {
 
 
 
-par(mfrow=c(1,3)) 
-
 library(corrplot)
 par(mfrow=c(2,2))
 corrplot(Y_cor, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
@@ -193,4 +191,195 @@ title("Tau")
 
 ```
 
+
+### Model 2
+
+```{r model2, echo=FALSE}
+load("model-2019-04-10-15-13-15.rda")
+summary(model)
+model$Rhat
+model$n.eff
+model$mcmc.info[1:7]
+
+
+
+models<-list(FacDenseSp10=model)
+mean_correlations <- do.call(
+  rbind,
+  lapply(
+    seq_along(models),
+    function(i) {
+      x <- models[[i]]
+      nm <- strsplit(
+        names(models)[[i]], "(?<=[a-z])(?=[A-Z])", perl = TRUE
+      )[[1]]
+      nsp <- ncol(x$mean$Rho)
+      ut <- upper.tri(x$mean$Rho)
+      sp <- arrayInd(which(ut), c(nsp, nsp))
+      ans <- data.frame(
+        model = i,
+        sp1 = sp[, 1],
+        sp2 = sp[, 2],
+        rho = c(prob_cooccur_es(x$model$cluster1$data()$Y)[ut], x$mean$Rho[ut]),
+        rho_type = rep(c("Effect-Size", "Residual"), each = sum(ut)),
+        sgn = sign(x$mean$Rho)[ut],
+        significant = x$overlap$Rho[ut],
+        #cint = simulation_parameters$comp_inter[[i]][ut],
+        #fint = simulation_parameters$fac_inter[[i]][ut],
+        cint = comp_inter[[i]][ut],
+        fint = fac_inter[[i]][ut],
+        density = tail(nm, 2)[1],
+        type = paste0(head(nm, -2), collapse = ""),
+        nsp = nsp,
+        stringsAsFactors = FALSE
+      )
+      ans$cint[is.na(ans$cint)] <- 0
+      ans$fint[is.na(ans$fint)] <- 0
+      ans$density[ans$density == "Even"] <- "None"
+      ans$density <- factor(ans$density, c("None", "Sparse", "Dense"))
+      ans$type[ans$type == "Env"] <- "Environmental\nFiltering Only"
+      ans$type[ans$type == "Fac"] <- "Facilitation"
+      ans$type[ans$type == "Comp"] <- "Competition"
+      ans$type[ans$type == "FacComp"] <- "Facililation +\nCompetition"
+      ans$type <- factor(
+        ans$type, 
+        c(
+          "Environmental\nFiltering Only", "Facilitation", "Competition",
+          "Facililation +\nCompetition"
+        )
+      )
+      ans$interaction <- "None"
+      ans$interaction <- ifelse(ans$cint, "Competition", ans$interaction)
+      ans$interaction <- ifelse(ans$fint, "Facilitation", ans$interaction)
+      ans$status <- ifelse(
+        ans$significant,
+        ifelse(ans$sgn * -ans$cint == 1 | ans$sgn * ans$fint == 1, "TP", "FP"),
+        ifelse(ans$cint == 0 & ans$fint == 0, "TN", "FN")
+      )
+      ans$interaction <- factor(
+        ans$interaction, c("None", "Facilitation", "Competition")
+      )
+      ans
+    }
+  )
+)
+
+x <- subset(mean_correlations, type != "Environmental\nFiltering Only")
+acc <- by(x, x$model, function(x) sum(x$status == "TP" | x$status == "TN") / nrow(x))
+
+#' Plot correlation parameter means
+#+ plot-correlations
+ggplot(mean_correlations) +
+  aes(factor(nsp), rho, fill = interaction) +
+  geom_hline(yintercept = 0) +
+  geom_boxplot(
+    outlier.size = .2, size = .1, position = position_dodge(preserve = "single")
+  ) +
+  scale_fill_manual(values = c("grey", "blue", "red")) +
+  facet_grid(type ~ rho_type + density, switch = "y") +
+  xlab("Number of species") +
+  ylab("Correlation") +
+  theme_bw() +
+  theme(legend.position = "top")
+
+
+data<-sim_data$FacDenseSp10
+data <- list(
+  Y = subset(data, select = -env),
+  X = cbind(1, scale(poly(data$env, 2))),
+  covx = cov(cbind(1, scale(poly(data$env, 2)))),
+  K = 3,
+  J = ncol(data) - 1,
+  n = nrow(data),
+  I = diag(ncol(data) - 1),
+  df = ncol(data)
+)
+
+Y_cor<-cor(data$Y) 
+Tau_n<-matrix(nrow=dim(model$mean$Tau)[1], ncol=dim(model$mean$Tau)[1])
+for (j in 1:dim(model$mean$Tau)[1]) {
+  for (k in 1:dim(model$mean$Tau)[1]){
+    Tau_n[j, k] <-  -model$mean$Tau[j, k] / sqrt((model$mean$Tau[j,j]*model$mean$Tau[k,k]))
+  }
+}
+
+
+
+library(corrplot)
+par(mfrow=c(3,2))
+corrplot(Y_cor, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+title("Correlation cor(Y)")
+corrplot(model$mean$Rho, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+title("Rho")
+corrplot(model$mean$EnvRho, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+title("EnvRho")
+corrplot(Tau_n, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+title("Tau")
+corrplot(fac_inter[[5]], diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+title("True fac_inter[5]")
+
+
+
+```
+
+
+
+
+```{r inter_patter_fac, echo=FALSE}
+par(mfrow=c(3,3))
+corrplot(fac_inter[[4]], diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+title("fac_inter[[4]]")
+corrplot(fac_inter[[5]], diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+title("fac_inter[[5]]")
+corrplot(fac_inter[[6]], diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+title("fac_inter[[6]]")
+corrplot(fac_inter[[7]], diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+title("fac_inter[[7]]")
+corrplot(fac_inter[[8]], diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+title("fac_inter[[8]]")
+corrplot(fac_inter[[9]], diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+title("fac_inter[[9]]")
+
+
+
+```
+
+
+
+
+```{r inter_pattern_comp, echo=FALSE}
+par(mfrow=c(3,3))
+corrplot(comp_inter[[10]], diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+title("CompDenseSp5")
+corrplot(comp_inter[[11]], diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+title("CompDenseSp10")
+corrplot(comp_inter[[12]], diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+title("CompDenseSp20")
+corrplot(comp_inter[[13]], diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+title("CompSparseSp5")
+corrplot(comp_inter[[14]], diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+title("CompSparseSp10")
+corrplot(comp_inter[[15]], diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+title("CompSparseSp20")
+
+
+```
+
+```{r inter_pattern_both, echo=FALSE}
+par(mfrow=c(3,3))
+corrplot(comp_inter[[16]], diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+title("FacCompDenseSp5")
+corrplot(comp_inter[[17]], diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+title("FacCompDenseSp10")
+corrplot(comp_inter[[18]], diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+title("FacCompDenseSp20")
+corrplot(comp_inter[[19]], diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+title("FacCompSparseSp5")
+corrplot(comp_inter[[20]], diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+title("FacCompSparseSp10")
+corrplot(comp_inter[[21]], diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+title("FacCompSparseSp20")
+
+
+```
 
