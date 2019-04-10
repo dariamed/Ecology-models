@@ -334,7 +334,7 @@ m<- run_model(data)
 
 #' Extract correlation parameter means
 #+ mean-correlations
-models<-list(EnvEvenSp5=m)
+models<-list(FacDenseSp10=m)
 mean_correlations <- do.call(
   rbind,
   lapply(
