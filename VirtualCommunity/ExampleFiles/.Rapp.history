@@ -1,0 +1,4 @@
+load("/Users/bystrova/Desktop/VirtualCommunity/ExampleFiles/params.rds")
+params
+load("/Users/bystrova/Desktop/VirtualCommunity/ExampleFiles/comp_inter.rds")
+comp_inter
