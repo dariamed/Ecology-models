@@ -126,7 +126,28 @@ for (i in 1:n.sample) {
     pr_array[i,j,]<- colSums(p_tr$prPresent)/n.sample
   }
 }
-#library(plotly)
+
+
+pred_function <- function(x,y,s=3) {
+  xtrain    <- f$xdata[1:20,]
+  xtrain[,2] <-x
+  xtrain[,3] <-y
+  newdata   <- list(xdata = xtrain, nsim = 50)
+  p_tr <- gjamPredict(out, newdata = newdata)
+  pr_array<- colSums(p_tr$prPresent)/n.sample
+  return(pr_array[s])
+}
+
+x<- sort(f$xdata[1:20,2])
+y<- sort(f$xdata[1:20,3])
+
+z<- outer(x,y,Vectorize(pred_function))
+
+p <- plot_ly(x=x, y=y, z=z) %>% add_surface() %>% 
+  layout(scene= list(xaxis= list(title="x_2"),
+                     yaxis= list(title="x_3"),
+                     zaxis= list(title="Prediction")))
+p
 
 
 
@@ -134,21 +155,27 @@ df <- data.frame(matrix(ncol = 3, nrow = 0))
 x <- c("X2", "X3", "Prediction")
 colnames(df) <- x
 
-df<-data.frame()
+
+surf_array <- matrix(ncol=3, nrow=n.sample)
 for (i in 1:n.sample){
   for (j in 1:n.sample){
-    df<- rbind(df, c(f$xdata[i,2],f$xdata[j,3],pr_array[i,j,1]))
+   # df<- rbind(df,c(f$xdata[i,2],f$xdata[j,3],pr_array[i,j,1]))
+    df[nrow(df)+1,] <- c(f$xdata[i,2],f$xdata[j,3],pr_array[i,j,1])
   }
 }
 
-new_df <- df[order(df$X0.370312380933042, df$X.1.60280849294246),] 
+
+new_df <- df[order(df$X2, df$X3),] 
 K<-as.matrix(df)
 p <- plot_ly(z=~K) %>% add_markers()
 p
 
-p <- plot_ly(x=df$X0.370312380933042,y=df$X.1.60280849294246,z=df$X0.737)
-p
-
+library(rgl)
+open3d()
+#  plot surface
+rgl.surface( new_df$X2, new_df$X3, new_df$Prediction)
+#  Export to png
+rgl.snapshot( "sample.png" , fmt="png", top=TRUE )
 
 
 
@@ -163,6 +190,22 @@ plot(f$xdata[1:20,2],presence_array[,4],xlab=expression(x[2]),main="",ylab="Pred
 rug(f$xdata[1:20,2], col="red")
 plot(f$xdata[1:20,2],presence_array[,5],xlab=expression(x[2]),main="",ylab="Prediction of occurence S5",lwd=2)
 rug(f$xdata[1:20,2], col="red")
+
+
+
+library(qgraph)
+cormat= out$parameters$corMu  #correlation matrix generated
+qgraph(cormat, shape="circle", posCol="darkred", negCol="darkblue", layout="groups", vsize=10)
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -282,6 +325,8 @@ title('Cond. on 1st Sp')
 
 
 
+
+
 summary(f$xdata)
 q1<-qplot(f$xdata[,2], geom="histogram", xlab="x1") 
 q2<-qplot(f$xdata[,3], geom="histogram", xlab="x2") 
@@ -378,3 +423,221 @@ plot(out$x[out$missingIndex], out$modelSummary$xpredMu[out$missingIndex])
 title('missing in x'); abline(0,1)
 plot(out$x[out$holdoutIndex,-1], out$modelSummary$xpredMu[out$holdoutIndex,-1]) 
 title('holdouts in x');abline(0,1)
+
+
+
+
+
+
+###############################################
+
+
+
+
+df<-as.data.frame(cbind(f$xdata[,3],f$xdata[,2],f$y[,1]))
+plot(df,color=df$V3)
+library(ggplot2)
+attach(df); plot(V1, V2, col=c("red","blue")[V3]); detach(df)
+qplot(V1, V2, colour = V3, 
+      data = df, main="species occurence in environmental space (V1,V2))")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+new <- list(ydataCond = f$y[,1:2], nsim=200)   
+p1  <- gjamPredict(output = out, newdata = new)
+
+yc     <- f$y[,1:2]                                  
+yc[,1] <- mean(yc[,1])
+yc[,2] <- 0
+new    <- list(ydataCond = yc, nsim=200)
+p2     <- gjamPredict(output = out, newdata = new)
+plot(f$y[,tn == 'DA'], p1, xlab='Obs', ylab = 'Pred', cex=.1,
+     ylim=range(c(p1,p2)))
+points(f$y[,tn == 'DA'], p2,col='orange',cex=.1)
+abline(0,1)
+
+
+
+
+
+
+sc   <- 3                               #no. CA responses
+sd   <- 10                              #no. DA responses
+tn   <- c( rep('CA',sc),rep('DA',sd) )  #combine CA and DA obs
+S    <- length(tn)
+n    <- 500
+emat <- matrix( runif(n,.5,5), n, sd)              #simulated DA effort
+eff  <- list(columns = c((sc+1):S), values = emat )
+f    <- gjamSimData(n = n, typeNames = tn, effort = eff)
+ml   <- list(ng = 2000, burnin = 500, typeNames = f$typeNames, effort = f$effort)
+out  <- gjam(f$formula, f$xdata, f$ydata, modelList = ml)
+
+par(mfrow=c(1,2),bty='n')             
+gjamPredict(out, y2plot = colnames(f$ydata)[tn == 'DA']) #predict DA data
+
+
+new <- list(xdata = f$xdata, effort=eff, nsim = 500 ) # effort unchanged 
+p1  <- gjamPredict(output = out, newdata = new)
+
+plot(f$y[,tn == 'DA'], p1$sdList$yMu[,tn == 'DA'],ylab = 'Predicted',cex=.1)
+abline(0,1)
+
+new$effort$values <- eff$values*0 + 1       # predict for effort = 1
+p2 <- gjamPredict(output = out, newdata = new)
+
+points(f$y[,tn == 'DA'], p2$sdList$yMu[,tn == 'DA'],col='orange',cex=.1)
+abline(0,1)
+
+
+new <- list(ydataCond = f$y[,1:2], nsim=200)   # cond on obs CA data
+p1  <- gjamPredict(output = out, newdata = new)$sdList$yMu[,tn == 'DA']
+
+yc     <- f$y[,1:2]                                  # cond on new CA values
+yc[,1] <- mean(yc[,1])
+yc[,2] <- 0
+new    <- list(ydataCond = yc, nsim=200)
+p2     <- gjamPredict(output = out, newdata = new)$sdList$yMu[,tn == 'DA']
+plot(f$y[,tn == 'DA'], p1, xlab='Obs', ylab = 'Pred', cex=.1,
+     ylim=range(c(p1,p2)))
+points(f$y[,tn == 'DA'], p2,col='orange',cex=.1)
+abline(0,1)
+
+
+
+
+library(ggplot2)
+df<-as.data.frame(cbind(f$xdata[,3],f$xdata[,2],out$inputs$y[,1]))
+qplot(V1, V2, colour = V3, 
+      data = df, main="species occurence in environmental space (V1,V2))")
+
+df<-as.data.frame(cbind(f$xdata[,3],f$xdata[,2],p0$sdList$yMu[,1]))
+qplot(V1, V2, colour = V3, 
+      data = df, main="species occurence in environmental space (V1,V2))")
+
+### Plot for the 
+
+
+#x<-rnorm(100, -2,1)
+#hist(x)
+#a<-rnorm(100,0,1)
+#b<-rnorm(100,0.9,0.01)
+#k<- 0.4*(a+b)
+#qplot(k,bins=15)
+#densityplot(k)
+
+
+
+
+mean=out$parameters$wMu[1,1]; sd=out$parameters$wSd[1]
+#lb=80; ub=120
+mean2=out$parameters$wMu[1,2]; sd2=out$parameters$wSd[2]
+mean3=out$parameters$wMu[1,3]; sd3=out$parameters$wSd[3]
+mean4=out$parameters$wMu[1,4]; sd4=out$parameters$wSd[4]
+mean5=out$parameters$wMu[1,5]; sd5=out$parameters$wSd[5]
+
+x <- seq(-8,8,length=200)*sd + mean
+hx <- dnorm(x,mean,sd)
+x2 <- seq(-8,8,length=200)*sd + mean
+hx2 <- dnorm(x2,mean2,sd2)
+x3 <- seq(-8,8,length=200)*sd + mean
+hx3 <- dnorm(x3,mean3,sd3)
+x4 <- seq(-8,8,length=200)*sd + mean
+hx4 <- dnorm(x4,mean4,sd4)
+x5<- seq(-8,8,length=200)*sd + mean
+hx5 <- dnorm(x5,mean5,sd5)
+
+plot(x2, hx2,type="n",main="Normal Distribution")
+#points(x2,hx2,,main="Normal Distribution")
+i <- x >= 0
+lines(x, hx)
+lines(x2, hx2)
+lines(x3, hx3)
+lines(x4, hx4)
+lines(x5, hx5)
+polygon(c(0,x2[i],x[200]), c(0,hx2[i],0), col="grey") 
+polygon(c(0,x5[i],x[200]), c(0,hx5[i],0), col="grey") 
+
+area <- pnorm(x5[200], mean5, sd5) - pnorm(0, mean5, sd5)
+result <- paste("P(Wi5 >",0,") =",
+                signif(area, digits=3),"|")
+mtext(result,3)
+axis(1, at=seq(40, 160, 20), pos=0)
+
+
+mu <- c(mean,mean2)                         # Mean
+Sigma <- matrix(c(out$parameters$sigMu[1,1],out$parameters$sigMu[1,2], out$parameters$sigMu[2,1], out$parameters$sigMu[2,2]),2)  # Covariance matrix
+library(MASS)
+# Generate sample from N(mu, Sigma)
+bivn <- mvrnorm(5000, mu = mu, Sigma = Sigma )  # from Mass package
+head(bivn)                                      
+# Calculate kernel density estimate
+bivn.kde <- kde2d(bivn[,1], bivn[,2], n = 50)
+# Contour plot overlayed on heat map image of results
+image(bivn.kde)       # from base graphics package
+contour(bivn.kde, add = TRUE)     # from base graphics package
+
+
+
+library(ellipse)
+rho <- cor(bivn)
+#plot(bivn, xlab = "X", ylab = "Y",
+#     col = "dark blue",
+#     main = "Bivariate Normal with Confidence Intervals")
+plot(ellipse(rho, centre = mu), col="red", type="l")       # ellipse() from ellipse package
+lines(ellipse(rho, centre = mu,level = .99), col="green")
+lines(ellipse(rho,centre = mu, level = .90), col="blue")
+#abline(y_on_x)
+#abline(x_on_y, col="brown")
+abline(h=0)
+abline(v=0)
+legend(3,1,legend=plot_legend,cex = .5, bty = "n")
+
+
+# Three dimensional surface
+# Basic perspective plot
+persp(bivn.kde, phi = 45, theta = 30, shade = .1, border = NA) # from base graphics package
+
+# RGL interactive plot
+#library(rgl)
+#col2 <- heat.colors(length(bivn.kde$z))[rank(bivn.kde$z)]
+#persp3d(x=bivn.kde, col = col2)
+
+
+#Higher Dimensional Distributions
+library(corrplot)
+library(clusterGeneration)
+mu <- out$parameters$wMu[1,]
+#pdMat <- genPositiveDefMat(10,lambdaLow=10)
+Sigma <- out$parameters$sigMu
+dim(Sigma)
+mvn <- mvrnorm(5000, mu = mu, Sigma = Sigma )
+
+corrplot(cor(mvn), 
+         method="ellipse",
+         tl.pos="n",
+         title="Matrix Correlations")
+
+
+
+
+
+
+
+
+
+
+
+
+
+

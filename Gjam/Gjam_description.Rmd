@@ -10,8 +10,8 @@ output:
     thumbnails: true
     lightbox: true
     gallery: false
-    fig_width: 20
-    fig_height: 20
+    fig_width: 10
+    fig_height: 10
     #number_sections: true
 ---
 
@@ -20,7 +20,7 @@ output:
 library(knitr)
 library(rmdformats)
 library(lattice)
-
+library(plotly)
 ## Global options
 options(max.print="75")
 opts_chunk$set(echo=FALSE,
@@ -115,23 +115,11 @@ Using "gjamSimData" function.
 library(gjam)
 library(ggplot2)
 library(gridExtra)
-#by default n=1000,S=10, Q=5
-#f<- gjamSimData(n=500,S=10,Q=5, typeNames = "CA")
-#summary(f)
-
-#f$formula
-#f$xdata
-
-#x3_mean<-mean(f$xdata$x3)
-#x4_mean<-mean(f$xdata$x4)
-#x5_mean<-mean(f$xdata$x5)
-#max_x2<-max(f$xdata$x2)
-#min_x2<-min(f$xdata$x2)
-
+library(knitr)
 
 ## Example:
 S <-5
-f <- gjamSimData(n = 200, S = S, Q = 3, typeNames = 'PA')
+f <- gjamSimData(n = 200, S = S, Q = 4, typeNames = 'PA')
 ml <- list(ng = 50, burnin = 5, typeNames = f$typeNames, holdoutN = 10) 
 out <- gjam(f$formula, f$xdata, f$ydata, modelList = ml)
 
@@ -144,41 +132,71 @@ out <- gjam(f$formula, f$xdata, f$ydata, modelList = ml)
 
 # out-of-sample prediction
 xdata     <- f$xdata[1:20,]
-xdata[,3] <- mean(f$xdata[,3])     # mean for x[,3]
-xdata[,2] <- seq(-2,2,length=20)   # gradient x[,2]
+xdata[,3] <- mean(f$xdata[,3]) # mean for x[,3]
+xdata[,4] <- mean(f$xdata[,4])# mean for x[,4]
+xdata[,2] <- seq(-2.5,2.5,length=20)   # gradient x[,2]
 newdata   <- list(xdata = xdata, nsim = 50 )
 p1 <- gjamPredict(out, newdata = newdata)
 # plus/minus 1 prediction SE, default effort = 1000
 x2   <- p1$x[,2]
 ylim <- c(0, max(p1$sdList$yMu[,1] + p1$sdList$yPe[,1]))
-plot(x2, p1$sdList$yMu[,1],type='l',lwd=2, ylim=ylim, xlab='x2',
+
+par(mfrow=c(2,3))
+plot(x2, p1$sdList$yMu[,1],type='l',lwd=2, ylim=c(0, max(p1$sdList$yMu[,1] + p1$sdList$yPe[,1])), xlab='x2',
      ylab = 'Predicted')
-lines(x2, p1$sdList$yMu[,2],type='l',lwd=3, ylim=ylim, xlab='x2',
+mtext(paste(expression(beta),"=",round(out$parameters$betaMu[2,1],2)), side = 3)
+lines(x2, p1$sdList$yMu[,1] + p1$sdList$yPe[,1], lty=2)
+lines(x2, p1$sdList$yMu[,1] - p1$sdList$yPe[,1], lty=2)
+# .95 prediction error
+title('SE and prediction, Sp 1')
+
+plot(x2, p1$sdList$yMu[,2],type='l',lwd=2, ylim=c(0, max(p1$sdList$yMu[,2] + p1$sdList$yPe[,2])), xlab='x2',
       ylab = 'Predicted')
-lines(x2, p1$sdList$yMu[,3],type='l',lwd=3, ylim=ylim, xlab='x2',
+mtext(paste(expression(beta),"=",round(out$parameters$betaMu[2,2],2)), side = 3)
+lines(x2, p1$sdList$yMu[,2] + p1$sdList$yPe[,2], lty=2)
+lines(x2, p1$sdList$yMu[,2] - p1$sdList$yPe[,2], lty=2)
+title('SE and prediction, Sp 2')
+
+plot(x2, p1$sdList$yMu[,3],type='l',lwd=2, ylim=c(0, max(p1$sdList$yMu[,3] + p1$sdList$yPe[,3])), xlab='x2',
       ylab = 'Predicted')
-lines(x2, p1$sdList$yMu[,4],type='l',lwd=3, ylim=ylim, xlab='x2',
+mtext(paste(expression(beta),"=",round(out$parameters$betaMu[2,3],3)), side = 3)
+lines(x2, p1$sdList$yMu[,3] + p1$sdList$yPe[,3], lty=2)
+lines(x2, p1$sdList$yMu[,3] - p1$sdList$yPe[,3], lty=2)
+title('SE and prediction, Sp 3')
+
+plot(x2, p1$sdList$yMu[,4],type='l',lwd=2, ylim=c(0, max(p1$sdList$yMu[,4] + p1$sdList$yPe[,4])), xlab='x2',
       ylab = 'Predicted')
-lines(x2, p1$sdList$yMu[,5],type='l',lwd=3, ylim=ylim, xlab='x2',
+mtext(paste(expression(beta),"=",round(out$parameters$betaMu[2,4],2)), side = 3)
+lines(x2, p1$sdList$yMu[,4] + p1$sdList$yPe[,4], lty=2)
+lines(x2, p1$sdList$yMu[,4] - p1$sdList$yPe[,4], lty=2)
+title('SE and prediction, Sp 4')
+plot(x2, p1$sdList$yMu[,5],type='l',lwd=2, ylim=c(0, max(p1$sdList$yMu[,5] + p1$sdList$yPe[,5])), xlab='x2',
       ylab = 'Predicted')
+mtext(paste(expression(beta),"=",round(out$parameters$betaMu[2,5],5)), side = 3)
+lines(x2, p1$sdList$yMu[,5] + p1$sdList$yPe[,5], lty=2)
+lines(x2, p1$sdList$yMu[,5] - p1$sdList$yPe[,5], lty=2)
+
 #lines(x2, p1$sdList$yMu[,1] + p1$sdList$yPe[,1], lty=2)
 #lines(x2, p1$sdList$yMu[,1] - p1$sdList$yPe[,1], lty=2)
 # .95 prediction error
 #lines(x2, p1$piList$yLo[,1], lty=3)
 #lines(x2, p1$piList$yHi[,1], lty=3)
-title('SE and prediction, Sp 1')
-
-#ind<-which((p1$sdList$yMu[,1]>0.5))
-#densityplot(xdata[ind,2])
-#hist(xdata[ind,2])
-#ind<-which((p1$sdList$yMu[,1]>0.5))
-#hist(xdata[ind,2])
-#densityplot(xdata[ind,2])
-
-#hist(xdata[,2])
-#densityplot(xdata[,2])
+title('SE and prediction, Sp 5')
 
 
+library(qgraph)
+cormat= out$parameters$corMu  #correlation matrix generated
+qgraph(cormat, shape="circle", posCol="darkred", negCol="darkblue", layout="groups", vsize=10)
+
+
+kable(out$parameters$sigMu)
+
+cormat= out$parameters$ematrix  #correlation matrix generated
+qgraph(cormat, shape="circle", posCol="darkred", negCol="darkblue", layout="groups", vsize=10)
+
+```
+
+```{r simulation PDP, echo=TRUE, cache=FALSE,results="hide"}
 
 ########## Partial Dependence plot 
 n.sample<- 200
@@ -191,9 +209,14 @@ for (i in 1:n.sample) {
   xtrain[,2] <-xtrain[i,2] 
   newdata   <- list(xdata = xtrain, nsim = 50)
   p_tr <- gjamPredict(out, newdata = newdata)
-  presence_array[i,]<- colSums(p_tr$prPresent)/n.sample
+  presence_array[i,]<- colSums(p_tr$sdList$yMu)/n.sample
 }
-plot(f$xdata[1:200,2],presence_array[,1],xlab=expression(x[2]),main="",ylab="Prediction of occurence S1",lwd=2, lty=1)
+```
+
+```{r simulation PDP plots, echo=TRUE, cache=FALSE}
+
+par(mfrow=c(2,3))
+plot(f$xdata[1:200,2],presence_array[,1],xlab=expression(x[2]),main="",ylab="Prediction of occurence S1",lwd=2)
 rug(f$xdata[1:200,2], col="red")
 plot(f$xdata[1:200,2],presence_array[,2],xlab=expression(x[2]),main="",ylab="Prediction of occurence S2",lwd=2)
 rug(f$xdata[1:200,2], col="red")
@@ -207,32 +230,236 @@ rug(f$xdata[1:200,2], col="red")
 ```
 
 
-```{r cond, echo=FALSE,out.width='100%', fig.align='center', fig.cap='Data types'}
-########## Partial Dependence plot 
-n.sample<- 200
+```{r simulation PDP2d, echo=TRUE, cache=FALSE,results = 'hide'}
+n.sample<- 20
 #xseq <- seq(-2,2,length=20)   # gradient x[,2]
-
 presence_array<- matrix(nrow=n.sample, ncol =5)
+pr_array<-array(0,dim=c(n.sample,n.sample,5))
 for (i in 1:n.sample) {
-  xtrain    <- f$xdata[1:200,]
-  #xtrain[,2] <- xseq[i]    # value for ith predictor duplicate for all set 
-  xtrain[,2] <-xtrain[i,2] 
+  for (j in 1:n.sample){
+    xtrain    <- f$xdata[1:20,]
+    xtrain[,2] <-xtrain[i,2] 
+    xtrain[,3] <-xtrain[j,3] 
+    newdata   <- list(xdata = xtrain, nsim = 50)
+    p_tr <- gjamPredict(out, newdata = newdata)
+    pr_array[i,j,]<- colSums(p_tr$prPresent)/n.sample
+  }
+}
+
+
+pred_function <- function(x,y,s=3) {
+  xtrain    <- f$xdata[1:20,]
+  xtrain[,2] <-x
+  xtrain[,3] <-y
   newdata   <- list(xdata = xtrain, nsim = 50)
   p_tr <- gjamPredict(out, newdata = newdata)
-  presence_array[i,]<- colSums(p_tr$prPresent)/n.sample
+  pr_array<- colSums(p_tr$prPresent)/n.sample
+  return(pr_array[s])
 }
-plot(f$xdata[1:200,2],presence_array[,1],xlab=expression(x[2]),main="",ylab="Prediction of occurence S1",lwd=2, lty=1)
-rug(f$xdata[1:200,2], col="red")
-plot(f$xdata[1:200,2],presence_array[,2],xlab=expression(x[2]),main="",ylab="Prediction of occurence S2",lwd=2)
-rug(f$xdata[1:200,2], col="red")
-plot(f$xdata[1:200,2],presence_array[,3],xlab=expression(x[2]),main="",ylab="Prediction of occurence S3",lwd=2)
-rug(f$xdata[1:200,2], col="red")
-plot(f$xdata[1:200,2],presence_array[,4],xlab=expression(x[2]),main="",ylab="Prediction of occurence S4",lwd=2)
-rug(f$xdata[1:200,2], col="red")
-plot(f$xdata[1:200,2],presence_array[,5],xlab=expression(x[2]),main="",ylab="Prediction of occurence S5",lwd=2)
-rug(f$xdata[1:200,2], col="red")
+
+x<- sort(f$xdata[1:20,2])
+y<- sort(f$xdata[1:20,3])
+
+
+z<- outer(x,y,Vectorize(pred_function))
+
 
 
 
 ```
+
+
+
+
+```{r simulation PDP2d plot, echo=TRUE, cache=FALSE}
+
+
+p <- plot_ly(x=x, y=y, z=z) %>% add_surface() %>% 
+  layout(scene= list(xaxis= list(title="x_2"),
+                     yaxis= list(title="x_3"),
+                     zaxis= list(title="Prediction")))
+p
+
+```
+
+
+
+
+
+
+```{r possible plots , echo=TRUE, cache=FALSE,results = 'hide'}
+
+#Possible plots 
+f   <- gjamSimData(n = 500, S = 10, typeNames = 'PA')
+ml  <- list(ng = 1000, burnin = 200, typeNames = f$typeNames)
+out <- gjam(f$formula, f$xdata, f$ydata, modelList = ml)
+pl  <- list(trueValues = f$trueValues, GRIDPLOTS = T)
+gjamPlot(output = out, plotPars = pl)
+
+
+```
+
+
+Species occurence in environmental space
+
+
+```{r env occurence , echo=TRUE, cache=FALSE,results = 'hide'}
+
+df<-as.data.frame(cbind(f$xdata[,3],f$xdata[,2],f$y[,1]))
+#plot(df,color=df$V3)
+library(ggplot2)
+#attach(df); plot(V1, V2, col=c("red","blue")[V3]); detach(df)
+qplot(V1, V2, colour = V3, 
+      data = df, main="species occurence in environmental space (V1,V2))")
+
+```
+
+
+
+Plots for the latent normal variables 
+
+
+
+```{r latent plots , echo=TRUE, cache=FALSE,results = 'hide'}
+mean=out$parameters$wMu[1,1]; sd=out$parameters$wSd[1]
+#lb=80; ub=120
+mean2=out$parameters$wMu[1,2]; sd2=out$parameters$wSd[2]
+mean3=out$parameters$wMu[1,3]; sd3=out$parameters$wSd[3]
+mean4=out$parameters$wMu[1,4]; sd4=out$parameters$wSd[4]
+mean5=out$parameters$wMu[1,5]; sd5=out$parameters$wSd[5]
+
+x <- seq(-8,8,length=200)*sd + mean
+hx <- dnorm(x,mean,sd)
+x2 <- seq(-8,8,length=200)*sd + mean
+hx2 <- dnorm(x2,mean2,sd2)
+x3 <- seq(-8,8,length=200)*sd + mean
+hx3 <- dnorm(x3,mean3,sd3)
+x4 <- seq(-8,8,length=200)*sd + mean
+hx4 <- dnorm(x4,mean4,sd4)
+x5<- seq(-8,8,length=200)*sd + mean
+hx5 <- dnorm(x5,mean5,sd5)
+
+plot(x2, hx2,type="n",main="")
+#points(x2,hx2,,main="Normal Distribution")
+i <- x >= 0
+#lines(x, hx)
+lines(x2, hx2)
+#lines(x3, hx3)
+#lines(x4, hx4)
+lines(x5, hx5)
+polygon(c(0,x2[i],x[200]), c(0,hx2[i],0), col="grey") 
+polygon(c(0,x5[i],x[200]), c(0,hx5[i],0), col="grey") 
+
+area <- pnorm(x5[200], mean5, sd5) - pnorm(0, mean5, sd5)
+result <- paste("P(Wi5 >",0,") =",
+                signif(area, digits=3),"|")
+mtext(result,3)
+axis(1, at=seq(40, 160, 20), pos=0)
+
+
+mu <- c(mean,mean2)                         # Mean
+Sigma <- matrix(c(out$parameters$sigMu[1,1],out$parameters$sigMu[1,2], out$parameters$sigMu[2,1], out$parameters$sigMu[2,2]),2)  # Covariance matrix
+library(MASS)
+# Generate sample from N(mu, Sigma)
+bivn <- mvrnorm(5000, mu = mu, Sigma = Sigma )  # from Mass package
+head(bivn)                                      
+# Calculate kernel density estimate
+bivn.kde <- kde2d(bivn[,1], bivn[,2], n = 50)
+# Contour plot overlayed on heat map image of results
+image(bivn.kde)       # from base graphics package
+contour(bivn.kde, add = TRUE)     # from base graphics package
+
+
+
+library(ellipse)
+rho <- cor(bivn)
+#plot(bivn, xlab = "X", ylab = "Y",
+#     col = "dark blue",
+#     main = "Bivariate Normal with Confidence Intervals")
+plot(ellipse(rho, centre = mu), col="red", type="l")       # ellipse() from ellipse package
+lines(ellipse(rho, centre = mu,level = .99), col="green")
+lines(ellipse(rho,centre = mu, level = .90), col="blue")
+#abline(y_on_x)
+#abline(x_on_y, col="brown")
+abline(h=0)
+abline(v=0)
+#legend(3,1,legend=plot_legend,cex = .5, bty = "n")
+
+
+# Three dimensional surface
+# Basic perspective plot
+persp(bivn.kde, phi = 45, theta = 30, shade = .1, border = NA) # from base graphics package
+
+# RGL interactive plot
+#library(rgl)
+#col2 <- heat.colors(length(bivn.kde$z))[rank(bivn.kde$z)]
+#persp3d(x=bivn.kde, col = col2)
+
+
+#Higher Dimensional Distributions
+library(corrplot)
+library(clusterGeneration)
+mu <- out$parameters$wMu[1,]
+#pdMat <- genPositiveDefMat(10,lambdaLow=10)
+Sigma <- out$parameters$sigMu
+dim(Sigma)
+mvn <- mvrnorm(5000, mu = mu, Sigma = Sigma )
+
+corrplot(cor(mvn), 
+         method="ellipse",
+         tl.pos="n",
+         title="Matrix Correlations")
+
+```
+
+
+
+```{r conditional predictions, echo=TRUE, cache=FALSE,results = 'hide'}
+
+```
+
+
+
+# Case study: Forset data plot
+
+
+```{r Forest plot, echo=TRUE, cache=FALSE,results = 'hide'}
+
+library(repmis)
+d <- "https://github.com/jimclarkatduke/gjam/blob/master/forestTraits.RData?raw=True"
+source_data(d)
+xdata <- forestTraits$xdata[,c(1,2,8)]
+
+formula<-as.formula( ~temp + deficit +soil)
+y<- gjamReZero(forestTraits$treesDeZero)
+treeYdata<- gjamTrimY(y,10)$y
+dim(treeYdata)
+
+rl   <- list(r = 8, N = 20)
+ml   <- list(ng = 2500, burnin = 500, typeNames = 'DA', reductList = rl)
+form <- as.formula( ~ temp*deficit + I(temp^2) + I(deficit^2) )
+out  <- gjam(form, xdata = xdata, ydata = treeYdata, modelList = ml)
+specNames <- colnames(treeYdata)
+specColor <- rep('black',ncol(treeYdata))
+specColor[ c(grep('quer',specNames),grep('cary',specNames)) ] <- 'brown'
+specColor[ c(grep('acer',specNames),grep('frax',specNames)) ] <- 'darkgreen'
+specColor[ c(grep('abie',specNames),grep('pice',specNames)) ] <- 'blue'
+
+pl   <- list(GRIDPLOTS=T, specColor = specColor)
+gjamPlot(output = out, plotPars = pl)
+
+
+
+```
+
+
+
+```{r aravo, echo=TRUE, cache=FALSE,results = 'hide'}
+
+# Case study: aravo data set
+```
+
+
+
+
 

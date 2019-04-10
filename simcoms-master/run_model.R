@@ -1,0 +1,424 @@
+
+
+library(arm)
+library(jagsUI)
+library(ggplot2)
+library(gridExtra)
+library(parallel)
+library(Rcpp)
+library(magrittr)
+library(purrr)
+library(readr)
+
+#setwd("~/Bureau/Project/Ecology-models-master/VirtualCommunity")
+setwd("~/Desktop/VirtualCommunity/simcoms-master/ExampleFiles")
+lapply(list.files(path = "."),load,.GlobalEnv)
+
+
+
+
+simulate_community <- function(
+  env = runif(500, 0, 100), niche_optima  = seq(2, 98, 5), niche_breadth = 20,
+  type = "original", comp_inter = NA, fac_inter = NA, beta_env = 1,
+  beta_comp = 5, beta_fac = 0, beta_abun = 0, years = 20, K = 40,
+  competition = "facilitation", intra_sp_com  = 0
+) {
+  sim_com <- function(
+    env, niche_breadth, niche_optima, type, comp_inter, fac_inter, beta_env,
+    beta_comp, beta_fac, beta_abun, years, K, competition,intra_sp_com
+  ) {
+    n_sp = length(niche_optima)
+    
+    if (type == "original") {
+      species_niche_overlap_sym <- outer(
+        niche_optima,
+        niche_optima,
+        function(x, y) 2 * pnorm(-abs((x - y)) / 2, sd = niche_breadth)
+      )
+      diag(species_niche_overlap_sym) <- intra_sp_com
+      species_fac_sym <- species_niche_overlap_sym
+    } else {
+      if (length(comp_inter) == 1) comp_inter = matrix(comp_inter, n_sp, n_sp)
+      if (length(fac_inter)  == 1) fac_inter  = matrix(fac_inter, n_sp, n_sp)
+      species_niche_overlap_sym <- comp_inter
+      species_fac_sym <- fac_inter
+    }
+    
+    species_niche_overlap_asym <- outer(
+      niche_optima,
+      niche_optima,
+      function(x, y) {
+        sign <- ifelse(x > y, 1, 0)
+        overlap <- 2 * pnorm(-abs((x - y)) / 2, sd = niche_breadth)
+        sign * overlap
+      }
+    )
+    
+    diag(species_niche_overlap_asym) <- intra_sp_com
+    
+    log_p_env <- sapply(
+      niche_optima, dnorm, mean = env, sd = niche_breadth, log = TRUE
+    )
+    log_p_env <- log_p_env  - log(dnorm(0) / 10)
+    
+    community <- factor(
+      x      = sample(seq_along(niche_optima), K, replace = TRUE),
+      levels = seq_len(n_sp)
+    )
+    
+    abund <- table(community)
+    
+    for (j in seq_len(years)) {
+      for (k in seq_len(K)) {
+        f_comp <- 1 - colSums(species_fac_sym[community, ]) / K
+        p_comp <- 1 - colSums(species_niche_overlap_sym[community, ]) / K
+        
+        if (competition == "asymmetric") {
+          p_comp <- 1 - colSums(species_niche_overlap_asym[community, ]) / K
+        }
+        
+        if (competition == "facilitation") {
+          p_all <- exp(
+            beta_env * log_p_env - beta_fac * log(f_comp) + 
+              log(1 + beta_abun * abund)
+          )
+        } else {
+          p_all <- exp(
+            beta_env * log_p_env + beta_comp * log(p_comp) +
+              log(1 + beta_abun * abund)
+          )
+        }
+        
+        if (competition == "both") {
+          p_all <- exp(
+            beta_env * log_p_env + beta_comp * log(p_comp) - beta_fac *
+              log(f_comp) + log(1 + beta_abun * abund)
+          )
+        }
+        
+        p_all <- ifelse(is.na(p_all), min(p_all, na.rm = TRUE), p_all)
+        if (all(is.na(p_all)) || identical(min(p_all), max(p_all))) p_all = NULL
+        if (any(is.infinite(p_all))) {
+          community[sample(K, 1)] <- sample(seq_len(n_sp)[p_all == Inf], 1)
+        } else {
+          community[sample(K, 1)] <- sample(n_sp, 1, prob = p_all)
+        }
+        abund <- table(community)
+      }
+    }
+    as.integer(abund) > 0
+  }
+  ans <- mclapply(
+    env, sim_com, niche_breadth, niche_optima, type, comp_inter, fac_inter,
+    beta_env, beta_comp, beta_fac, beta_abun, years, K, competition,
+    intra_sp_com, mc.cores = detectCores()
+  )
+  ans <- do.call(rbind, ans)
+  ans <- cbind(ans, env)
+  sp_labs <- paste0(
+    "sp_", gsub(" ", 0, format(seq_along(niche_optima), width = 2))
+  )
+  colnames(ans) <- c(sp_labs, "env")
+  as.data.frame(ans)
+}
+
+
+
+# sim_data =
+#   list(
+#     niche_optima = unlist(replicate(7, lapply(c(5, 10, 20), function(x) seq(2, 98, length.out = x)), FALSE), FALSE),
+#     type         = list("original", "manual")[c(rep(1, 3), rep(2, 18))],
+#     comp_inter   = comp_inter,
+#     fac_inter    = fac_inter,
+#     beta_comp    = rep(list(0, 10, 4), each = 7),
+#     beta_fac     = rep(list(0, 3, 3, 0, 0, 1, 2), each = 3),
+#     K            = rep(list(10, 20, 40), 7),
+#     competition  = list("symmetric", "both")[c(rep(1, 3), rep(2, 18))],
+#     intra_sp_com = rep(list(1), 21)
+#   )%>%
+#   pmap(simulate_community) %>%
+#   #map(abund2occur) %>%
+#   set_names(sim_names)
+
+setwd("~/Desktop/VirtualCommunity/simcoms-master")
+#saveRDS(sim_data, "sim_data.rds")
+sim_data<-readRDS("sim_data.rds")
+
+
+
+run_model <- function(data) {
+  jsdm_jags <- function() {
+    model.file <- tempfile()
+    cat(
+      "model {
+      for (i in 1:n) {
+      Z[i, 1:J] ~ dmnorm(Mu[i, ], Tau)
+      for (j in 1:J) {
+      Mu[i, j] <- inprod(B_raw[j, ], X[i, ])
+      Y[i, j] ~ dbern(step(Z[i, j]))
+      }
+      }
+      for (j in 1:J) {
+      sigma_[j] <- sqrt(Sigma[j, j])
+      env_sigma_[j] <- sqrt(EnvSigma[j, j])
+      for (k in 1:K) {
+      B_raw[j, k] ~ dnorm(mu[k], tau[k])
+      B[j, k] <- B_raw[j, k] / sigma_[j]
+      }
+      for (j_ in 1:J) {
+      Rho[j, j_] <- Sigma[j, j_] / (sigma_[j] * sigma_[j_])
+      EnvRho[j, j_] <- EnvSigma[j, j_] / (env_sigma_[j] * env_sigma_[j_])
+      EnvSigma[j, j_] <- sum(EnvSigma1[, j, j_]) + sum(EnvSigma2[, , j, j_])
+      for (k in 2:K) {
+      EnvSigma1[k - 1, j, j_] <- B[j, k] * B[j_, k]
+      for (k_ in 2:K) {
+      EnvSigma2[k - 1, k_ - 1, j, j_] <-
+      B[j, k] * B[j_, k_] * ifelse(k_ != k, covx[k, k_], 0)
+      }
+      }
+      }
+      }
+      for (k in 1:K) {
+      mu[k] ~ dnorm(0, 1)
+      tau[k] <- pow(sigma[k], -2)
+      sigma[k] ~ dnorm(0, 1)T(0,)
+      }
+      Tau ~ dwish(I, df)
+      Sigma <- inverse(Tau)
+  }",
+      file = model.file
+    )
+    model.file
+    }
+  
+  inits <- function(data) {
+    Y <- as.matrix(data$Y)
+    X <- as.matrix(data$X)[, -1]
+    Tau <- rWishart(1, data$df, data$I)[, , 1]
+    Sigma <- solve(Tau)
+    Z <- rep(0, data$J)
+    Z <- mvrnorm(1, Z, Sigma)
+    Z <- replicate(data$n, Z)
+    Z <- t(Z)
+    Z <- abs(Z)
+    Z <- ifelse(Y, Z, -Z)
+    Sigma <- cov(Z)
+    B <- sapply(
+      seq_len(data$J),
+      function(x) coef(bayesglm(Y[, x] ~ X, family = binomial(link = "probit")))
+    )
+    B <- t(B)
+    B_raw <- B * sqrt(diag(Sigma))
+    mu <- apply(B_raw, 2, mean)
+    sigma <- pmin(99, apply(B_raw, 2, sd))
+    Tau <- solve(Sigma)
+    list(Tau = Tau, Z = Z, B_raw = B_raw, mu = mu, sigma = sigma)
+  }
+  
+  data <- list(
+    Y = subset(data, select = -env),
+    X = cbind(1, scale(poly(data$env, 2))),
+    covx = cov(cbind(1, scale(poly(data$env, 2)))),
+    K = 3,
+    J = ncol(data) - 1,
+    n = nrow(data),
+    I = diag(ncol(data) - 1),
+    df = ncol(data)
+  )
+  
+  model <- jags(
+    data,
+    function() inits(data), c("B", "Rho", "EnvRho","Tau"), jsdm_jags(),
+    n.chains = 5, n.iter = 2e4, n.adapt = 25e4, n.thin = 100,
+    parallel = TRUE, DIC = FALSE
+  )
+  
+  save(
+    model,
+    file = paste0("model-", format(Sys.time(), "%Y-%m-%d-%H-%M-%S"), ".rda")
+  )
+  model
+  }
+
+
+
+predict_y_jsdm <- function(x, ns = 1000) {
+  data   <- if(x$parallel) x$model[[1]]$data() else x$model$data()
+  n      <- data$n
+  nsp    <- data$J
+  n.samples  <- x$mcmc.info$n.samples
+  B <- x$sims.list$B
+  X <- data$X
+  Y <- data$Y
+  inprod_mat <- cppFunction(
+    "NumericMatrix inprod_mat(NumericMatrix X, NumericMatrix B) {
+    
+    int nX = X.nrow();
+    int nB = B.nrow();
+    int nK = X.ncol();
+    
+    NumericMatrix theta(nX, nB);
+    
+    for (int i = 0; i < nX; i++) {
+    for (int j = 0; j < nB; j++) {
+    theta(i, j) = 0;
+    for (int k = 0; k < nK; k++) {
+    theta(i, j) += X(i, k) * B(j, k);
+    }
+    }
+    }
+    
+    return(theta);
+    
+}"
+  )
+  vapply(
+    floor(seq(1, n.samples, length.out = ns)),
+    function(x) inprod_mat(X, B[x, ,]),
+    matrix(NA_real_, n, nsp)
+  )
+  }
+
+prob_cooccur_es <- function(Y) {
+  K <- ncol(Y)
+  ans <- matrix(0, K, K)
+  
+  for (k in 1:K) {
+    for (kk in 1:K) {
+      N1 <- sum(Y[, k])
+      N2 <- sum(Y[, kk])
+      N <- nrow(Y)
+      j <- max(0, N1 + N2 - N):min(N1, N2)
+      p <- vector("numeric", length(j))
+      for (i in seq_along(j)) {
+        p[i] <- (
+          choose(N, j[i]) * choose(N - j[i], N2 - j[i]) *
+            choose(N - N2, N1 - j[i])
+        ) / (
+          choose(N, N2) * choose(N, N1)
+        )
+      }  
+      ans[k, kk] <- (sum(Y[, k] + Y[, kk] == 2) - sum(p * j)) / N
+    }
+  }
+  ans
+}
+
+#simulation_parameters <- readRDS("simulation_parameters.rds")
+
+#' Run simulation
+#+ run-sim, message=FALSE
+#sim_data2 <- mapply(
+#  simulate_community,
+#  niche_optima = simulation_parameters$niche_optima,
+#  type         = simulation_parameters$type,
+#  comp_inter   = simulation_parameters$comp_inter,
+#  fac_inter    = simulation_parameters$fac_inter,
+#  beta_comp    = simulation_parameters$beta_comp,
+#  beta_fac     = simulation_parameters$beta_fac,
+#  K            = simulation_parameters$K, 
+#  competition  = simulation_parameters$competition,
+#  intra_sp_com = simulation_parameters$intra_sp_com,
+#  SIMPLIFY = FALSE
+#)
+#sim_data<-readRDS("simdata.rds")
+
+
+#' Fit models
+#+ fit-models, message=FALSE
+#models <- lapply(sim_data, run_model)
+
+data<-  sim_data$EnvEvenSp5
+m<- run_model(data)
+#load("models.rda")
+
+#' Extract correlation parameter means
+#+ mean-correlations
+models<-list(EnvEvenSp5=m)
+mean_correlations <- do.call(
+  rbind,
+  lapply(
+    seq_along(models),
+    function(i) {
+      x <- models[[i]]
+      nm <- strsplit(
+        names(models)[[i]], "(?<=[a-z])(?=[A-Z])", perl = TRUE
+      )[[1]]
+      nsp <- ncol(x$mean$Rho)
+      ut <- upper.tri(x$mean$Rho)
+      sp <- arrayInd(which(ut), c(nsp, nsp))
+      ans <- data.frame(
+        model = i,
+        sp1 = sp[, 1],
+        sp2 = sp[, 2],
+        rho = c(prob_cooccur_es(x$model$cluster1$data()$Y)[ut], x$mean$Rho[ut]),
+        rho_type = rep(c("Effect-Size", "Residual"), each = sum(ut)),
+        sgn = sign(x$mean$Rho)[ut],
+        significant = x$overlap$Rho[ut],
+        #cint = simulation_parameters$comp_inter[[i]][ut],
+        #fint = simulation_parameters$fac_inter[[i]][ut],
+        cint = comp_inter[[i]][ut],
+        fint = fac_inter[[i]][ut],
+        density = tail(nm, 2)[1],
+        type = paste0(head(nm, -2), collapse = ""),
+        nsp = nsp,
+        stringsAsFactors = FALSE
+      )
+      ans$cint[is.na(ans$cint)] <- 0
+      ans$fint[is.na(ans$fint)] <- 0
+      ans$density[ans$density == "Even"] <- "None"
+      ans$density <- factor(ans$density, c("None", "Sparse", "Dense"))
+      ans$type[ans$type == "Env"] <- "Environmental\nFiltering Only"
+      ans$type[ans$type == "Fac"] <- "Facilitation"
+      ans$type[ans$type == "Comp"] <- "Competition"
+      ans$type[ans$type == "FacComp"] <- "Facililation +\nCompetition"
+      ans$type <- factor(
+        ans$type, 
+        c(
+          "Environmental\nFiltering Only", "Facilitation", "Competition",
+          "Facililation +\nCompetition"
+        )
+      )
+      ans$interaction <- "None"
+      ans$interaction <- ifelse(ans$cint, "Competition", ans$interaction)
+      ans$interaction <- ifelse(ans$fint, "Facilitation", ans$interaction)
+      ans$status <- ifelse(
+        ans$significant,
+        ifelse(ans$sgn * -ans$cint == 1 | ans$sgn * ans$fint == 1, "TP", "FP"),
+        ifelse(ans$cint == 0 & ans$fint == 0, "TN", "FN")
+      )
+      ans$interaction <- factor(
+        ans$interaction, c("None", "Facilitation", "Competition")
+      )
+      ans
+    }
+  )
+)
+
+x <- subset(mean_correlations, type != "Environmental\nFiltering Only")
+acc <- by(x, x$model, function(x) sum(x$status == "TP" | x$status == "TN") / nrow(x))
+
+#' Plot correlation parameter means
+#+ plot-correlations
+ggplot(mean_correlations) +
+  aes(factor(nsp), rho, fill = interaction) +
+  geom_hline(yintercept = 0) +
+  geom_boxplot(
+    outlier.size = .2, size = .1, position = position_dodge(preserve = "single")
+  ) +
+  scale_fill_manual(values = c("grey", "blue", "red")) +
+  facet_grid(type ~ rho_type + density, switch = "y") +
+  xlab("Number of species") +
+  ylab("Correlation") +
+  theme_bw() +
+  theme(legend.position = "top")
+
+
+#predictions <- sapply(models, predict_y_jsdm)
+
+#prediction_means <- sapply(predictions, apply, 1:2, mean)
+
+#prediction_sds <- sapply(predictions, apply, 1:2, sd)
+
+
+
