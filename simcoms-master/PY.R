@@ -1,7 +1,7 @@
 
 library(plotly)
-Sys.setenv("plotly_username"="Daria_Bystrova")
-Sys.setenv("plotly_api_key"="••••••••••")
+#Sys.setenv("plotly_username"="Daria_Bystrova")
+#Sys.setenv("plotly_api_key"="IIYIoDs5TIMnLJQhlMrR")
 #######################################################
 ## Algorithm 3
 
@@ -137,7 +137,7 @@ abline(h=0,col="black")
 
 #####Grid for alpha[limited to 0.6], theta 
 xx_m <- seq(0.1,0.6 , by = 0.05)
-yy_m<- seq(0.5,11 , by = 1)
+yy_m<- seq(1,11 , by = 1)
 
 
 ########compute 95% quantile for tau by rbase function *manual
@@ -164,31 +164,33 @@ compute_tau_est_s<- function(alpha,theta, eps=0.01){
 }
 
 z_q<- outer(xx_m,yy_m,Vectorize(compute_tau_est_q),eps=0.1)
+z_s<-outer(xx_m,yy_m,Vectorize(compute_tau_est_s),eps=0.1)
+
 z_s<-outer(xx_m,yy_m,Vectorize(compute_tau_est_s),eps=0.05)
 z_s2<-outer(xx_m,yy_m,Vectorize(compute_tau_est_s),eps=0.03)
 z_k<-outer(xx_m,yy_m,Vectorize(compute_tau_est_s),eps=0.01)
 
 
-chart_link = api_create(p, filename="Compare qunatiles")
-chart_link
 ####compare qunatile(base) and  quantile manual
 p_comp <- plot_ly() %>%
-  add_surface(x=xx, y=yy,z = ~z_q, cmin = min(z_q), cmax = max(z_s), colorscale = list(title='z_q',c(0,1),c("rgb(255,112,184)","rgb(128,0,64)")),opacity = 0.98) %>%
-  add_surface(x=xx, y=yy,z = ~z_s, cmin = min(z_q), cmax = max(z_s), colorscale = list(title='z_s',c(0,1),c("rgb(107,184,214)","rgb(0,90,124)"))) %>%
+  add_surface(x=xx, y=yy,z = ~z_q, cmin = min(z_q), cmax = max(z_s),colorbar=list(title='Q R'), colorscale = list(c(0,1),c("rgb(255,112,184)","rgb(128,0,64)")),opacity = 0.98) %>%
+  add_surface(x=xx, y=yy,z = ~z_s, cmin = min(z_q), cmax = max(z_s),colorbar=list(title='Q M'), colorscale = list(c(0,1),c("rgb(107,184,214)","rgb(0,90,124)"))) %>%
   layout(title="95% quantile for N and mean for N", scene = list(xaxis= list(title="alpha"),
                                                                  yaxis= list(title="theta"),
                                                                  zaxis= list(title="N",range = c(min(z_q),max(z_s)))))
   
 p_comp
+#COMPARE -OK
 
-
-p <- plot_ly() %>%
-  add_surface(z = ~z_q, colorbar=list(title='Example 1')) %>%
-  add_surface(z = ~z_s, opacity = 0.80, colorbar=list(title='Example 2'))%>%
-  add_surface(z = ~z_s2, opacity = 0.80, colorbar=list(title='Example 2'))%>%
-  add_surface(z = ~z_k, opacity = 0.70, colorbar=list(title='Example 3'))
-
-p
+################# Plot for different errors
+# 
+# p <- plot_ly() %>%
+#   add_surface(z = ~z_q, colorbar=list(title='Example 1')) %>%
+#   add_surface(z = ~z_s, opacity = 0.80, colorbar=list(title='Example 2'))%>%
+#   add_surface(z = ~z_s2, opacity = 0.80, colorbar=list(title='Example 2'))%>%
+#   add_surface(z = ~z_k, opacity = 0.70, colorbar=list(title='Example 3'))
+# 
+# p
 ################# 3D plot on a grid
 
 library("stabledist")
@@ -294,21 +296,22 @@ lines(density(tau1),col="red")
 
 #par(mar=c(3,3,1,1),mgp=c(1.75,.75,0))
 #par(mfrow=c(1,2))
-
+#pdf("density.pdf")
 plot(density(tau1,bw = 2),type="l",col="blue",xlab=expression(tau),
-     ylab="Density",xlim=c(0,150), ylim=c(0,0.05))
+     ylab="Probability",xlim=c(0,150), ylim=c(0,0.05), main=expression(paste("Density plot for ",italic(tau),"(",italic(epsilon),")")))
 lines(density(tau2,bw = 3),col="red",lty=2,lwd=2)
 lines(density(tau3),type="l",lty=3,lwd=2)
 legend("topright",
-       c("alpha=0.4", " alpha=0.5",
+       c("alpha=0.4", "alpha=0.5",
          "alpha=0.6"),
        col = c("blue","red","black"), lty =c(1,2,3))
-abline(h=0,col="black")
+#abline(h=0,col="black")
+#dev.off()
 ###################Generating 3D plots.
 
 #####Grid for alpha[limited to 0.6], theta 
 xx <- seq(0.1,0.6 , by = 0.05)
-yy<- seq(0.5,11 , by = 1)
+yy<- seq(1,11 , by = 1)
 
 
 ########compute 95% quantile for tau by rbase function
@@ -346,24 +349,23 @@ compute_tau_km<- function(alpha,theta, eps=0.1,k=1){
   return(N)
 }
 
-# ############## constant gamma function in density
-# C_const<-function(alpha,theta){
-#   gamma_c<-(gamma(1+theta))/(gamma(1+theta/alpha))
-#   return(gamma_c)
-# }
-# ##############  gamma function depending on kth moment
-# M<-function(alpha,theta,m=1){
-#   gamma_m<-(gamma(1+ theta/alpha + m/(1-alpha)))/(gamma(1+ (m*alpha)/(1-alpha) + theta))
-#   return(gamma_m) 
-# }
+############## constant gamma function in density
+C_const<-function(alpha,theta){
+  gamma_c<-(gamma(1+theta))/(gamma(1+theta/alpha))
+  return(gamma_c)
+}
+##############  gamma function depending on kth moment
+M<-function(alpha,theta,m=1){
+  gamma_m<-(gamma(1+ theta/alpha + m/(1-alpha)))/(gamma(1+ (m*alpha)/(1-alpha) + theta))
+  return(gamma_m)
+}
 
 ##############  compute variance
-compute_tau_var<- function(alpha,theta, eps=0.01){
+compute_tau_var<- function(alpha,theta, eps=0.1){
   N_eps<- (eps/alpha)^(-alpha/(1-alpha))
-  #gamma2<- (gamma(1+theta)*gamma(1+ theta/alpha + 1/(1-alpha)))/(gamma(1+theta/alpha)*gamma(1+ (2*alpha)/(1-alpha) + theta))
-  gamma2<-M(alpha,theta,2)
-  gamma1<-M(alpha,theta,1)
-  gamma<-C_const(alpha,theta)*(gamma2-gamma1*gamma1)
+  gamma2<- (gamma(1+theta)*gamma(1+ theta/alpha + 2/(1-alpha)))/(gamma(1+theta/alpha)*gamma(1+ (2*alpha)/(1-alpha) + theta))
+  gamma1<- (gamma(1+theta)*gamma(1+ theta/alpha + 1/(1-alpha)))/(gamma(1+theta/alpha)*gamma(1+ (1*alpha)/(1-alpha) + theta))
+  gamma<-(gamma2-gamma1*gamma1)
   N<- (N_eps^2)*gamma
   return(sqrt(N))
 }
@@ -397,104 +399,135 @@ z001<-outer(xx,yy,Vectorize(compute_tau_est_b),eps=0.01)
 
 
 p_comp_qq <- plot_ly(showscale = TRUE) %>%
-  add_surface(x=xx, y=yy,z = ~z, cmin = min(z), cmax = max(z01), colorscale = list(c(0,1),c("rgb(255,112,184)","rgb(128,0,64)"))) %>%
-  add_surface(x=xx, y=yy,z = ~z01, cmin = min(z), cmax = max(z01), colorscale = list(c(0,1),c("rgb(107,184,214)","rgb(0,90,124)"))) %>%
-  add_surface(x=xx, y=yy,z = ~z_q, cmin = min(z), cmax = max(z1), colorscale = list(c(0,1),c("rgb(100,154,214)","rgb(0,90,124)"))) %>%
-  layout(title="95% quantile for number of iterations for different epsilon ", scene = list(xaxis= list(title="alpha"),
+  add_surface(x=xx, y=yy,z = ~z, cmin = min(z), cmax = max(z01),colorbar=list(title='Q R'), colorscale = list(c(0,1),c("rgb(255,112,184)","rgb(128,0,64)"))) %>%
+  add_surface(x=xx, y=yy,z = ~z01, cmin = min(z), cmax = max(z01),colorbar=list(title='Q S'),  colorscale = list(c(0,1),c("rgb(107,184,214)","rgb(0,90,124)"))) %>%
+  add_surface(x=xx, y=yy,z = ~z_q, cmin = min(z), cmax = max(z01), colorbar=list(title='Q MM'), colorscale = list(c(0,1),c("rgb(100,154,214)","rgb(0,90,124)"))) %>%
+  layout(title="95% quantile for number of iterations by dif methods", scene = list(xaxis= list(title="alpha"),
                                                                                             yaxis= list(title="theta"),
                                                                                             zaxis= list(title="N",range = c(min(z),max(z01)))))
 p_comp_qq
 
+chart_link = api_create(p_comp_qq, filename="CHECK")
+chart_link
 ##########Verification that they coincide -DONE
 ################################################################################################################################################
 #######Surface for different errors
 p_comp_qe <- plot_ly(showscale = TRUE) %>%
-  add_surface(x=xx, y=yy,z = ~z01, cmin = min(z), cmax = max(z01), colorscale = list(c(0,1),c("rgb(255,112,184)","rgb(128,0,64)"))) %>%
-  add_surface(x=xx, y=yy,z = ~z005, cmin = min(z), cmax = max(z01), colorscale = list(c(0,1),c("rgb(107,184,214)","rgb(0,90,124)"))) %>%
-  add_surface(x=xx, y=yy,z = ~z001, cmin = min(z), cmax = max(z1), colorscale = list(c(0,1),c("rgb(100,154,214)","rgb(0,90,124)"))) %>%
+  add_surface(x=xx, y=yy,z = ~z01, cmin = min(z01), cmax = max(z01),colorbar=list(title='e=0.1'), colorscale = list(c(0,1),c("rgb(255,112,184)","rgb(128,0,64)")),opacity = 0.98) %>%
+  add_surface(x=xx, y=yy,z = ~z005, cmin = min(z005), cmax = max(z005),colorbar=list(title='e=0.1'),  colorscale = list(c(0,1),c("rgb(107,184,214)","rgb(0,90,124)")),opacity = 0.96) %>%
+  add_surface(x=xx, y=yy,z = ~z001, cmin = min(z001), cmax = max(z001),colorbar=list(title='e=0.01'),  colorscale = list(c(0,1),c("rgb(100,154,60)","rgb(150,50,0)")),opacity = 0.78) %>%
   layout(title="95% quantile for number of iterations for different epsilon ", scene = list(xaxis= list(title="alpha"),
                                                                                             yaxis= list(title="theta"),
-                                                                                            zaxis= list(title="N",range = c(min(z),max(z01)))))
+                                                                                            zaxis= list(title="N",range = c(min(z01),max(z005)))))
 p_comp_qe
+chart_link = api_create(p_comp_qe, filename="Different error")
+chart_link
+plotly_IMAGE(p_comp_qe, format = "png", out_file = "Errors.png")
+
+################################################################################################################################################
+
+z_mean<- outer(xx,yy,Vectorize(compute_tau_mean),eps=0.1)
+
+
+#######Surface for mean and quantile
+p_comp_mq <- plot_ly(showscale = TRUE) %>%
+  add_surface(x=xx, y=yy,z = ~z01, cmin = min(z01), cmax = max(z01),colorbar=list(title='Quantile'), colorscale = list(c(0,1),c("rgb(255,112,184)","rgb(128,0,64)"))) %>%
+  add_surface(x=xx, y=yy,z = ~z_mean, cmin = min(z_mean), cmax = max(z_mean),colorbar=list(title='Mean'),  colorscale = list(c(0,1),c("rgb(107,184,214)","rgb(0,90,124)"))) %>%
+   layout(title="Plot for 95% quantile and mean for e=0.1", scene = list(xaxis= list(title="alpha"),
+                                                                                            yaxis= list(title="theta"),
+                                                                                            zaxis= list(title="N",range = c(min(z_mean),max(z01)))))
+p_comp_mq
+chart_link = api_create(p_comp_mq, filename="Mean and Quantile")
+chart_link
+plotly_IMAGE(p_comp_mq, format = "png", out_file = "MeanQ.png")
 
 
 ################################################################################################################################################
 
-z3<- outer(xx,yy,Vectorize(compute_tau_mean),eps=0.05)
-z4<-outer(xx,yy,Vectorize(compute_tau_var),eps=0.05)
+z4<-outer(xx,yy,Vectorize(compute_tau_var),eps=0.1)
 
-z5<-outer(xx[-11],yy[-11],Vectorize(compute_g),eps=0.05)
+p_var <- plot_ly(showscale = TRUE) %>%
+  add_surface(x=xx, y=yy,z = ~z4, cmin = min(z4), cmax = max(z4),colorbar=list(title='Quantile'), colorscale = list(c(0,1),c("rgb(100,112,184)","rgb(128,50,64)"))) %>%
+  layout(title="Plot for Variance, e=0.1", scene = list(xaxis= list(title="alpha"),
+                                                                        yaxis= list(title="theta"),
+                                                                        zaxis= list(title="Variance",range = c(min(z4),max(z4)))))
 
+
+p_var
+chart_link = api_create(p_var, filename="Variance")
+chart_link
+plotly_IMAGE(p_var, format = "png", out_file = "Variance.png")
+
+
+
+################################################################################################################################################
+
+
+
+#######Surface for mean +2 sd and quantile for error 0.05
+
+z_var005<-outer(xx,yy,Vectorize(compute_tau_var),eps=0.05)
+
+
+z_mean005<- outer(xx,yy,Vectorize(compute_tau_mean),eps=0.05)
+
+z_2sd_05<-z_mean005+2*z_var005
+
+
+p_comp_2sd05 <- plot_ly(showscale = TRUE) %>%
+  add_surface(x=xx, y=yy,z = ~z005, cmin = min(z005), cmax = max(z005),colorbar=list(title='Quantile'), colorscale = list(c(0,1),c("rgb(255,112,184)","rgb(128,0,64)"))) %>%
+  add_surface(x=xx, y=yy,z = ~z_2sd_05, cmin = min(z_2sd_05), cmax = max(z_2sd_05),colorbar=list(title='Mean+2sd'),  colorscale = list(c(0,1),c("rgb(107,184,214)","rgb(0,90,124)"))) %>%
+  layout(title="Plot for 95% quantile and mean for e=0.05", scene = list(xaxis= list(title="alpha"),
+                                                                        yaxis= list(title="theta"),
+                                                                        zaxis= list(title="N",range = c(min(z005),max(z005)))))
+
+p_comp_2sd05
+chart_link = api_create(p_comp_2sd05 , filename="Mean+2sd and Quantile 05")
+chart_link
+plotly_IMAGE(p_comp_2sd05 , format = "png", out_file = "Mean2sdQ05.png")
+
+
+################################################################################################################################################
+
+z_2sd<-z_mean + 2*z4
+
+#######Surface for mean+2 sd   and quantile
+p_comp_2sd_q<- plot_ly(showscale = TRUE) %>%
+  add_surface(x=xx, y=yy,z = ~z01, cmin = min(z01), cmax = max(z01),colorbar=list(title='Quantile'), colorscale = list(c(0,1),c("rgb(255,112,184)","rgb(128,0,64)"))) %>%
+  add_surface(x=xx, y=yy,z = ~z_2sd, cmin = min(z_2sd), cmax = max(z_2sd),colorbar=list(title='Mean'),  colorscale = list(c(0,1),c("rgb(107,184,214)","rgb(0,90,124)"))) %>%
+  layout(title="Plot for 95% quantile and mean + 2 sd for e=0.1", scene = list(xaxis= list(title="alpha"),
+                                                                        yaxis= list(title="theta"),
+                                                                        zaxis= list(title="N",range = c(min(z_2sd),max(z_2sd)))))
+
+
+
+p_comp_2sd_q
+
+
+
+chart_link = api_create(p_comp_2sd_q, filename="Mean+2sd and Quantile")
+chart_link
+plotly_IMAGE(p_comp_2sd_q, format = "png", out_file = "Mean2sdQ.png")
+
+
+
+
+
+
+################################################################################################################################################
 
 
 z_km<- outer(xx,yy,Vectorize(compute_tau_km),eps=0.1,k=2)
 
+
+################################################################################################################################################
 z_ass<- outer(xx,yy,Vectorize(compute_assymp),eps=0.1,k=2)
 
 
 
-z_km2<- outer(xx,yy,Vectorize(compute_tau_km),eps=0.1,k=1)
 
 
-
-
-p6 <- plot_ly(showscale = TRUE) %>%
-  add_surface(x=xx, y=yy,z = ~z_km, cmin = min(z), cmax = max(z_km), colorscale = list(c(0,1),c("rgb(255,112,184)","rgb(128,0,64)"))) %>%
-  add_surface(x=xx, y=yy,z = ~z_ass, cmin = min(z), cmax = max(z_km), colorscale = list(c(0,1),c("rgb(107,184,214)","rgb(0,90,124)"))) %>%
-  layout(title="95% quantile for number of iterations for different epsilon ", scene = list(xaxis= list(title="alpha"),
-                                                                                            yaxis= list(title="theta"),
-                                                                                            zaxis= list(title="N",range = c(min(z),max(z_km)))))
-p6
-
-
-
-############Plots with plotly.
-
-p <- plot_ly(x=xx, y=yy, z=z_km) %>% add_surface() %>% 
-  layout(scene= list(xaxis= list(title="alpha"),
-                     yaxis= list(title="theta"),
-                     zaxis= list(title="N")))
-p
-
-
-p6 <- plot_ly(showscale = TRUE) %>%
-  add_surface(x=xx, y=yy,z = ~z, cmin = min(z), cmax = max(z1), colorscale = list(c(0,1),c("rgb(255,112,184)","rgb(128,0,64)"))) %>%
-  add_surface(x=xx, y=yy,z = ~z1, cmin = min(z), cmax = max(z1), colorscale = list(c(0,1),c("rgb(107,184,214)","rgb(0,90,124)"))) %>%
-  add_surface(x=xx, y=yy,z = ~z2, cmin = min(z), cmax = max(z1), colorscale = list(c(0,1),c("rgb(100,154,214)","rgb(0,90,124)"))) %>%
-  layout(title="95% quantile for number of iterations for different epsilon ", scene = list(xaxis= list(title="alpha"),
-                                                                                            yaxis= list(title="theta"),
-                                                                                            zaxis= list(title="N",range = c(min(z),max(z1)))))
-p6
-
-
-
-p7 <- plot_ly(showscale = TRUE) %>%
-  add_surface(x=xx, y=yy,z = ~z1, cmin = min(z3), cmax = max(z1), colorscale = list(c(0,1),c("rgb(255,112,184)","rgb(128,0,64)"))) %>%
-  add_surface(x=xx, y=yy,z = ~z3, cmin = min(z3), cmax = max(z1), colorscale = list(c(0,1),c("rgb(107,184,214)","rgb(0,90,124)"))) %>%
-  layout(title="95% quantile for N and mean for N", scene = list(xaxis= list(title="alpha"),
-                                                                                            yaxis= list(title="theta"),
-                                                                                            zaxis= list(title="N",range = c(min(z3),max(z1)))))
-p7
-
-
-p_var <- plot_ly(x=xx, y=yy, z=z_km) %>% add_surface() %>% 
-  layout(title="Variance",scene= list(xaxis= list(title="alpha"),
-                     yaxis= list(title="theta"),
-                     zaxis= list(title="N")))
-p_var
-
-
-
-
-
-
-p <- plot_ly(x=xx, y=yy, z=z5) %>% add_surface() %>% 
-  layout(scene= list(xaxis= list(title="alpha"),
-                     yaxis= list(title="theta"),
-                     zaxis= list(title="N")))
-p
-
-
+################################################################################################################################################
 
 
 calc_f<-function(alpha,theta,k=1,eps=0.05){
@@ -525,7 +558,7 @@ pk
 
 
 ############################################################################################################################################
-
+f
 gamma_fun <- function(alpha) {
   (cos(pi*alpha/2))^(1/alpha)
 }
@@ -556,6 +589,7 @@ z1 = lissage(z1) # do it about ten times :-)
 
 # 3D-plot
 build3ds1<-function(x,y,z,par1="",par2=""){
+  z<-pmin(z,1520)
   nrz <- nrow(z)
   ncz <- ncol(z)
   jet.colors <- colorRampPalette( c("blue", "red") )
@@ -583,12 +617,13 @@ build3ds1<-function(x,y,z,par1="",par2=""){
     xlab = "", ylab = "", zlab = "", 
     d = 5, r = 10,
     cex.axis = 1, cex.lab = 1.3, nticks = 3, main = expression(paste(italic(N^1),"(",italic(epsilon),",",italic(alpha),",",italic(theta),") ,",
-                                                                     paste(epsilon),"=", &par1))
+                                                                     paste(epsilon),"=",0.1))
   )
   text(.13,-.37,expression(alpha), cex = 1.5)
   text(-.3,-.35,expression(theta), cex = 1.5)
   #dev.off()
 }
+
 #nrz <- nrow(z1)
 # ncz <- ncol(z1)
 # jet.colors <- colorRampPalette( c("blue", "red") )
@@ -621,15 +656,175 @@ build3ds1<-function(x,y,z,par1="",par2=""){
 # text(-.3,-.35,expression(theta), cex = 1.5)
 #dev.off()
 ####Plot errors##################################################################
-z01<-lissage(z01)
-z005<-lissage(z005)
-z001<-lissage(z001)
+#z01<-lissage(z01)
+#z005<-lissage(z005)
+#z001<-lissage(z001)
 
-pdf()
+pdf("plot_e1.pdf")
 build3ds1(xx,yy,z01,par1=0.1)
 build3ds1(xx,yy,z005,par1=0.05)
-build3ds1(xx,yy,z001,par1=0.1)
+build3ds1(xx,yy,z001,par1=0.01)
 dev.off()
+
+
+build3ds<-function(x,y,z,par1="",par2=""){
+  z<-pmin(z,1520)
+  nrz <- nrow(z)
+  ncz <- ncol(z)
+  jet.colors <- colorRampPalette( c("blue", "red") )
+  nbcol <- 100
+  color <- jet.colors(nbcol)
+  zfacet <- z[-1, -1] + z[-1, -ncz] + z[-nrz, -1] + z[-nrz, -ncz]
+  facetcol <- cut(zfacet, nbcol)
+  
+  
+  sigma_param<-x
+  theta_param<-y
+  #pdf()
+  par(mar = c(2,1,2,.1), mgp = c(1,1,0), xaxs = "i", yaxs = "i", las= 1)
+  persp(
+    x = sigma_param, 
+    y = theta_param, 
+    z = z, 
+    zlim = c(0,320), 
+    col = color[facetcol], 
+    theta = -25, 
+    phi = 25,
+    ltheta = 120, 
+    ticktype = "detailed", 
+    shade = 0.3,
+    xlab = "", ylab = "", zlab = "", 
+    d = 5, r = 10,
+    cex.axis = 1, cex.lab = 1.3, nticks = 3, main = expression(paste("Variance for ",
+                                                                     paste(epsilon),"=",0.1))
+  )
+  text(.13,-.37,expression(alpha), cex = 1.5)
+  text(-.3,-.35,expression(theta), cex = 1.5)
+  #dev.off()
+}
+
+
+
+
+
+
+pdf("plot_variance.pdf")
+build3ds(xx,yy,z4,par1=0.1)
+dev.off()
+
+
+
+
+build3d_diff<-function(x,y,z,par1="",lim=max(z)){
+  z<-pmin(z,1520)
+  nrz <- nrow(z)
+  ncz <- ncol(z)
+  jet.colors <- colorRampPalette( c("blue", "red") )
+  nbcol <- 100
+  color <- jet.colors(nbcol)
+  zfacet <- z[-1, -1] + z[-1, -ncz] + z[-nrz, -1] + z[-nrz, -ncz]
+  facetcol <- cut(zfacet, nbcol)
+  
+  
+  sigma_param<-x
+  theta_param<-y
+  par(mar = c(2,1,2,.1), mgp = c(1,1,0), xaxs = "i", yaxs = "i", las= 1)
+  persp(
+    x = sigma_param, 
+    y = theta_param, 
+    z = z, 
+    zlim = c(min(z),lim), 
+    col = color[facetcol], 
+    theta = -25, 
+    phi = 25,
+    ltheta = 120, 
+    ticktype = "detailed", 
+    shade = 0.3,
+    xlab = "", ylab = "", zlab = "", 
+    d = 5, r = 10,
+    cex.axis = 1, cex.lab = 1.3, nticks = 3, main = par1)
+  
+  text(.13,-.37,expression(alpha), cex = 1.5)
+  text(-.3,-.35,expression(theta), cex = 1.5)
+}
+
+
+
+z_2sd<-z_mean + 2*z4
+z_diff<-z_2sd-z01 
+pdf("difference_msd_q.pdf")
+build3d_diff(xx,yy,z_diff,par1=expression(paste("Difference for ",paste(mu),"+2*",paste(sigma)," and 95% quantile for ",
+                                                paste(epsilon),"=",0.1)))
+dev.off()
+
+#################################################################################"
+
+
+##########################################DIFFERENCE FOR e=0.05########################################################################################
+
+
+z005<-outer(xx,yy,Vectorize(compute_tau_est_b),eps=0.05)
+
+z_mean005<- outer(xx,yy,Vectorize(compute_tau_mean),eps=0.05)
+
+z_var005<-outer(xx,yy,Vectorize(compute_tau_var),eps=0.05)
+
+
+z_2sd_05<-z_mean005+2*z_var005
+
+z_diff05<-z_2sd_05-z005 
+
+
+pdf("difference_msd_q05.pdf")
+build3d_diff(xx,yy,z_diff05,par1=expression(paste("Difference for ",paste(mu),"+2*",paste(sigma)," and 95% quantile for ",
+                                                  paste(epsilon),"=",0.05)))
+dev.off()
+
+
+#################################################################################"
+
+
+z_trunc01<-pmin(z_2sd,1000)
+z_trunc05<-pmin(z_2sd_05,1000)
+
+
+
+
+
+pdf("plot_trunc01.pdf")
+build3d_diff(xx,yy,z_trunc01,par1=expression(paste("Truncation number for ",
+                                                    paste(epsilon),"=",0.1)),lim=1500)
+dev.off()
+
+pdf("plot_trunc05.pdf")
+build3d_diff(xx,yy,z_trunc05,par1=expression(paste("Truncation number for ",
+                                                paste(epsilon),"=",0.05)),lim=1500)
+dev.off()
+
+
+
+
+
+
+
+
+
+
+
+paste("Jaccard vs. Tsim for depths",  min.depth, "to",max.depth,"m", sep=" "))
+
+
+
+
+
+
+
+
+
+
+
+
+
 ####SOME DRAFT TESTS##################################################################
 # alpha<-0.5
 # theta<-1
@@ -653,29 +848,6 @@ dev.off()
 
 
 
-
-
-#### Fig 3.10 
-#pdf("fig3_10.pdf",family="Times",height=3.5,width=7)
-par(mar=c(3,3,1,1),mgp=c(1.75,.75,0))
-par(mfrow=c(1,2))
-a<-2
-b<-1
-xtheta<-seq(0,5,length=1000)
-plot(xtheta,dgamma(xtheta,a+s1,b+n1),type="l",col=gray(.5),xlab=expression(theta),
-     ylab=expression(paste(italic("p("),theta,"|",y[1],"...",y[n],")",sep="")))
-lines(xtheta,dgamma(xtheta,a+s2,b+n2),col=gray(0),lwd=2)
-lines(xtheta,dgamma(xtheta,a,b),type="l",lty=2,lwd=2)
-abline(h=0,col="black")
-
-y<-(0:12)
-plot(y-.1, dnbinom(y, size=(a+s1), mu=(a+s1)/(b+n1)) , col=gray(.5) ,type="h",
-     ylab=expression(paste(italic("p("),y[n+1],"|",y[1],"...",y[n],")",sep="")), 
-     xlab=expression(italic(y[n+1])),ylim=c(0,.35),lwd=3)
-points(y+.1, dnbinom(y, size=(a+s2), mu=(a+s2)/(b+n2)) , col=gray(0) ,type="h",lwd=3)
-legend(1,.375,legend=c("Less than bachelor's","Bachelor's or higher"),bty="n",
-       lwd=c(3,3),col=c(gray(.5),gray(0)))
-dev.off()
 
 
 
