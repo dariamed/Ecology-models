@@ -1,3 +1,17 @@
+library(arm)
+library(jagsUI)
+library(ggplot2)
+library(gridExtra)
+library(parallel)
+library(magrittr)
+library(purrr)
+library(readr)
+library(Rcpp)
+
+
+setwd("~/Desktop/VirtualCommunity/simcoms-master/ExampleFiles")
+lapply(list.files(path = "."),load,.GlobalEnv)
+
 
 simulate_community <- function(
   env = runif(500, 0, 100), niche_optima  = seq(2, 98, 5), niche_breadth = 20,
@@ -90,12 +104,10 @@ simulate_community <- function(
     }
     as.integer(abund) > 0
   }
-  
-  ans <- lapply(
+  ans <- mclapply(
     env, sim_com, niche_breadth, niche_optima, type, comp_inter, fac_inter,
     beta_env, beta_comp, beta_fac, beta_abun, years, K, competition,
-    intra_sp_com
-    #,mc.cores = detectCores()
+    intra_sp_com, mc.cores = detectCores()
   )
   ans <- do.call(rbind, ans)
   ans <- cbind(ans, env)
@@ -107,54 +119,22 @@ simulate_community <- function(
 }
 
 
-test.coms <- simulate_community()
 
 
-xdata<-as.data.frame(cbind(rep(1,500),test.coms$env))
-
-colnames(xdata)<- c("int","env")
-ydata<-as.data.frame(test.coms[1:20])
-formula<-as.formula( ~env)
-
-rl   <- list(r = 8, N = 20)
-ml   <- list(ng = 2500, burnin = 500, typeNames = 'PA', reductList = rl)
-
-out3  <- gjam(formula, xdata = xdata, ydata = ydata, modelList = ml)
-summary(out3)
-
-
-specNames <- colnames(ydata)
-specColor <- rep('black',ncol(ydata))
-specColor[ c(grep('quer',specNames),grep('cary',specNames)) ] <- 'brown'
-specColor[ c(grep('acer',specNames),grep('frax',specNames)) ] <- 'darkgreen'
-specColor[ c(grep('abie',specNames),grep('pice',specNames)) ] <- 'blue'
-
-pl   <- list(GRIDPLOTS=T, specColor = specColor)
-x<-gjamPlot(output = out3, plotPars = pl)
-
-
-
-
-
-#x <- model.matrix(formula, xdata)
-#qr(x)$rank
-#dim(x)
-
-#f<- gjamSimData(n=500, S=20,Q=2, typeNames = "PA")
-#ml  <- list(ng = 1000, burnin = 100, typeNames = f$typeNames)
-#out2 <- gjam(f$formula, f$xdata, f$ydata, modelList = ml)
-#summary(out2)
-
-Y_cor<-cor(ydata) 
-R <- heatmap(out3$parameters$corMu, Rowv=NA, Colv=NA)
-E <- heatmap(out3$parameters$ematrix, Rowv=NA, Colv=NA)
-Yc <- heatmap(Y_cor, Rowv=NA, Colv=NA, col = cm.colors(256), scale="column", margins=c(5,10))
-
-
-Prec<-100*solve(out3$parameters$sigMu)
-
-Pr_mat <- heatmap(Prec,, Rowv=NA, Colv=NA)
-
-P<- as.matrix(Pr_mat)
+sim_data =
+  list(
+    niche_optima = unlist(replicate(7, lapply(c(5, 10, 20), function(x) seq(2, 98, length.out = x)), FALSE), FALSE), 
+    type         = list("original", "manual")[c(rep(1, 3), rep(2, 18))],
+    comp_inter   = comp_inter,
+    fac_inter    = fac_inter,
+    beta_comp    = rep(list(0, 10, 4), each = 7),
+    beta_fac     = rep(list(0, 3, 3, 0, 0, 1, 2), each = 3),
+    K            = rep(list(10, 20, 40), 7), 
+    competition  = list("symmetric", "both")[c(rep(1, 3), rep(2, 18))],
+    intra_sp_com = rep(list(1), 21) 
+  )%>%
+  pmap(simulate_community) %>%
+  #map(abund2occur) %>%
+  set_names(sim_names) 
 
 
