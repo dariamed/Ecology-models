@@ -28,6 +28,15 @@ library(Hmsc)
 setwd("~/Desktop/VirtualCommunity/simcoms-master/ExampleFiles")
 #setwd("~/Tesi/Code/Ecology-models-master/simcoms-master/ExampleFiles")
 lapply(list.files(path = "."),load,.GlobalEnv)
+
+
+load_object <- function(file) {
+  tmp <- new.env()
+  load(file = file, envir = tmp)
+  tmp[[ls(tmp)[1]]]
+}
+
+
 ```
 
 
@@ -42,11 +51,12 @@ Models were fitted for 2 datasets : \
 2.FacDen10Sp - environmental filetering + facilitation for 10 species.\
 
 ```{r load_m}
-load("model-2019-04-09-19-02-16.rda")
-summary(model)
-model$Rhat
-model$n.eff
-model$mcmc.info[1:7]
+me5 <- load_object("model-2019-04-09-19-02-16.rda")
+#load("model-2019-04-09-19-02-16.rda")
+summary(me5)
+me5$Rhat
+me5$n.eff
+me5$mcmc.info[1:7]
 ```
 
 ## Test run 
@@ -87,14 +97,16 @@ prob_cooccur_es <- function(Y) {
   ans
 }
 
-models<-list(EnvEvenSp5=model)
+models<-list(EnvEvenSp5=me5)
 load("fac_inter.rds")
 load("comp_inter.rds")
 
-mean_correlations <- do.call(
+
+mean_cor<-function(mod){
+  mean_correlations <- do.call(
   rbind,
   lapply(
-    seq_along(models),
+    seq_along(mod),
     function(i) {
       x <- models[[i]]
       nm <- strsplit(
@@ -150,6 +162,8 @@ mean_correlations <- do.call(
     }
   )
 )
+ return(mean_correlations)  
+}
 
 x <- subset(mean_correlations, type != "Environmental\nFiltering Only")
 acc <- by(x, x$model, function(x) sum(x$status == "TP" | x$status == "TN") / nrow(x))
@@ -168,6 +182,7 @@ ggplot(mean_correlations) +
   ylab("Correlation") +
   theme_bw() +
   theme(legend.position = "top")
+
 
 ```
 
@@ -189,68 +204,122 @@ data <- list(
 )
 
 Y_cor<-cor(data$Y)
-Tau_n<-matrix(nrow=dim(model$mean$Tau)[1], ncol=dim(model$mean$Tau)[1])
-for (j in 1:dim(model$mean$Tau)[1]) {
-  for (k in 1:dim(model$mean$Tau)[1]){
-    Tau_n[j, k] <-  -model$mean$Tau[j, k] / sqrt((model$mean$Tau[j,j]*model$mean$Tau[k,k]))
+
+to_prec<-function(m){
+  n<-dim(m)[1]
+  Tau_n<-matrix(nrow=n, ncol=n)
+  for (j in 1:n) {
+   for (k in 1:n){
+    Tau_n[j, k] <-  -m[j, k]/sqrt((m[j,j]*m[k,k]))
+   }
   }
+  return(Tau_n)
 }
 
-par(mfrow=c(2,2),oma = c(3, 1, 2, 1))
-corrplot(Y_cor, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+#Tau_n<-matrix(nrow=dim(model$mean$Tau)[1], ncol=dim(model$mean$Tau)[1])
+Tau_n<-to_prec(me5$mean$Tau)
+#Tau_k<-Tau_n*(!(model$q97.5$Tau>0 & model$q2.5$Tau<0))
+
+par(mfrow=c(2,4),oma = c(3, 1, 2, 1))
+corrplot(Y_cor, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
 title("Correlation cor(Y)")
-corrplot(model$mean$Rho, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
-title("Rho")
-corrplot(model$mean$EnvRho, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+corrplot(me5$mean$EnvRho, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
 title("EnvRho")
-corrplot(Tau_n, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+corrplot(me5$mean$EnvRho*(!me5$overlap0$EnvRho), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+title("EnvRho signif")
+corrplot(me5$mean$Rho, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+title("Rho")
+corrplot(me5$mean$Rho*(!me5$overlap0$Rho), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+title("Rho signif")
+corrplot(Tau_n, diag = FALSE, order ="original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
 title("Tau")
+corrplot(Tau_n*(!me5$overlap0$Tau), diag = FALSE, order ="original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+title("Tau")
+
 
 ```
 
 
 ### GJAM tests
 ```{r gjam, include=TRUE}
+############################################################Functions
+makeSymm <- function(m) {
+  m[upper.tri(m)] <- t(m)[upper.tri(m)]
+  return(m)
+}
+
+
+convert_to_m<-function(ar){
+  d <-floor((sqrt(length(ar)*8+1)-1)/2)
+  C <- matrix(0,d,d)
+  i.lwr <- which(lower.tri(C, diag = TRUE), arr.ind=TRUE)
+  C[i.lwr] <- ar
+  C<-makeSymm(C)
+  return(t(C))
+}
+
+fit_gjam<-function(data, it=2500,burn=500 ){
+  #setup parameters
+  data <- list(
+    Y = subset(data, select = -env),
+    X = cbind(1, scale(poly(data$env, 2))),
+    covx = cov(cbind(1, scale(poly(data$env, 2)))),
+    K = 3,
+    J = ncol(data) - 1,
+    n = nrow(data),
+    I = diag(ncol(data) - 1),
+    df = ncol(data)
+  )
+  xdata<-as.data.frame(data$X[,-1])
+  colnames(xdata)<- c("env","env2")
+  ydata<-as.data.frame(data$Y)
+  ###formula
+  formula<-as.formula( ~env+ env2)
+  ml   <- list(ng = it, burnin = burn, typeNames = 'PA')
+  ####fit
+  
+  
+  mod_gjam1  <- gjam(formula, xdata = xdata, ydata = ydata, modelList = ml)
+  summary(mod_gjam1)
+  
+  Tau <- solve(mod_gjam1$parameters$sigMu)
+  Tau_n = to_prec(Tau)
+  
+  postH<-apply(mod_gjam1$chains$sgibbs, 2, quantile,0.95)
+  postL<-apply(mod_gjam1$chains$sgibbs, 2, quantile,0.05)
+  
+  
+  pH<-convert_to_m(postH)
+  pL<-convert_to_m(postL)
+  
+  R_sign<-cov2cor(mod_gjam1$parameters$sigMu)*(!(pH>0 & pL<0))
+  
+  
+  
+  
+  par(mfrow=c(2,3),oma = c(1, 1, 1, 1))
+  corrplot(cor(ydata), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+  title("Correlation cor(Y)")
+  corrplot(mod_gjam1$parameters$corMu, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+  title("R")
+  corrplot(mod_gjam1$parameters$ematrix, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+  title("E matrix")
+  corrplot(Tau_n, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+  title("Tau")
+  corrplot(R_sign, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+  title("R signif")
+  corrplot(diag(ncol(data$Y)), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+  title("True interactions")
+}
+######################################################################
+
 data<-sim_data$EnvEvenSp5
 
-data <- list(
-  Y = subset(data, select = -env),
-  X = cbind(1, scale(poly(data$env, 2))),
-  covx = cov(cbind(1, scale(poly(data$env, 2)))),
-  K = 3,
-  J = ncol(data) - 1,
-  n = nrow(data),
-  I = diag(ncol(data) - 1),
-  df = ncol(data)
-)
 
-#xdata<-as.data.frame(cbind(rep(1,500),test.coms$env))
-xdata<-as.data.frame(data$X[,-1])
-colnames(xdata)<- c("env","env2")
-ydata<-as.data.frame(data$Y)
-formula<-as.formula( ~env+ env2)
-
-#rl   <- list(r = 8, N = 20)
-ml   <- list(ng = 2500, burnin = 500, typeNames = 'PA')
-
-out3  <- gjam(formula, xdata = xdata, ydata = ydata, modelList = ml)
-summary(out3)
-
-
-par(mfrow=c(1,3),oma = c(1, 1, 1, 1))
-corrplot(cor(ydata), diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
-title("Correlation cor(Y)")
-corrplot(out3$parameters$corMu, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
-title("R")
-corrplot(out3$parameters$ematrix, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
-title("E matrix")
-#corrplot(Tau_n, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
-#title("Tau")
-
+fit_gjam(data,15000,1000)
 
 
 ```
-
 
 
 
@@ -262,7 +331,6 @@ title("E matrix")
 #setwd("~/Desktop/VirtualCommunity/simcoms-master/ExampleFiles")
 #setwd("~/Tesi/Code/Ecology-models-master/simcoms-master/ExampleFiles")
 #lapply(list.files(path = "."),load,.GlobalEnv)
-
 
 data<-sim_data$EnvEvenSp5
 
@@ -296,26 +364,19 @@ nsamples = 1000
 nchains=2
 m = sampleMcmc(m, nsamples, thin=10, adaptNf=c(200,200), transient=500,nChains=nchains ,verbose=F)
 
-
-
-
-
 ```
 
 Convergence:
 
 ```{r hmsc convergence, include=TRUE}
-
 codaList = convertToCodaObject(m)
 
 #convergence histograms
 hist(effectiveSize(codaList$Beta), main="ess(beta)")
 hist(gelman.diag(codaList$Beta,multivariate=FALSE)$psrf, main="psrf(beta)")
 
-
 hist(effectiveSize(codaList$Omega[[1]]), main="ess(omega)")
 hist(gelman.diag(codaList$Omega[[1]], multivariate=FALSE)$psrf, main="psrf(omega)")
-
 ```
 
 Study of interactions
@@ -335,7 +396,8 @@ postOmegaLo=apply(postOmega,c(1,2),quantile,0.05)
 
 postR<-array(dim=c(ns,ns,nchains*nsamples))
 for(i in 1:dim(postOmega)[3])
- postR[,,i]<-cov2cor(postOmega[,,i])
+ postR[,,i]<-stats::cov2cor(postOmega[,,i])
+
 
 postRMean = apply(postR,c(1,2),mean)
 postRUp=apply(postR,c(1,2),quantile,0.95)
@@ -348,6 +410,10 @@ Tau_n = cov2cor(Tau)
 
 Toplot_R<-postRMean*(!(postRUp>0 & postRLo<0))
 
+Omegacor<- computeAssociations(m)
+supportLevel<- 
+
+
 par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
 corrplot(cor(Y_data), diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
 title("Correlation cor(Y)")
@@ -358,83 +424,29 @@ title("Plot only non zero value")
 corrplot(Tau_n, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
 title("Partial correlation matrix")
 
-
-
 ```
+
+
+
 
 
 ## Model for 10 species
 
+## JSDM jags
+
 ```{r model2, echo=FALSE}
-load("model-2019-04-10-15-13-15.rda")
-summary(model)
-model$Rhat
-model$n.eff
-model$mcmc.info[1:7]
+#load("model-2019-04-10-15-13-15.rda")
+mfd10 <- load_object("model-2019-04-10-15-13-15.rda")
+
+summary(mfd10)
+mfd10$Rhat
+mfd10$n.eff
+mfd10$mcmc.info[1:7]
 
 
+models<-list(FacDenseSp10=mfd10)
 
-models<-list(FacDenseSp10=model)
-mean_correlations <- do.call(
-  rbind,
-  lapply(
-    seq_along(models),
-    function(i) {
-      x <- models[[i]]
-      nm <- strsplit(
-        names(models)[[i]], "(?<=[a-z])(?=[A-Z])", perl = TRUE
-      )[[1]]
-      nsp <- ncol(x$mean$Rho)
-      ut <- upper.tri(x$mean$Rho)
-      sp <- arrayInd(which(ut), c(nsp, nsp))
-      ans <- data.frame(
-        model = i,
-        sp1 = sp[, 1],
-        sp2 = sp[, 2],
-        rho = c(prob_cooccur_es(x$model$cluster1$data()$Y)[ut], x$mean$Rho[ut]),
-        rho_type = rep(c("Effect-Size", "Residual"), each = sum(ut)),
-        sgn = sign(x$mean$Rho)[ut],
-        significant = x$overlap$Rho[ut],
-        #cint = simulation_parameters$comp_inter[[i]][ut],
-        #fint = simulation_parameters$fac_inter[[i]][ut],
-        cint = comp_inter[[i]][ut],
-        fint = fac_inter[[i]][ut],
-        density = tail(nm, 2)[1],
-        type = paste0(head(nm, -2), collapse = ""),
-        nsp = nsp,
-        stringsAsFactors = FALSE
-      )
-      ans$cint[is.na(ans$cint)] <- 0
-      ans$fint[is.na(ans$fint)] <- 0
-      ans$density[ans$density == "Even"] <- "None"
-      ans$density <- factor(ans$density, c("None", "Sparse", "Dense"))
-      ans$type[ans$type == "Env"] <- "Environmental\nFiltering Only"
-      ans$type[ans$type == "Fac"] <- "Facilitation"
-      ans$type[ans$type == "Comp"] <- "Competition"
-      ans$type[ans$type == "FacComp"] <- "Facililation +\nCompetition"
-      ans$type <- factor(
-        ans$type, 
-        c(
-          "Environmental\nFiltering Only", "Facilitation", "Competition",
-          "Facililation +\nCompetition"
-        )
-      )
-      ans$interaction <- "None"
-      ans$interaction <- ifelse(ans$cint, "Competition", ans$interaction)
-      ans$interaction <- ifelse(ans$fint, "Facilitation", ans$interaction)
-      ans$status <- ifelse(
-        ans$significant,
-        ifelse(ans$sgn * -ans$cint == 1 | ans$sgn * ans$fint == 1, "TP", "FP"),
-        ifelse(ans$cint == 0 & ans$fint == 0, "TN", "FN")
-      )
-      ans$interaction <- factor(
-        ans$interaction, c("None", "Facilitation", "Competition")
-      )
-      ans
-    }
-  )
-)
-
+mean_correlations <- mean_cor(models)
 x <- subset(mean_correlations, type != "Environmental\nFiltering Only")
 acc <- by(x, x$model, function(x) sum(x$status == "TP" | x$status == "TN") / nrow(x))
 
@@ -453,7 +465,7 @@ ggplot(mean_correlations) +
   theme_bw() +
   theme(legend.position = "top")
 
-
+######################################################Prepare data
 data<-sim_data$FacDenseSp10
 data <- list(
   Y = subset(data, select = -env),
@@ -467,25 +479,33 @@ data <- list(
 )
 
 Y_cor<-cor(data$Y)
-Tau_n<-matrix(nrow=dim(model$mean$Tau)[1], ncol=dim(model$mean$Tau)[1])
-for (j in 1:dim(model$mean$Tau)[1]) {
-  for (k in 1:dim(model$mean$Tau)[1]){
-    Tau_n[j, k] <-  -model$mean$Tau[j, k] / sqrt((model$mean$Tau[j,j]*model$mean$Tau[k,k]))
-  }
-}
+Tau_n<-to_prec(mfd10$mean$Tau)
 
-par(mfrow=c(2,2))
-corrplot(Y_cor, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+par(mfrow=c(2,4),oma = c(3, 1, 2, 1))
+corrplot(Y_cor, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
 title("Correlation cor(Y)")
-corrplot(model$mean$EnvRho, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+corrplot(mfd10$mean$EnvRho, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
 title("EnvRho")
-corrplot(model$mean$Rho, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+corrplot(mfd10$mean$EnvRho*(!mfd10$overlap0$EnvRho), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+title("EnvRho signif")
+corrplot(mfd10$mean$Rho, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
 title("Rho")
-corrplot(Tau_n, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+corrplot(mfd10$mean$Rho*(!mfd10$overlap0$Rho), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+title("Rho signif")
+corrplot(Tau_n, diag = FALSE, order ="original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
 title("Tau")
+corrplot(Tau_n*(!mfd10$overlap0$Tau), diag = FALSE, order ="original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+title("Tau")
+corrplot(fac_inter[[5]], diag = FALSE, order ="original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+title("True interactions")
+```
 
 
 
+
+
+
+```{r model2 hmsc, echo=FALSE}
 # HMSC
 
 data<-sim_data$FacDenseSp10
@@ -546,6 +566,8 @@ postRUp=apply(postR,c(1,2),quantile,0.95)
 postRLo=apply(postR,c(1,2),quantile,0.05)
 
 
+
+
 Tau = solve(postOmegaMean)
 Tau_n = cov2cor(Tau)
 
@@ -563,6 +585,13 @@ corrplot(Tau_n, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method 
 title("Partial correlation matrix")
 
 ```
+
+
+
+
+
+
+
 
 
 
