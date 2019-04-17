@@ -4,8 +4,8 @@ output:
   html_document:
     toc: true
     toc_float:
-      collapsed: false
-      smooth_scroll: false
+      collapsed: true
+      smooth_scroll: true
 ---
 
 ```{r setup, include=FALSE}
@@ -46,16 +46,18 @@ load_object <- function(file) {
 
 Data was simulated using VirtualCommunity code.\
 Simulated data contains 20 data sets. \
-Models : Po
-Models were fitted for 2 datasets : \
-1.Env5Sp - environmental filetering only for 5 species (asssuming no interactions).\
-2.FacDen10Sp - environmental filetering + facilitation for 10 species.\
+
 
 ```{r load_m}
 me5 <- load_object("model-2019-04-09-19-02-16.rda")
 #load("model-2019-04-09-19-02-16.rda")
 summary(me5)
-me5$Rhat
+#me5$Rhat
+cat(sprintf("Maximum Rhat value for Beta: %s\n", round(max(me5$R$B),4)))
+cat(sprintf("Maximum Rhat value for Rho: %s\n", round(max(me5$R$Rho),4)))
+cat(sprintf("Maximum Rhat value for EnvRho: %s\n", round(max(me5$R$EnvRho),4)))
+cat(sprintf("Maximum Rhat value for Tau: %s\n", round(max(me5$R$Tau),4)))
+
 me5$n.eff
 me5$mcmc.info[1:7]
 ```
@@ -67,7 +69,7 @@ me5$mcmc.info[1:7]
 Model for $\textbf{EnvEvenSp5}$
 
 
-```{r draw, echo=FALSE}
+```{r draw, echo=FALSE, include=FALSE}
 #setwd("~/Desktop/VirtualCommunity/simcoms-master/")
 #setwd("~/Tesi/Code/Ecology-models-master/simcoms-master/ExampleFiles")
 setwd("~/Documents/GitHub/Ecology-models/simcoms-master")
@@ -169,27 +171,8 @@ mean_cor<-function(mod){
  return(mean_correlations)  
 }
 
-mean_correlations<-mean_cor(models)
-x <- subset(mean_correlations, type != "Environmental\nFiltering Only")
-acc <- by(x, x$model, function(x) sum(x$status == "TP" | x$status == "TN") / nrow(x))
-
-#' Plot correlation parameter means
-#+ plot-correlations
-ggplot(mean_correlations) +
-  aes(factor(nsp), rho, fill = interaction) +
-  geom_hline(yintercept = 0) +
-  geom_boxplot(
-    outlier.size = .2, size = .1, position = position_dodge(preserve = "single")
-  ) +
-  scale_fill_manual(values = c("grey", "blue", "red")) +
-  facet_grid(type ~ rho_type + density, switch = "y") +
-  xlab("Number of species") +
-  ylab("Correlation") +
-  theme_bw() +
-  theme(legend.position = "top")
-
-
 ```
+
 
 
 ```{r heat, include=TRUE}
@@ -236,20 +219,18 @@ title("Rho signif")
 corrplot(Tau_n, diag = FALSE, order ="original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
 title("Tau")
 corrplot(Tau_n*(!me5$overlap0$Tau), diag = FALSE, order ="original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
-title("Tau")
-
-
+title("Tau signif")
 ```
 
 
 ### GJAM 
-```{r gjam, include=TRUE}
+
+```{r gjam functions, include=FALSE}
 ############################################################Functions
 makeSymm <- function(m) {
   m[upper.tri(m)] <- t(m)[upper.tri(m)]
   return(m)
 }
-
 
 convert_to_m<-function(ar){
   d <-floor((sqrt(length(ar)*8+1)-1)/2)
@@ -354,15 +335,19 @@ load_gjam<-function(data,name="./gjam_models/temp.rda",interact=diag(ncol(data$Y
 
 ######################################################################
 
-data<-sim_data$EnvEvenSp5
-
-#fit_gjam(data,2000,1000,"./gjam_models/gjam5env.rda")
-load_gjam(data,name="./gjam_models/gjam5env.rda")
 
 ```
 
+```{r gjam env5, include=TRUE}
+
+##to setup chains parameters
+
+data<-sim_data$EnvEvenSp5
+#fit_gjam(data,2000,1000,"./gjam_models/gjam5env.rda")
+load_gjam(data,name="./gjam_models/gjam5env.rda")
 
 
+```
 
 ### HMSC
 
@@ -390,7 +375,7 @@ fit_hmsc<-function(data,label="F_t",nsamples = 1000,nchains=2,name="./HMmodels/h
 }
 
 data<-sim_data$EnvEvenSp5
-hm_mod<-fit_hmsc(data,"F_t",name="./HMmodels/hm5env.rda" )
+hm_mod<-fit_hmsc(data,"L_d",name="./HMmodels/hm5env.rda" )
 #hm_mod<-load_object("./HMmodels/hm5env.rda")
 
 ```
@@ -463,8 +448,6 @@ hm_inter<-function(mod, nchains=2,nsamples = 1000, interact=diag(ns)){
 
 
 hm_inter(hm_mod)
-
-
 ```
 
 
@@ -476,29 +459,16 @@ hm_inter(hm_mod)
 me10 <- load_object("model-2019-04-10-08-26-20.rda")
 #load("model-2019-04-09-19-02-16.rda")
 summary(me10)
-me10$Rhat
+#me10$Rhat
+cat(sprintf("Maximum Rhat value for Beta: %s\n", round(max(me10$R$B),4)))
+cat(sprintf("Maximum Rhat value for Rho: %s\n", round(max(me10$R$Rho),4)))
+cat(sprintf("Maximum Rhat value for EnvRho: %s\n", round(max(me10$R$EnvRho),4)))
+cat(sprintf("Maximum Rhat value for Tau: %s\n", round(max(me10$R$Tau),4)))
+
 me10$n.eff
 me10$mcmc.info[1:7]
 
-models<-list(EnvEvenSp10=me10)
-mean_correlations<-mean_cor(models)
-x <- subset(mean_correlations, type != "Environmental\nFiltering Only")
-acc <- by(x, x$model, function(x) sum(x$status == "TP" | x$status == "TN") / nrow(x))
 
-#' Plot correlation parameter means
-#+ plot-correlations
-ggplot(mean_correlations) +
-  aes(factor(nsp), rho, fill = interaction) +
-  geom_hline(yintercept = 0) +
-  geom_boxplot(
-    outlier.size = .2, size = .1, position = position_dodge(preserve = "single")
-  ) +
-  scale_fill_manual(values = c("grey", "blue", "red")) +
-  facet_grid(type ~ rho_type + density, switch = "y") +
-  xlab("Number of species") +
-  ylab("Correlation") +
-  theme_bw() +
-  theme(legend.position = "top")
 
 data<-sim_data$EnvEvenSp10
 data <- list(
@@ -581,29 +551,16 @@ hm_inter(hm_mod)
 me20 <- load_object("model-2019-04-11-19-06-02.rda")
 #load("model-2019-04-09-19-02-16.rda")
 summary(me20)
-me20$Rhat
+#me20$Rhat
+cat(sprintf("Maximum Rhat value for Beta: %s\n", round(max(me20$R$B),4)))
+cat(sprintf("Maximum Rhat value for Rho: %s\n", round(max(me20$R$Rho),4)))
+cat(sprintf("Maximum Rhat value for EnvRho: %s\n", round(max(me20$R$EnvRho),4)))
+cat(sprintf("Maximum Rhat value for Tau: %s\n", round(max(me20$R$Tau),4)))
+
+
 me20$n.eff
 me20$mcmc.info[1:7]
 
-models<-list(EnvEvenSp20=me20)
-mean_correlations<-mean_cor(models)
-x <- subset(mean_correlations, type != "Environmental\nFiltering Only")
-acc <- by(x, x$model, function(x) sum(x$status == "TP" | x$status == "TN") / nrow(x))
-
-#' Plot correlation parameter means
-#+ plot-correlations
-ggplot(mean_correlations) +
-  aes(factor(nsp), rho, fill = interaction) +
-  geom_hline(yintercept = 0) +
-  geom_boxplot(
-    outlier.size = .2, size = .1, position = position_dodge(preserve = "single")
-  ) +
-  scale_fill_manual(values = c("grey", "blue", "red")) +
-  facet_grid(type ~ rho_type + density, switch = "y") +
-  xlab("Number of species") +
-  ylab("Correlation") +
-  theme_bw() +
-  theme(legend.position = "top")
 
 data<-sim_data$EnvEvenSp20
 data <- list(
@@ -646,7 +603,75 @@ load_gjam(data,name="./gjam_models/gjam20env.rda")
 
 ```
 
+### Gjam dimension reduction
 
+```{r gjam en20 dim red}
+
+data<-sim_data$EnvEvenSp20
+
+
+
+#fit_gjam(data,5000,500,"./gjam_models/gjam20env.rda")
+
+#load_gjam(data,name="./gjam_models/gjam20env.rda")
+#gje20<-load_object("./gjam_models/gjam20env.rda")
+
+#to check posterior density of s in Sigma 
+#gje20<-load_object("./gjam_models/gjam20env.rda")
+#plot(density(gje20$chains$sgibbs[,4]))
+ data <- list(
+    Y = subset(data, select = -env),
+    X = cbind(1, scale(poly(data$env, 2))),
+    covx = cov(cbind(1, scale(poly(data$env, 2)))),
+    K = 3,
+    J = ncol(data) - 1,
+    n = nrow(data),
+    I = diag(ncol(data) - 1),
+    df = ncol(data)
+  )
+  xdata<-as.data.frame(data$X[,-1])
+  colnames(xdata)<- c("env","env2")
+  ydata<-as.data.frame(data$Y)
+  ###formula
+  rl   <- list(r = 8, N = 20)
+  formula<-as.formula( ~env+ env2)
+  ml  <- list(ng = 2500, burnin = 500, typeNames = 'PA', reductList = rl)
+  ####fit
+  
+  
+  mod_gjam1  <- gjam(formula, xdata = xdata, ydata = ydata, modelList = ml)
+  save(mod_gjam1, file = "./gjam_models/gjam20env_dr.rda")
+  summary(mod_gjam1)
+  
+  Tau <- solve(mod_gjam1$parameters$sigMu)
+  Tau_n = to_prec(Tau)
+  
+  #postH<-apply(mod_gjam1$chains$sgibbs, 2, quantile,0.95)
+  #postL<-apply(mod_gjam1$chains$sgibbs, 2, quantile,0.05)
+  
+  
+  #pH<-convert_to_m(postH)
+  #pL<-convert_to_m(postL)
+  
+  #R_sign<-cov2cor(mod_gjam1$parameters$sigMu)*(!(pH>0 & pL<0))
+  
+  par(mfrow=c(2,3),oma = c(1, 1, 1, 1))
+  corrplot(cor(ydata), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+  title("Correlation cor(Y)")
+  corrplot(mod_gjam1$parameters$corMu, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+  title("R")
+  corrplot(mod_gjam1$parameters$ematrix, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+  title("E matrix")
+  # corrplot(Tau_n, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+  # title("Tau")
+  # corrplot(R_sign, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+  # title("R signif")
+  corrplot(diag(20), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+  title("True interactions")
+
+
+
+```
 
 ```{r hmsc en20}
 
@@ -666,30 +691,17 @@ hm_inter(hm_mod)
 ```{r load_m facd5}
 mf5 <- load_object("model-2019-04-11-19-35-11.rda")
 summary(mf5)
-mf5$Rhat
+#mf5$Rhat
+cat(sprintf("Maximum Rhat value for Beta: %s\n", round(max(mf5$R$B),4)))
+cat(sprintf("Maximum Rhat value for Rho: %s\n", round(max(mf5$R$Rho),4)))
+cat(sprintf("Maximum Rhat value for EnvRho: %s\n", round(max(mf5$R$EnvRho),4)))
+cat(sprintf("Maximum Rhat value for Tau: %s\n", round(max(mf5$R$Tau),4)))
+
 mf5$n.eff
 mf5$mcmc.info[1:7]
 
 
-models<-list(FacDenseSp5=mf5)
-mean_correlations<-mean_cor(models)
-x <- subset(mean_correlations, type != "Environmental\nFiltering Only")
-acc <- by(x, x$model, function(x) sum(x$status == "TP" | x$status == "TN") / nrow(x))
 
-#' Plot correlation parameter means
-#+ plot-correlations
-ggplot(mean_correlations) +
-  aes(factor(nsp), rho, fill = interaction) +
-  geom_hline(yintercept = 0) +
-  geom_boxplot(
-    outlier.size = .2, size = .1, position = position_dodge(preserve = "single")
-  ) +
-  scale_fill_manual(values = c("grey", "blue", "red")) +
-  facet_grid(type ~ rho_type + density, switch = "y") +
-  xlab("Number of species") +
-  ylab("Correlation") +
-  theme_bw() +
-  theme(legend.position = "top")
 
 data<-sim_data$FacDenseSp5
 data <- list(
@@ -751,31 +763,16 @@ hm_inter(hm_mod, interact = fac_inter[[4]])
 mfd10 <- load_object("model-2019-04-12-06-59-42.rda")
 
 summary(mfd10)
-mfd10$Rhat
+#mfd10$Rhat
+cat(sprintf("Maximum Rhat value for Beta: %s\n", round(max(mfd10$R$B),4)))
+cat(sprintf("Maximum Rhat value for Rho: %s\n", round(max(mfd10$R$Rho),4)))
+cat(sprintf("Maximum Rhat value for EnvRho: %s\n", round(max(mfd10$R$EnvRho),4)))
+cat(sprintf("Maximum Rhat value for Tau: %s\n", round(max(mfd10$R$Tau),4)))
+
 mfd10$n.eff
 mfd10$mcmc.info[1:7]
 
 
-models<-list(FacDenseSp10=mfd10)
-
-mean_correlations <- mean_cor(models)
-x <- subset(mean_correlations, type != "Environmental\nFiltering Only")
-acc <- by(x, x$model, function(x) sum(x$status == "TP" | x$status == "TN") / nrow(x))
-
-#' Plot correlation parameter means
-#+ plot-correlations
-ggplot(mean_correlations) +
-  aes(factor(nsp), rho, fill = interaction) +
-  geom_hline(yintercept = 0) +
-  geom_boxplot(
-    outlier.size = .2, size = .1, position = position_dodge(preserve = "single")
-  ) +
-  scale_fill_manual(values = c("grey", "blue", "red")) +
-  facet_grid(type ~ rho_type + density, switch = "y") +
-  xlab("Number of species") +
-  ylab("Correlation") +
-  theme_bw() +
-  theme(legend.position = "top")
 
 ######################################################Prepare data
 data<-sim_data$FacDenseSp10
@@ -930,31 +927,15 @@ hm_inter(hm_mod, interact = fac_inter[[5]])
 mfd20 <- load_object("model-2019-04-13-17-22-12.rda")
 
 summary(mfd20)
-mfd20$Rhat
+#mfd20$Rhat
+cat(sprintf("Maximum Rhat value for Beta: %s\n", round(max(mfd20$R$B),4)))
+cat(sprintf("Maximum Rhat value for Rho: %s\n", round(max(mfd20$R$Rho),4)))
+cat(sprintf("Maximum Rhat value for EnvRho: %s\n", round(max(mfd20$R$EnvRho),4)))
+cat(sprintf("Maximum Rhat value for Tau: %s\n", round(max(mfd20$R$Tau),4)))
+
 mfd20$n.eff
 mfd20$mcmc.info[1:7]
 
-
-models<-list(FacDenseSp20=mfd20)
-
-mean_correlations <- mean_cor(models)
-x <- subset(mean_correlations, type != "Environmental\nFiltering Only")
-acc <- by(x, x$model, function(x) sum(x$status == "TP" | x$status == "TN") / nrow(x))
-
-#' Plot correlation parameter means
-#+ plot-correlations
-ggplot(mean_correlations) +
-  aes(factor(nsp), rho, fill = interaction) +
-  geom_hline(yintercept = 0) +
-  geom_boxplot(
-    outlier.size = .2, size = .1, position = position_dodge(preserve = "single")
-  ) +
-  scale_fill_manual(values = c("grey", "blue", "red")) +
-  facet_grid(type ~ rho_type + density, switch = "y") +
-  xlab("Number of species") +
-  ylab("Correlation") +
-  theme_bw() +
-  theme(legend.position = "top")
 
 ######################################################Prepare data
 data<-sim_data$FacDenseSp20
@@ -970,8 +951,6 @@ data <- list(
 )
 
 #Tau_n<-to_prec(mfd10$mean$Tau)
-
-
 plot_cor_jsdm(mfd20,data$Y,fac_inter[[6]])
 
 ```
@@ -999,7 +978,7 @@ fit_gjam(data,5000,500,"./gjam_models/gjam20fd.rda",interact=fac_inter[[6]])
 ### HMSC
 ```{r hmsc fd20}
 data<-sim_data$FacDenseSp20
-hm_mod<-fit_hmsc(data,"F_t",name="./HMmodels/hm20fd.rda" )
+hm_mod<-fit_hmsc(data,"L_d",name="./HMmodels/hm20fd.rda" )
 hm_conv(hm_mod)
 hm_inter(hm_mod, interact = fac_inter[[6]])
 
@@ -1019,30 +998,16 @@ hm_inter(hm_mod, interact = fac_inter[[6]])
 mfs5 <- load_object("model-2019-04-13-17-51-16.rda")
 
 summary(mfs5)
-mfs5$Rhat
+#mfs5$Rhat
+cat(sprintf("Maximum Rhat value for Beta: %s\n", round(max(mfs5$R$B),4)))
+cat(sprintf("Maximum Rhat value for Rho: %s\n", round(max(mfs5$R$Rho),4)))
+cat(sprintf("Maximum Rhat value for EnvRho: %s\n", round(max(mfs5$R$EnvRho),4)))
+cat(sprintf("Maximum Rhat value for Tau: %s\n", round(max(mfs5$R$Tau),4)))
+
 mfs5$n.eff
 mfs5$mcmc.info[1:7]
 
-models<-list(FacSparseSp5=mfs5)
 
-mean_correlations <- mean_cor(models)
-x <- subset(mean_correlations, type != "Environmental\nFiltering Only")
-acc <- by(x, x$model, function(x) sum(x$status == "TP" | x$status == "TN") / nrow(x))
-
-#' Plot correlation parameter means
-#+ plot-correlations
-ggplot(mean_correlations) +
-  aes(factor(nsp), rho, fill = interaction) +
-  geom_hline(yintercept = 0) +
-  geom_boxplot(
-    outlier.size = .2, size = .1, position = position_dodge(preserve = "single")
-  ) +
-  scale_fill_manual(values = c("grey", "blue", "red")) +
-  facet_grid(type ~ rho_type + density, switch = "y") +
-  xlab("Number of species") +
-  ylab("Correlation") +
-  theme_bw() +
-  theme(legend.position = "top")
 
 ######################################################Prepare data
 data<-sim_data$FacSparseSp5
@@ -1071,30 +1036,15 @@ plot_cor_jsdm(mfs5,data$Y,fac_inter[[7]])
 mfs10 <- load_object("model-2019-04-14-05-17-58.rda")
 
 summary(mfs10)
-mfs10$Rhat
+#mfs10$Rhat
+cat(sprintf("Maximum Rhat value for Beta: %s\n", round(max(mfs10$R$B),4)))
+cat(sprintf("Maximum Rhat value for Rho: %s\n", round(max(mfs10$R$Rho),4)))
+cat(sprintf("Maximum Rhat value for EnvRho: %s\n", round(max(mfs10$R$EnvRho),4)))
+cat(sprintf("Maximum Rhat value for Tau: %s\n", round(max(mfs10$R$Tau),4)))
+
 mfs10$n.eff
 mfs10$mcmc.info[1:7]
 
-models<-list(FacSparseSp10=mfs10)
-
-mean_correlations <- mean_cor(models)
-x <- subset(mean_correlations, type != "Environmental\nFiltering Only")
-acc <- by(x, x$model, function(x) sum(x$status == "TP" | x$status == "TN") / nrow(x))
-
-#' Plot correlation parameter means
-#+ plot-correlations
-ggplot(mean_correlations) +
-  aes(factor(nsp), rho, fill = interaction) +
-  geom_hline(yintercept = 0) +
-  geom_boxplot(
-    outlier.size = .2, size = .1, position = position_dodge(preserve = "single")
-  ) +
-  scale_fill_manual(values = c("grey", "blue", "red")) +
-  facet_grid(type ~ rho_type + density, switch = "y") +
-  xlab("Number of species") +
-  ylab("Correlation") +
-  theme_bw() +
-  theme(legend.position = "top")
 
 ######################################################Prepare data
 data<-sim_data$FacSparseSp10
@@ -1126,30 +1076,14 @@ plot_cor_jsdm(mfs10,data$Y,fac_inter[[8]])
 mfs20 <- load_object("model-2019-04-15-15-34-20.rda")
 
 summary(mfs20)
-mfs20$Rhat
+#mfs20$Rhat
+cat(sprintf("Maximum Rhat value for Beta: %s\n", round(max(mfs20$R$B),4)))
+cat(sprintf("Maximum Rhat value for Rho: %s\n", round(max(mfs20$R$Rho),4)))
+cat(sprintf("Maximum Rhat value for EnvRho: %s\n", round(max(mfs20$R$EnvRho),4)))
+cat(sprintf("Maximum Rhat value for Tau: %s\n", round(max(mfs20$R$Tau),4)))
+
 mfs20$n.eff
 mfs20$mcmc.info[1:7]
-
-models<-list(FacSparseSp20=mfs20)
-
-mean_correlations <- mean_cor(models)
-x <- subset(mean_correlations, type != "Environmental\nFiltering Only")
-acc <- by(x, x$model, function(x) sum(x$status == "TP" | x$status == "TN") / nrow(x))
-
-#' Plot correlation parameter means
-#+ plot-correlations
-ggplot(mean_correlations) +
-  aes(factor(nsp), rho, fill = interaction) +
-  geom_hline(yintercept = 0) +
-  geom_boxplot(
-    outlier.size = .2, size = .1, position = position_dodge(preserve = "single")
-  ) +
-  scale_fill_manual(values = c("grey", "blue", "red")) +
-  facet_grid(type ~ rho_type + density, switch = "y") +
-  xlab("Number of species") +
-  ylab("Correlation") +
-  theme_bw() +
-  theme(legend.position = "top")
 
 ######################################################Prepare data
 data<-sim_data$FacSparseSp20
@@ -1178,30 +1112,16 @@ plot_cor_jsdm(mfs20,data$Y,fac_inter[[9]])
 mcmpd5 <- load_object("model-2019-04-15-16-03-39.rda")
 
 summary(mcmpd5)
-mcmpd5$Rhat
+#mcmpd5$Rhat
+cat(sprintf("Maximum Rhat value for Beta: %s\n", round(max(mcmpd5$R$B),4)))
+cat(sprintf("Maximum Rhat value for Rho: %s\n", round(max(mcmpd5$R$Rho),4)))
+cat(sprintf("Maximum Rhat value for EnvRho: %s\n", round(max(mcmpd5$R$EnvRho),4)))
+cat(sprintf("Maximum Rhat value for Tau: %s\n", round(max(mcmpd5$R$Tau),4)))
+
 mcmpd5$n.eff
 mcmpd5$mcmc.info[1:7]
 
-models<-list(CompDenseSp5=mcmpd5)
 
-mean_correlations <- mean_cor(models)
-x <- subset(mean_correlations, type != "Environmental\nFiltering Only")
-acc <- by(x, x$model, function(x) sum(x$status == "TP" | x$status == "TN") / nrow(x))
-
-#' Plot correlation parameter means
-#+ plot-correlations
-ggplot(mean_correlations) +
-  aes(factor(nsp), rho, fill = interaction) +
-  geom_hline(yintercept = 0) +
-  geom_boxplot(
-    outlier.size = .2, size = .1, position = position_dodge(preserve = "single")
-  ) +
-  scale_fill_manual(values = c("grey", "blue", "red")) +
-  facet_grid(type ~ rho_type + density, switch = "y") +
-  xlab("Number of species") +
-  ylab("Correlation") +
-  theme_bw() +
-  theme(legend.position = "top")
 
 ######################################################Prepare data
 data<-sim_data$CompDenseSp5
@@ -1229,11 +1149,47 @@ plot_cor_jsdm(mcmpd5,data$Y,comp_inter[[10]])
 mcmpd10 <- load_object("model-2019-04-16-03-39-17.rda")
 
 summary(mcmpd10)
-mcmpd10$Rhat
+#mcmpd10$Rhat
+cat(sprintf("Maximum Rhat value for Beta: %s\n", round(max(mcmpd10$R$B),4)))
+cat(sprintf("Maximum Rhat value for Rho: %s\n", round(max(mcmpd10$R$Rho),4)))
+cat(sprintf("Maximum Rhat value for EnvRho: %s\n", round(max(mcmpd10$R$EnvRho),4)))
+cat(sprintf("Maximum Rhat value for Tau: %s\n", round(max(mcmpd10$R$Tau),4)))
+
 mcmpd10$n.eff
 mcmpd10$mcmc.info[1:7]
 
-models<-list(CompDenseSp10=mcmpd10)
+######################################################Prepare data
+data<-sim_data$CompDenseSp10
+data <- list(
+  Y = subset(data, select = -env),
+  X = cbind(1, scale(poly(data$env, 2))),
+  covx = cov(cbind(1, scale(poly(data$env, 2)))),
+  K = 3,
+  J = ncol(data) - 1,
+  n = nrow(data),
+  I = diag(ncol(data) - 1),
+  df = ncol(data)
+)
+#Tau_n<-to_prec(mfd10$mean$Tau)
+plot_cor_jsdm(mcmpd10,data$Y,comp_inter[[11]])
+```
+
+
+
+
+## Environmental filtering + Competition dense 20 species
+## Environmental filtering + Competition sparse 5 species
+## Environmental filtering + Competition dense 10 species
+## Environmental filtering + Competition dense 5 species
+
+## Graph 
+
+
+
+```{r combined models, echo=FALSE, warning=FALSE}
+
+models<-list(EnvEvenSp5=me5,EnvEvenSp10=me10, EnvEvenSp20=me20,FacDenseSp5 =mf5, FacDenseSp10=mfd10, FacDenseSp20=mfd20,
+             FacSparseSp5 =mfs5, FacSparseSp10=mfs10, FacSparseSp20=mfs20, CompDenseSp5=mcmpd5,CompDenseSp10=mcmpd10)
 
 mean_correlations <- mean_cor(models)
 x <- subset(mean_correlations, type != "Environmental\nFiltering Only")
@@ -1254,27 +1210,8 @@ ggplot(mean_correlations) +
   theme_bw() +
   theme(legend.position = "top")
 
-######################################################Prepare data
-data<-sim_data$CompDenseSp10
-data <- list(
-  Y = subset(data, select = -env),
-  X = cbind(1, scale(poly(data$env, 2))),
-  covx = cov(cbind(1, scale(poly(data$env, 2)))),
-  K = 3,
-  J = ncol(data) - 1,
-  n = nrow(data),
-  I = diag(ncol(data) - 1),
-  df = ncol(data)
-)
-#Tau_n<-to_prec(mfd10$mean$Tau)
-plot_cor_jsdm(mcmpd10,data$Y,comp_inter[[11]])
 ```
 
-
-## Environmental filtering + Competition dense 20 species
-## Environmental filtering + Competition sparse 5 species
-## Environmental filtering + Competition dense 10 species
-## Environmental filtering + Competition dense 5 species
 
 
 ## Visualization for true interactions
