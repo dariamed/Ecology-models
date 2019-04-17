@@ -713,8 +713,8 @@ plot_cor_jsdm(mf5,data$Y,fac_inter[[4]])
 ```{r gjam fd5}
 
 data<-sim_data$FacDenseSp5
-fit_gjam(data,10000,2000,"./gjam_models/gjam5f.rda",interact=fac_inter[[4]])
-#load_gjam(data,name="./gjam_models/gjam5f.rda", interact=fac_inter[[4]])
+#fit_gjam(data,10000,2000,"./gjam_models/gjam5f.rda",interact=fac_inter[[4]])
+load_gjam(data,name="./gjam_models/gjam5f.rda", interact=fac_inter[[4]])
 #gjfd5<-load_object("./gjam_models/gjam5f.rda")
 
 #to check posterior density of s in Sigma 
@@ -1020,8 +1020,8 @@ plot_cor_jsdm(mfs20,data$Y,fac_inter[[9]])
 
 data<-sim_data$FacSparseSp20
 
-#fit_gjam(data,10000,1500,"./gjam_models/gjam20sd.rda",interact=fac_inter[[9]])
-#load_gjam(data,name="./gjam_models/gjam20fs.rda", interact=fac_inter[[9]])
+#fit_gjam(data,10000,1500,"./gjam_models/gjam20fs.rda",interact=fac_inter[[9]])
+load_gjam(data,name="./gjam_models/gjam20fs.rda", interact=fac_inter[[9]])
 #gjfd5<-load_object("./gjam_models/gjam20fd.rda")
 
 #to check posterior density of s in Sigma 
@@ -1038,9 +1038,9 @@ data<-sim_data$FacSparseSp20
 ```{r hmsc fs20}
 data<-sim_data$FacSparseSp20
 
-hm_mod<-fit_hmsc(data,"Load",name="./HMmodels/hm20fs.rda" )
+hm_mod<-fit_hmsc(data,nsamples=3000, nchains=2,"Load",name="./HMmodels/hm20fs.rda" )
 hm_conv(hm_mod)
-hm_inter(hm_mod, interact = fac_inter[[9]])
+hm_inter(hm_mod, nsamples=3000, nchains=2,interact = fac_inter[[9]])
 
 ```
 
@@ -1059,8 +1059,6 @@ summary(mcmpd5)
 jsdm_conv(mcmpd5)
 
 mcmpd5$mcmc.info[1:7]
-
-
 
 ######################################################Prepare data
 data<-sim_data$CompDenseSp5
@@ -1085,10 +1083,10 @@ plot_cor_jsdm(mcmpd5,data$Y,comp_inter[[10]])
 ```{r gjam cmpd5}
 data<-sim_data$CompDenseSp5
 
-fit_gjam(data,5000,500,"./gjam_models/gjam5cmpd.rda",interact=comp_inter[[10]])
+#fit_gjam(data,10000,1000,"./gjam_models/gjam5cmpd.rda",interact=comp_inter[[10]])
 
-#load_gjam(data,name="./gjam_models/gjam5cmpd.rda", interact=,interact=comp_inter[[10]])
-gjfd5<-load_object("./gjam_models/gjam5cmpd.rda")
+load_gjam(data,name="./gjam_models/gjam5cmpd.rda", interact=(-1)*comp_inter[[10]])
+#gjfd5<-load_object("./gjam_models/gjam5cmpd.rda")
 
 #to check posterior density of s in Sigma 
 #gjfd5<-load_object("./gjam_models/gjam5cmpd.rda")
@@ -1101,9 +1099,9 @@ gjfd5<-load_object("./gjam_models/gjam5cmpd.rda")
 ```{r hmsc cmpd5}
 data<-sim_data$CompDenseSp5
 
-hm_mod<-fit_hmsc(data,"Fit",name="./HMmodels/hm5cmpd.rda" )
+hm_mod<-fit_hmsc(data,"Load",nsamples=3000, nchains=2,name="./HMmodels/hm5cmpd.rda" )
 hm_conv(hm_mod)
-hm_inter(hm_mod, interact = comp_inter[[10]])
+hm_inter(hm_mod, nsamples=3000, nchains=2,interact = (-1)*comp_inter[[10]])
 
 ```
 
@@ -1133,7 +1131,7 @@ data <- list(
   df = ncol(data)
 )
 #Tau_n<-to_prec(mfd10$mean$Tau)
-plot_cor_jsdm(mcmpd10,data$Y,comp_inter[[11]])
+plot_cor_jsdm(mcmpd10,data$Y,(-1)*comp_inter[[11]])
 ```
 
 
@@ -1145,7 +1143,7 @@ data<-sim_data$CompDenseSp10
 
 #fit_gjam(data,5000,500,"./gjam_models/gjam10cmpd.rda",interact=comp_inter[[11]])
 
-load_gjam(data,name="./gjam_models/gjam10cmpd.rda", interact=comp_inter[[11]])
+load_gjam(data,name="./gjam_models/gjam10cmpd.rda", interact= (-1)*comp_inter[[11]])
 #gjfd5<-load_object("./gjam_models/gjam10cmpd.rda")
 
 #to check posterior density of s in Sigma 
@@ -1160,9 +1158,9 @@ load_gjam(data,name="./gjam_models/gjam10cmpd.rda", interact=comp_inter[[11]])
 
 ```{r hmsc cmpd10}
 data<-sim_data$CompDenseSp10
-hm_mod<-fit_hmsc(data,"Load",name="./HMmodels/hm10cmpd.rda" )
+hm_mod<-fit_hmsc(data,"Load",nsamples=5000, nchains=2,name="./HMmodels/hm10cmpd.rda" )
 hm_conv(hm_mod)
-hm_inter(hm_mod, interact = comp_inter[[11]])
+hm_inter(hm_mod,nsamples=5000, nchains=2, interact =  (-1)*comp_inter[[11]])
 
 ```
 
@@ -1193,7 +1191,7 @@ data <- list(
   df = ncol(data)
 )
 #Tau_n<-to_prec(mfd10$mean$Tau)
-plot_cor_jsdm(mcmpd20,data$Y,comp_inter[[12]])
+plot_cor_jsdm(mcmpd20,data$Y, (-1)*comp_inter[[12]])
 ```
 
 
@@ -1203,9 +1201,9 @@ plot_cor_jsdm(mcmpd20,data$Y,comp_inter[[12]])
 ```{r gjam cmpd20}
 data<-sim_data$CompDenseSp20
 
-#fit_gjam(data,5000,500,"./gjam_models/gjam20cmpd.rda",interact=comp_inter[[12]])
+#fit_gjam(data,10000,1000,"./gjam_models/gjam20cmpd.rda",interact= (-1)*comp_inter[[12]])
 
-load_gjam(data,name="./gjam_models/gjam20cmpd.rda", interact=fac_inter[[6]])
+load_gjam(data,name="./gjam_models/gjam20cmpd.rda", interact= (-1)*comp_inter[[12]])
 #gjfd5<-load_object("./gjam_models/gjam20cmpd.rda")
 
 #to check posterior density of s in Sigma 
@@ -1221,9 +1219,9 @@ load_gjam(data,name="./gjam_models/gjam20cmpd.rda", interact=fac_inter[[6]])
 ```{r hmsc cmpd20}
 data<-sim_data$CompDenseSp20
 
-hm_mod<-fit_hmsc(data,"Load",name="./HMmodels/hm20cmpd.rda" )
+hm_mod<-fit_hmsc(data,"Load",nsamples=5000, nchains=2,name="./HMmodels/hm20cmpd.rda" )
 hm_conv(hm_mod)
-hm_inter(hm_mod, interact = comp_inter[[12]])
+hm_inter(hm_mod, nsamples=5000, nchains=2,interact =  (-1)*comp_inter[[12]])
 
 ```
 
@@ -1252,14 +1250,118 @@ data <- list(
   df = ncol(data)
 )
 
-plot_cor_jsdm(mcmpd10,data$Y,comp_inter[[11]])
+plot_cor_jsdm(cmps5,data$Y,(-1)*comp_inter[[13]])
 ```
+
+
+
+
+### Gjam
+
+```{r gjam cmps5}
+data<-sim_data$CompSparseSp5
+
+
+#fit_gjam(data,5000,2000,"./gjam_models/gjam5cmps.rda",interact= (-1)*comp_inter[[13]])
+
+load_gjam(data,name="./gjam_models/gjam5cmps.rda", interact= (-1)*comp_inter[[13]])
+#gjfd5<-load_object("./gjam_models/gjam5cmps.rda")
+
+#to check posterior density of s in Sigma 
+#gjfd5<-load_object("./gjam_models/gjam5cmps.rda")
+#plot(density(gjfd5$chains$sgibbs[,4]))
+
+
+```
+
+
+### HMSC
+
+```{r hmsc cmps5}
+data<-sim_data$CompSparseSp5
+
+hm_mod<-fit_hmsc(data,"Load",nsamples=2000, nchains=2,name="./HMmodels/hm5cmps.rda" )
+hm_conv(hm_mod)
+hm_inter(hm_mod, nsamples=2000, nchains=2,interact =  (-1)*comp_inter[[13]])
+
+```
+
+
+
 ## Environmental filtering + Competition sparse 10 species
 
+### Gjam
 
-## Environmental filtering + Competition sparse 5 species
+```{r gjam cmps10}
+data<-sim_data$CompSparseSp10
+#fit_gjam(data,2000,500,"./gjam_models/gjam10cmps.rda",interact= (-1)*comp_inter[[14]])
+load_gjam(data,name="./gjam_models/gjam10cmps.rda", interact= (-1)*comp_inter[[14]])
 
-## Graph 
+#to check posterior density of s in Sigma 
+#gjfd5<-load_object("./gjam_models/gjam10cmps.rda")
+#plot(density(gjfd5$chains$sgibbs[,4]))
+```
+
+
+```{r hmsc cmps10}
+data<-sim_data$CompSparseSp10
+hm_mod<-fit_hmsc(data,"Load",nsamples=2000, nchains=2,name="./HMmodels/hm10cmps.rda" )
+hm_conv(hm_mod)
+hm_inter(hm_mod, nsamples=2000, nchains=2,interact =  (-1)*comp_inter[[14]])
+
+```
+
+## Environmental filtering + Competition sparse 20 species
+
+
+### Gjam
+
+```{r gjam cmps20}
+data<-sim_data$CompSparseSp20
+#fit_gjam(data,2000,500,"./gjam_models/gjam20cmps.rda",interact= (-1)*comp_inter[[15]])
+load_gjam(data,name="./gjam_models/gjam20cmps.rda", interact= (-1)*comp_inter[[15]])
+
+#to check posterior density of s in Sigma 
+#gjfd5<-load_object("./gjam_models/gjam20cmps.rda")
+#plot(density(gjfd5$chains$sgibbs[,4]))
+```
+
+
+### HMSC
+
+```{r hmsc cmps20}
+data<-sim_data$CompSparseSp20
+
+hm_mod<-fit_hmsc(data,"Load",nsamples=2000, nchains=2,name="./HMmodels/hm20cmps.rda" )
+hm_conv(hm_mod)
+hm_inter(hm_mod, nsamples=2000, nchains=2,interact =  (-1)*comp_inter[[15]])
+
+```
+
+
+
+
+
+
+## Environmental filtering + Competition +Facilitation 5 dense species
+
+
+
+
+## Environmental filtering + Competition +Facilitation 10 dense species
+
+
+
+
+
+
+## Environmental filtering + Competition +Facilitation 20 dense species
+
+
+
+
+
+## Graph from paper
 
 
 
@@ -1295,67 +1397,78 @@ ggplot(mean_correlations) +
 
 ```{r inter_patter_fac, echo=FALSE}
 par(mfrow=c(1,3))
-corrplot(fac_inter[[4]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+corrplot(fac_inter[[4]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200),type = "lower")
 title("FacDenseSp5")
-corrplot(fac_inter[[5]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+corrplot(fac_inter[[5]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
 title("FacDenseSp10")
-corrplot(fac_inter[[6]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+corrplot(fac_inter[[6]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", col=cols(200),type = "lower")
 title("FacDenseSp20")
 mtext("Facilitation Dense", outer = TRUE, cex = 1.5,side=1,line=-1)
 
 par(mfrow=c(1,3))
-corrplot(fac_inter[[7]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+corrplot(fac_inter[[7]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", col=cols(200),type = "lower")
 title("FacSparseSp5")
-corrplot(fac_inter[[8]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+corrplot(fac_inter[[8]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", col=cols(200),type = "lower")
 title("FacSparseSp10")
-corrplot(fac_inter[[9]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+corrplot(fac_inter[[9]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", col=cols(200),type = "lower")
 title("FacSparseSp20")
 mtext("Facilitation Sparse", outer = TRUE, cex = 1.5,side=1,line=-1)
 ```
 
+
+
 ```{r inter_pattern_comp, echo=FALSE}
 par(mfrow=c(1,3))
-corrplot(comp_inter[[10]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+corrplot((-1)*comp_inter[[10]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", col=cols(200),type = "lower")
 title("CompDenseSp5")
-corrplot(comp_inter[[11]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+corrplot((-1)*comp_inter[[11]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
 title("CompDenseSp10")
-corrplot(comp_inter[[12]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+corrplot((-1)*comp_inter[[12]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", col=cols(200),type = "lower")
 title("CompDenseSp20")
 mtext("Competition Dense", outer = TRUE, cex = 1.5,side=1,line=-1)
 
 par(mfrow=c(1,3))
-corrplot(comp_inter[[13]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+corrplot((-1)*comp_inter[[13]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", col=cols(200),type = "lower")
 title("CompSparseSp5")
-corrplot(comp_inter[[14]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+corrplot((-1)*comp_inter[[14]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", col=cols(200),type = "lower")
 title("CompSparseSp10")
-corrplot(comp_inter[[15]], diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+corrplot((-1)*comp_inter[[15]], diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
 title("CompSparseSp20")
 mtext("Competition Sparse", outer = TRUE, cex = 1.5,side=1,line=-1)
 
 
 ```
 
+
+
 ```{r inter_pattern_both, echo=FALSE}
 par(mfrow=c(1,3))
-corrplot(comp_inter[[16]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+corrplot(comp_inter[[16]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", col=cols(200),type = "lower")
 title("FacCompDenseSp5")
-corrplot(comp_inter[[17]], diag = FALSE,order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+corrplot(comp_inter[[17]], diag = FALSE,order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", col=cols(200),type = "lower")
 title("FacCompDenseSp10")
-corrplot(comp_inter[[18]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+corrplot(comp_inter[[18]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", col=cols(200),type = "lower")
 title("FacCompDenseSp20")
 mtext("Both types Dense", outer = TRUE, cex = 1.5,side=1,line=-1)
 
 
 par(mfrow=c(1,3))
-corrplot(comp_inter[[19]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+corrplot(comp_inter[[19]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
 title("FacCompSparseSp5")
-corrplot(comp_inter[[20]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+corrplot(comp_inter[[20]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", col=cols(200),type = "lower")
 title("FacCompSparseSp10")
-corrplot(comp_inter[[21]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+corrplot(comp_inter[[21]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color" ,col=cols(200), type = "lower")
 title("FacCompSparseSp20")
 mtext("Both types Sparse", outer = TRUE, cex = 1.5,side=1,line=-1)
 
 ```
+
+
+
+
+
+
+
 
 
 
