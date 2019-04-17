@@ -49,17 +49,6 @@ Simulated data contains 20 data sets. \
 
 
 ```{r load_m}
-me5 <- load_object("model-2019-04-09-19-02-16.rda")
-#load("model-2019-04-09-19-02-16.rda")
-summary(me5)
-#me5$Rhat
-cat(sprintf("Maximum Rhat value for Beta: %s\n", round(max(me5$R$B),4)))
-cat(sprintf("Maximum Rhat value for Rho: %s\n", round(max(me5$R$Rho),4)))
-cat(sprintf("Maximum Rhat value for EnvRho: %s\n", round(max(me5$R$EnvRho),4)))
-cat(sprintf("Maximum Rhat value for Tau: %s\n", round(max(me5$R$Tau),4)))
-
-me5$n.eff
-me5$mcmc.info[1:7]
 ```
 
 ## Environment filtering 5 species
@@ -206,19 +195,25 @@ Tau_n<-to_prec(me5$mean$Tau)
 #Tau_k<-Tau_n*(!(model$q97.5$Tau>0 & model$q2.5$Tau<0))
 
 par(mfrow=c(2,4),oma = c(3, 1, 2, 1))
-corrplot(Y_cor, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+cols = colorRampPalette(c("dark blue","white","red"))
+col2 <- colorRampPalette(c("#4393C3", "#2166AC", "#053061",
+                           "#FDDBC7", "#FFFFFF", "#D1E5F0", "#92C5DE",
+                           "#67001F", "#B2182B", "#D6604D", "#F4A582"))
+
+
+corrplot(Y_cor, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
 title("Correlation cor(Y)")
-corrplot(me5$mean$EnvRho, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+corrplot(me5$mean$EnvRho, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
 title("EnvRho")
-corrplot(me5$mean$EnvRho*(!me5$overlap0$EnvRho), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+corrplot(me5$mean$EnvRho*(!me5$overlap0$EnvRho), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
 title("EnvRho signif")
-corrplot(me5$mean$Rho, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+corrplot(me5$mean$Rho, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
 title("Rho")
-corrplot(me5$mean$Rho*(!me5$overlap0$Rho), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+corrplot(me5$mean$Rho*(!me5$overlap0$Rho), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
 title("Rho signif")
-corrplot(Tau_n, diag = FALSE, order ="original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+corrplot(Tau_n, diag = FALSE, order ="original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
 title("Tau")
-corrplot(Tau_n*(!me5$overlap0$Tau), diag = FALSE, order ="original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+corrplot(Tau_n*(!me5$overlap0$Tau), diag = FALSE, order ="original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
 title("Tau signif")
 ```
 
@@ -319,17 +314,17 @@ load_gjam<-function(data,name="./gjam_models/temp.rda",interact=diag(ncol(data$Y
   R_sign<-cov2cor(gj_mod$parameters$sigMu)*(!(pH>0 & pL<0))
 
   par(mfrow=c(2,3),oma = c(1, 1, 1, 1))
-  corrplot(cor(data$Y), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+  corrplot(cor(data$Y), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
   title("Correlation cor(Y)")
-  corrplot(gj_mod$parameters$corMu, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+  corrplot(gj_mod$parameters$corMu, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
   title("R")
-  corrplot(gj_mod$parameters$ematrix, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+  corrplot(gj_mod$parameters$ematrix, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
   title("E matrix")
-  corrplot(Tau_n, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+  corrplot(Tau_n, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
   title("Tau")
-  corrplot(R_sign, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+  corrplot(R_sign, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
   title("R signif")
-  corrplot(interact, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+  corrplot(interact, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
   title("True interactions")
 }
 
@@ -354,8 +349,8 @@ load_gjam(data,name="./gjam_models/gjam5env.rda")
 ```{r hmsc, include=TRUE, results=FALSE}
 
 #setwd("~/Tesi/Code/Ecology-models-master/simcoms-master/ExampleFiles")
-fit_hmsc<-function(data,label="F_t",nsamples = 1000,nchains=2,name="./HMmodels/hmtemp.rda" ){
-  if (label=="F_t"){
+fit_hmsc<-function(data,label="Fit",nsamples = 1000,nchains=2,name="./HMmodels/hmtemp.rda" ){
+  if (label=="Fit"){
     Y_data = subset(data, select = -env)
     ns<- ncol(Y_data)
     np <- nrow(Y_data)
@@ -369,13 +364,13 @@ fit_hmsc<-function(data,label="F_t",nsamples = 1000,nchains=2,name="./HMmodels/h
     save(m, file = name)
     return(m)
   }
-  if (label=="L_d"){
+  if (label=="Load"){
     return(load_object(name))
   }
 }
 
 data<-sim_data$EnvEvenSp5
-hm_mod<-fit_hmsc(data,"L_d",name="./HMmodels/hm5env.rda" )
+hm_mod<-fit_hmsc(data,"Load",name="./HMmodels/hm5env.rda" )
 #hm_mod<-load_object("./HMmodels/hm5env.rda")
 
 ```
@@ -434,15 +429,15 @@ hm_inter<-function(mod, nchains=2,nsamples = 1000, interact=diag(ns)){
   # corrplot(toPlot, method="color", col=colorRampPalette(c("blue", "white", "red"))(200))
   
   par(mfrow=c(2,3),oma = c(1, 1, 1, 1))
-  corrplot(cor(hm_mod$Y), diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+  corrplot(cor(hm_mod$Y), diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
   title("Correlation cor(Y)")
-  corrplot(postRMean, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+  corrplot(postRMean, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
   title("R")
-  corrplot(Toplot_R, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+  corrplot(Toplot_R, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
   title("Plot only non zero value")
-  corrplot(Tau_n, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+  corrplot(Tau_n, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
   title("Partial correlation matrix")
-  corrplot(interact, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+  corrplot(interact, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
   title("True interactions")
 }
 
@@ -532,8 +527,8 @@ load_gjam(data,name="./gjam_models/gjam10env.rda")
 ```{r hmsc en10}
 
 data<-sim_data$EnvEvenSp10
-#hm_mod<-fit_hmsc(data,"F_t",name="./HMmodels/hm10env.rda" )
-hm_mod<-fit_hmsc(data,"L_d",name="./HMmodels/hm10env.rda" )
+#hm_mod<-fit_hmsc(data,"Fit",name="./HMmodels/hm10env.rda" )
+hm_mod<-fit_hmsc(data,"Load",name="./HMmodels/hm10env.rda" )
 
 hm_conv(hm_mod)
 hm_inter(hm_mod)
@@ -676,7 +671,7 @@ data<-sim_data$EnvEvenSp20
 ```{r hmsc en20}
 
 data<-sim_data$EnvEvenSp20
-hm_mod<-fit_hmsc(data,"L_d",name="./HMmodels/hm20env.rda" )
+hm_mod<-fit_hmsc(data,"Load",name="./HMmodels/hm20env.rda" )
 hm_conv(hm_mod)
 hm_inter(hm_mod)
 
@@ -746,7 +741,7 @@ load_gjam(data,name="./gjam_models/gjam5f.rda", interact=fac_inter[[4]])
 ### HMSC
 ```{r hmsc fd5}
 data<-sim_data$FacDenseSp5
-hm_mod<-fit_hmsc(data,"L_d",name="./HMmodels/hm5fd.rda" )
+hm_mod<-fit_hmsc(data,"Load",name="./HMmodels/hm5fd.rda" )
 hm_conv(hm_mod)
 hm_inter(hm_mod, interact = fac_inter[[4]])
 
@@ -905,7 +900,7 @@ load_gjam(data,name="./gjam_models/gjam10fd.rda", interact=fac_inter[[5]])
 
 
 data<-sim_data$FacDenseSp10
-hm_mod<-fit_hmsc(data,"L_d",name="./HMmodels/hm10fd.rda" )
+hm_mod<-fit_hmsc(data,"Load",name="./HMmodels/hm10fd.rda" )
 hm_conv(hm_mod)
 hm_inter(hm_mod, interact = fac_inter[[5]])
 
@@ -978,7 +973,7 @@ fit_gjam(data,5000,500,"./gjam_models/gjam20fd.rda",interact=fac_inter[[6]])
 ### HMSC
 ```{r hmsc fd20}
 data<-sim_data$FacDenseSp20
-hm_mod<-fit_hmsc(data,"L_d",name="./HMmodels/hm20fd.rda" )
+hm_mod<-fit_hmsc(data,"Load",name="./HMmodels/hm20fd.rda" )
 hm_conv(hm_mod)
 hm_inter(hm_mod, interact = fac_inter[[6]])
 
