@@ -48,14 +48,12 @@ Data was simulated using VirtualCommunity code.\
 Simulated data contains 20 data sets. \
 
 
-```{r load_m}
-```
+
+NB - if chain/sample parameters is modified - should be changed in the whole section(dataset) 
 
 ## Environment filtering 5 species
 
 ### JSDM
-
-Model for $\textbf{EnvEvenSp5}$
 
 
 ```{r draw, echo=FALSE, include=FALSE}
@@ -66,6 +64,7 @@ sim_data<-readRDS("sim_data.rds")
 
 #' Extract correlation parameter means
 #+ mean-correlations
+
 
 prob_cooccur_es <- function(Y) {
   K <- ncol(Y)
@@ -92,10 +91,26 @@ prob_cooccur_es <- function(Y) {
   ans
 }
 
-models<-list(EnvEvenSp5=me5)
-load("fac_inter.rds")
-load("comp_inter.rds")
+#load("model-2019-04-09-19-02-16.rda")
+me5 <- load_object("model-2019-04-09-19-02-16.rda")
+summary(me5)
+jsdm_conv<-function(mod) {
+  cat(sprintf("Maximum Rhat value for Beta: %s\n", round(max(mod$R$B),4)))
+  cat(sprintf("Maximum Rhat value for Rho: %s\n", round(max(mod$R$Rho),4)))
+  cat(sprintf("Maximum Rhat value for EnvRho: %s\n", round(max(mod$R$EnvRho),4)))
+  hist(mod$n.eff$B, lwd=2,col=gray(.6), main="ess(beta)", xlab = "Beta")
+  hist(mod$n.eff$Rho, lwd=2,col=gray(.6), main="ess(rho)",  xlab = "Rho")
+  hist(mod$n.eff$EnvRho, lwd=2,col=gray(.6), main="ess(envrho)",  xlab = "EnvRho")
+}
 
+jsdm_conv(me5)
+me5$mcmc.info[1:7]
+
+
+
+
+#load("fac_inter.rds")
+#load("comp_inter.rds")
 
 mean_cor<-function(mod){
   mean_correlations <- do.call(
@@ -161,7 +176,6 @@ mean_cor<-function(mod){
 }
 
 ```
-
 
 
 ```{r heat, include=TRUE}
@@ -329,14 +343,14 @@ load_gjam<-function(data,name="./gjam_models/temp.rda",interact=diag(ncol(data$Y
 }
 
 ######################################################################
-
-
 ```
+
+
+
 
 ```{r gjam env5, include=TRUE}
 
 ##to setup chains parameters
-
 data<-sim_data$EnvEvenSp5
 #fit_gjam(data,2000,1000,"./gjam_models/gjam5env.rda")
 load_gjam(data,name="./gjam_models/gjam5env.rda")
@@ -369,11 +383,15 @@ fit_hmsc<-function(data,label="Fit",nsamples = 1000,nchains=2,name="./HMmodels/h
   }
 }
 
+
+
 data<-sim_data$EnvEvenSp5
 hm_mod<-fit_hmsc(data,"Load",name="./HMmodels/hm5env.rda" )
 #hm_mod<-load_object("./HMmodels/hm5env.rda")
 
 ```
+
+
 
 Convergence:
 
@@ -382,15 +400,17 @@ hm_conv<-function(mod){
   codaList = convertToCodaObject(mod)
 
   #convergence histograms
-  hist(effectiveSize(codaList$Beta), main="ess(beta)")
-  hist(gelman.diag(codaList$Beta,multivariate=FALSE)$psrf, main="psrf(beta)")
+  hist(effectiveSize(codaList$Beta), main="ess(beta)",lwd=2,col=gray(.6))
+  hist(gelman.diag(codaList$Beta,multivariate=FALSE)$psrf,lwd=2,col=gray(.6), main="psrf(beta)")
   
-  hist(effectiveSize(codaList$Omega[[1]]), main="ess(omega)")
-  hist(gelman.diag(codaList$Omega[[1]], multivariate=FALSE)$psrf, main="psrf(omega)")
+  hist(effectiveSize(codaList$Omega[[1]]), main="ess(omega)",lwd=2,col=gray(.6))
+  hist(gelman.diag(codaList$Omega[[1]], multivariate=FALSE)$psrf,lwd=2,col=gray(.6), main="psrf(omega)")
 }
 
 hm_conv(hm_mod)
 ```
+
+
 
 Study of interactions
 
@@ -418,7 +438,7 @@ hm_inter<-function(mod, nchains=2,nsamples = 1000, interact=diag(ns)){
   postRLo=apply(postR,c(1,2),quantile,0.05)
   
   Tau = solve(postOmegaMean)
-  Tau_n = cov2cor(Tau)
+  Tau_n = -cov2cor(Tau)
   
   
   Toplot_R<-postRMean*(!(postRUp>0 & postRLo<0))
@@ -429,20 +449,20 @@ hm_inter<-function(mod, nchains=2,nsamples = 1000, interact=diag(ns)){
   # corrplot(toPlot, method="color", col=colorRampPalette(c("blue", "white", "red"))(200))
   
   par(mfrow=c(2,3),oma = c(1, 1, 1, 1))
-  corrplot(cor(hm_mod$Y), diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+  corrplot(cor(hm_mod$Y), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
   title("Correlation cor(Y)")
-  corrplot(postRMean, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+  corrplot(postRMean, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
   title("R")
-  corrplot(Toplot_R, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+  corrplot(Toplot_R, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
   title("Plot only non zero value")
-  corrplot(Tau_n, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+  corrplot(Tau_n, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
   title("Partial correlation matrix")
-  corrplot(interact, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+  corrplot(interact, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
   title("True interactions")
 }
 
-
 hm_inter(hm_mod)
+
 ```
 
 
@@ -454,13 +474,7 @@ hm_inter(hm_mod)
 me10 <- load_object("model-2019-04-10-08-26-20.rda")
 #load("model-2019-04-09-19-02-16.rda")
 summary(me10)
-#me10$Rhat
-cat(sprintf("Maximum Rhat value for Beta: %s\n", round(max(me10$R$B),4)))
-cat(sprintf("Maximum Rhat value for Rho: %s\n", round(max(me10$R$Rho),4)))
-cat(sprintf("Maximum Rhat value for EnvRho: %s\n", round(max(me10$R$EnvRho),4)))
-cat(sprintf("Maximum Rhat value for Tau: %s\n", round(max(me10$R$Tau),4)))
-
-me10$n.eff
+jsdm_conv(me10)
 me10$mcmc.info[1:7]
 
 
@@ -484,22 +498,18 @@ data <- list(
 
 plot_cor_jsdm<-function(mod,y,interact=diag(ncol(y))){
   par(mfrow=c(2,4),oma = c(3, 1, 2, 1))
-  corrplot(cor(y), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+  corrplot(cor(y), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
   title("Correlation cor(Y)")
-  corrplot(mod$mean$EnvRho, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+  corrplot(mod$mean$EnvRho, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
   title("EnvRho")
-  corrplot(mod$mean$EnvRho*(!mod$overlap0$EnvRho), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+  corrplot(mod$mean$EnvRho*(!mod$overlap0$EnvRho), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
   title("EnvRho signif")
-  corrplot(mod$mean$Rho, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+  corrplot(mod$mean$Rho, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
   title("Rho")
-  corrplot(mod$mean$Rho*(!mod$overlap0$Rho), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+  corrplot(mod$mean$Rho*(!mod$overlap0$Rho), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
   title("Rho signif")
-  corrplot(interact, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+  corrplot(interact, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
   title("True interactions")
-  #corrplot(Tau_n, diag = FALSE, order ="original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
-  #title("Tau")
-  #corrplot(Tau_n*(!me10$overlap0$Tau), diag = FALSE, order ="original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
-  #title("Tau")
 }
 
 plot_cor_jsdm(me10,data$Y)
@@ -527,7 +537,6 @@ load_gjam(data,name="./gjam_models/gjam10env.rda")
 ```{r hmsc en10}
 
 data<-sim_data$EnvEvenSp10
-#hm_mod<-fit_hmsc(data,"Fit",name="./HMmodels/hm10env.rda" )
 hm_mod<-fit_hmsc(data,"Load",name="./HMmodels/hm10env.rda" )
 
 hm_conv(hm_mod)
@@ -546,14 +555,8 @@ hm_inter(hm_mod)
 me20 <- load_object("model-2019-04-11-19-06-02.rda")
 #load("model-2019-04-09-19-02-16.rda")
 summary(me20)
-#me20$Rhat
-cat(sprintf("Maximum Rhat value for Beta: %s\n", round(max(me20$R$B),4)))
-cat(sprintf("Maximum Rhat value for Rho: %s\n", round(max(me20$R$Rho),4)))
-cat(sprintf("Maximum Rhat value for EnvRho: %s\n", round(max(me20$R$EnvRho),4)))
-cat(sprintf("Maximum Rhat value for Tau: %s\n", round(max(me20$R$Tau),4)))
 
-
-me20$n.eff
+jsdm_conv(me20)
 me20$mcmc.info[1:7]
 
 
@@ -570,10 +573,6 @@ data <- list(
 )
 
 ##########################################################################################
-#Tau<-solve
-#Tau_n<-to_prec(me10$mean$Tau)
-#Tau_k<-Tau_n*(!(model$q97.5$Tau>0 & model$q2.5$Tau<0))
-
 
 plot_cor_jsdm(me20,data$Y)
 
@@ -604,8 +603,6 @@ load_gjam(data,name="./gjam_models/gjam20env.rda")
 
 data<-sim_data$EnvEvenSp20
 
-
-
 #fit_gjam(data,5000,500,"./gjam_models/gjam20env.rda")
 
 #load_gjam(data,name="./gjam_models/gjam20env.rda")
@@ -624,45 +621,45 @@ data<-sim_data$EnvEvenSp20
     I = diag(ncol(data) - 1),
     df = ncol(data)
   )
-  xdata<-as.data.frame(data$X[,-1])
-  colnames(xdata)<- c("env","env2")
-  ydata<-as.data.frame(data$Y)
-  ###formula
-  rl   <- list(r = 8, N = 20)
-  formula<-as.formula( ~env+ env2)
-  ml  <- list(ng = 2500, burnin = 500, typeNames = 'PA', reductList = rl)
-  ####fit
-  
-  
-  mod_gjam1  <- gjam(formula, xdata = xdata, ydata = ydata, modelList = ml)
-  save(mod_gjam1, file = "./gjam_models/gjam20env_dr.rda")
-  summary(mod_gjam1)
-  
-  Tau <- solve(mod_gjam1$parameters$sigMu)
-  Tau_n = to_prec(Tau)
-  
-  #postH<-apply(mod_gjam1$chains$sgibbs, 2, quantile,0.95)
-  #postL<-apply(mod_gjam1$chains$sgibbs, 2, quantile,0.05)
-  
-  
-  #pH<-convert_to_m(postH)
-  #pL<-convert_to_m(postL)
-  
-  #R_sign<-cov2cor(mod_gjam1$parameters$sigMu)*(!(pH>0 & pL<0))
-  
-  par(mfrow=c(2,3),oma = c(1, 1, 1, 1))
-  corrplot(cor(ydata), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
-  title("Correlation cor(Y)")
-  corrplot(mod_gjam1$parameters$corMu, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
-  title("R")
-  corrplot(mod_gjam1$parameters$ematrix, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
-  title("E matrix")
-  # corrplot(Tau_n, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
-  # title("Tau")
-  # corrplot(R_sign, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
-  # title("R signif")
-  corrplot(diag(20), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
-  title("True interactions")
+xdata<-as.data.frame(data$X[,-1])
+colnames(xdata)<- c("env","env2")
+ydata<-as.data.frame(data$Y)
+###formula
+rl   <- list(r = 8, N = 20)
+formula<-as.formula( ~env+ env2)
+ml  <- list(ng = 2500, burnin = 500, typeNames = 'PA', reductList = rl)
+####fit
+
+
+mod_gjam1  <- gjam(formula, xdata = xdata, ydata = ydata, modelList = ml)
+save(mod_gjam1, file = "./gjam_models/gjam20env_dr.rda")
+summary(mod_gjam1)
+
+Tau <- solve(mod_gjam1$parameters$sigMu)
+Tau_n = to_prec(Tau)
+
+#postH<-apply(mod_gjam1$chains$sgibbs, 2, quantile,0.95)
+#postL<-apply(mod_gjam1$chains$sgibbs, 2, quantile,0.05)
+
+
+#pH<-convert_to_m(postH)
+#pL<-convert_to_m(postL)
+
+#R_sign<-cov2cor(mod_gjam1$parameters$sigMu)*(!(pH>0 & pL<0))
+
+par(mfrow=c(2,3),oma = c(1, 1, 1, 1))
+corrplot(cor(ydata), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Correlation cor(Y)")
+corrplot(mod_gjam1$parameters$corMu, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("R")
+corrplot(mod_gjam1$parameters$ematrix, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("E matrix")
+# corrplot(Tau_n, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+# title("Tau")
+# corrplot(R_sign, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+# title("R signif")
+corrplot(diag(20), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("True interactions")
 
 
 
@@ -687,16 +684,8 @@ hm_inter(hm_mod)
 mf5 <- load_object("model-2019-04-11-19-35-11.rda")
 summary(mf5)
 #mf5$Rhat
-cat(sprintf("Maximum Rhat value for Beta: %s\n", round(max(mf5$R$B),4)))
-cat(sprintf("Maximum Rhat value for Rho: %s\n", round(max(mf5$R$Rho),4)))
-cat(sprintf("Maximum Rhat value for EnvRho: %s\n", round(max(mf5$R$EnvRho),4)))
-cat(sprintf("Maximum Rhat value for Tau: %s\n", round(max(mf5$R$Tau),4)))
-
-mf5$n.eff
+jsdm_conv(mf5)
 mf5$mcmc.info[1:7]
-
-
-
 
 data<-sim_data$FacDenseSp5
 data <- list(
@@ -724,9 +713,8 @@ plot_cor_jsdm(mf5,data$Y,fac_inter[[4]])
 ```{r gjam fd5}
 
 data<-sim_data$FacDenseSp5
-
-#fit_gjam(data,5000,500,"./gjam_models/gjam5f.rda",interact=fac_inter[[4]])
-load_gjam(data,name="./gjam_models/gjam5f.rda", interact=fac_inter[[4]])
+fit_gjam(data,10000,2000,"./gjam_models/gjam5f.rda",interact=fac_inter[[4]])
+#load_gjam(data,name="./gjam_models/gjam5f.rda", interact=fac_inter[[4]])
 #gjfd5<-load_object("./gjam_models/gjam5f.rda")
 
 #to check posterior density of s in Sigma 
@@ -745,8 +733,6 @@ hm_mod<-fit_hmsc(data,"Load",name="./HMmodels/hm5fd.rda" )
 hm_conv(hm_mod)
 hm_inter(hm_mod, interact = fac_inter[[4]])
 
-
-
 ```
 
 ## Environmental filtering + Facilitation dense 10 species
@@ -758,16 +744,8 @@ hm_inter(hm_mod, interact = fac_inter[[4]])
 mfd10 <- load_object("model-2019-04-12-06-59-42.rda")
 
 summary(mfd10)
-#mfd10$Rhat
-cat(sprintf("Maximum Rhat value for Beta: %s\n", round(max(mfd10$R$B),4)))
-cat(sprintf("Maximum Rhat value for Rho: %s\n", round(max(mfd10$R$Rho),4)))
-cat(sprintf("Maximum Rhat value for EnvRho: %s\n", round(max(mfd10$R$EnvRho),4)))
-cat(sprintf("Maximum Rhat value for Tau: %s\n", round(max(mfd10$R$Tau),4)))
-
-mfd10$n.eff
+jsdm_conv(mfd10)
 mfd10$mcmc.info[1:7]
-
-
 
 ######################################################Prepare data
 data<-sim_data$FacDenseSp10
@@ -782,8 +760,7 @@ data <- list(
   df = ncol(data)
 )
 
-#Tau_n<-to_prec(mfd10$mean$Tau)
-
+######################################################Plot 
 
 plot_cor_jsdm(mfd10,data$Y,fac_inter[[5]])
 
@@ -809,104 +786,10 @@ load_gjam(data,name="./gjam_models/gjam10fd.rda", interact=fac_inter[[5]])
 ### HMSC
 
 ```{r model2 hmsc, echo=FALSE}
-#####HMSC
-
-#data<-sim_data$FacDenseSp10
-
-# Y_data = subset(data, select = -env)
-# X<-scale(poly(data$env[1:np], 2))
-# colnames(X)<-c("env","env2")
-
-#if sim_data is not a sitexspecies matrix but is a dataframe where one column are the presences
-# then do this
- # Y_data<-matrix(NA,nrow=np,ncol=ns)
- # for(i in 1:ns){
- #   Y_data[,i]<-as.numeric(sim_data$FacDenseSp10$present[(np*(i-1)+1):(np*i)])
- # }
- #
- # X<-scale(poly(data$env[1:np], 2))
-
-# studyDesign = data.frame(sample = as.factor(1:np))
-# rL = HmscRandomLevel(units = studyDesign$sample)
-# 
-# m = Hmsc(Y=as.matrix(Y_data), XData=as.data.frame(X), XFormula=~env+env2, distr="probit",
-#          studyDesign = studyDesign, ranLevels = list(sample = rL))
-# 
-# nsamples=10000
-# nchains=2
-# m = sampleMcmc(m, nsamples, thin=10, adaptNf=c(200,200), transient=500,nChains=nchains ,verbose=F)
-# 
-# codaList = convertToCodaObject(m)
-# 
-# #convergence histograms
-# hist(effectiveSize(codaList$Beta), main="ess(beta)")
-# hist(gelman.diag(codaList$Beta,multivariate=FALSE)$psrf, main="psrf(beta)")
-# hist(effectiveSize(codaList$Omega[[1]]), main="ess(omega)")
-# hist(gelman.diag(codaList$Omega[[1]], multivariate=FALSE)$psrf, main="psrf(omega)")
-# ns<-10
-# 
-# getOmega = function(a,r=1)
-#   return(crossprod(a$Lambda[[r]]))
-# 
-# postOmega1 = array(unlist(lapply(m$postList[[1]],getOmega)),c(ns,ns,m$samples))
-# postOmega2 = array(unlist(lapply(m$postList[[2]],getOmega)),c(ns,ns,m$samples))
-# 
-# postOmega<-abind(postOmega1,postOmega2,along=3)
-# postOmegaMean = apply(postOmega,c(1,2),mean)
-# postOmegaUp=apply(postOmega,c(1,2),quantile,0.95)
-# postOmegaLo=apply(postOmega,c(1,2),quantile,0.05)
-# 
-# postR<-array(dim=c(ns,ns,nchains*nsamples))
-# for(i in 1:dim(postOmega)[3])
-#  postR[,,i]<-cov2cor(postOmega[,,i])
-# 
-# postRMean = apply(postR,c(1,2),mean)
-# postRUp=apply(postR,c(1,2),quantile,0.95)
-# postRLo=apply(postR,c(1,2),quantile,0.05)
-# 
-# 
-# 
-# 
-# Tau = solve(postOmegaMean)
-# Tau_n = cov2cor(Tau)
-# 
-# #Only values that do not overlap zero
-# Toplot_R<-postRMean*(!(postRUp>0 & postRLo<0))
-# 
-# 
-# # Omegacor<- computeAssociations(m)
-# # supportLevel<- 0.95
-# # toPlot<- ((Omegacor[[1]]$support>supportLevel)+ (Omegacor[[1]]$support<(1-supportLevel))>0)*Omegacor[[1]]$mean
-# # corrplot(toPlot, method="color", col=colorRampPalette(c("blue", "white", "red"))(200))
-# # Omegacor<- computeAssociations(m)
-# # supportLevel<- 0.95
-# # toPlot<- ((Omegacor[[1]]$support>supportLevel)+ (Omegacor[[1]]$support<(1-supportLevel))>0)*Omegacor[[1]]$mean
-# # corrplot(toPlot, method="color", col=colorRampPalette(c("blue", "white", "red"))(200))
-# 
-# 
-# 
-# par(mfrow=c(2,3),oma = c(1, 1, 1, 1))
-# corrplot(cor(Y_data), diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
-# title("Correlation cor(Y)")
-# corrplot(postRMean, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
-# title("R")
-# corrplot(Toplot_R, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
-# title("Plot only non zero value")
-# corrplot(Tau_n, diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
-# title("Partial correlation matrix")
-# corrplot(fac_inter[[5]], diag = FALSE, order ="original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
-# title("True interactions")
-
-
-
 data<-sim_data$FacDenseSp10
-hm_mod<-fit_hmsc(data,"Load",name="./HMmodels/hm10fd.rda" )
+hm_mod<-fit_hmsc(data,"Load",nsamples = 2000,nchains=2,name="./HMmodels/hm10fd.rda" )
 hm_conv(hm_mod)
-hm_inter(hm_mod, interact = fac_inter[[5]])
-
-
-
-
+hm_inter(hm_mod, nsamples = 2000,nchains=2,interact = fac_inter[[5]])
 
 ```
 
@@ -923,12 +806,7 @@ mfd20 <- load_object("model-2019-04-13-17-22-12.rda")
 
 summary(mfd20)
 #mfd20$Rhat
-cat(sprintf("Maximum Rhat value for Beta: %s\n", round(max(mfd20$R$B),4)))
-cat(sprintf("Maximum Rhat value for Rho: %s\n", round(max(mfd20$R$Rho),4)))
-cat(sprintf("Maximum Rhat value for EnvRho: %s\n", round(max(mfd20$R$EnvRho),4)))
-cat(sprintf("Maximum Rhat value for Tau: %s\n", round(max(mfd20$R$Tau),4)))
-
-mfd20$n.eff
+jsdm_conv(mfd20)
 mfd20$mcmc.info[1:7]
 
 
@@ -958,8 +836,8 @@ plot_cor_jsdm(mfd20,data$Y,fac_inter[[6]])
 
 data<-sim_data$FacDenseSp20
 
-fit_gjam(data,5000,500,"./gjam_models/gjam20fd.rda",interact=fac_inter[[6]])
-#load_gjam(data,name="./gjam_models/gjam20fd.rda", interact=fac_inter[[6]])
+#fit_gjam(data,10000,1500,"./gjam_models/gjam20fd.rda",interact=fac_inter[[6]])
+load_gjam(data,name="./gjam_models/gjam20fd.rda", interact=fac_inter[[6]])
 #gjfd5<-load_object("./gjam_models/gjam20fd.rda")
 
 #to check posterior density of s in Sigma 
@@ -977,8 +855,6 @@ hm_mod<-fit_hmsc(data,"Load",name="./HMmodels/hm20fd.rda" )
 hm_conv(hm_mod)
 hm_inter(hm_mod, interact = fac_inter[[6]])
 
-
-
 ```
 
 
@@ -994,12 +870,8 @@ mfs5 <- load_object("model-2019-04-13-17-51-16.rda")
 
 summary(mfs5)
 #mfs5$Rhat
-cat(sprintf("Maximum Rhat value for Beta: %s\n", round(max(mfs5$R$B),4)))
-cat(sprintf("Maximum Rhat value for Rho: %s\n", round(max(mfs5$R$Rho),4)))
-cat(sprintf("Maximum Rhat value for EnvRho: %s\n", round(max(mfs5$R$EnvRho),4)))
-cat(sprintf("Maximum Rhat value for Tau: %s\n", round(max(mfs5$R$Tau),4)))
+jsdm_conv(mfs5)
 
-mfs5$n.eff
 mfs5$mcmc.info[1:7]
 
 
@@ -1021,6 +893,38 @@ plot_cor_jsdm(mfs5,data$Y,fac_inter[[7]])
 ```
 
 
+### Gjam
+
+```{r gjam fs5}
+
+data<-sim_data$FacSparseSp5
+
+#fit_gjam(data,2500,500,"./gjam_models/gjam5fs.rda",interact=fac_inter[[7]])
+load_gjam(data,name="./gjam_models/gjam5fs.rda", interact=fac_inter[[7]])
+#gjfd5<-load_object("./gjam_models/gjam5fs.rda")
+
+#to check posterior density of s in Sigma 
+#gjfd5<-load_object("./gjam_models/gjam20fd.rda")
+#plot(density(gjfd5$chains$sgibbs[,4]))
+
+
+```
+
+### HMSC
+```{r hmsc fs5}
+data<-sim_data$FacSparseSp5
+
+hm_mod<-fit_hmsc(data,"Load",name="./HMmodels/hm5fs.rda" )
+hm_conv(hm_mod)
+hm_inter(hm_mod, interact = fac_inter[[7]])
+
+```
+
+
+
+
+
+
 
 ## Environmental filtering + Facilitation sparse 10 species
 
@@ -1032,12 +936,7 @@ mfs10 <- load_object("model-2019-04-14-05-17-58.rda")
 
 summary(mfs10)
 #mfs10$Rhat
-cat(sprintf("Maximum Rhat value for Beta: %s\n", round(max(mfs10$R$B),4)))
-cat(sprintf("Maximum Rhat value for Rho: %s\n", round(max(mfs10$R$Rho),4)))
-cat(sprintf("Maximum Rhat value for EnvRho: %s\n", round(max(mfs10$R$EnvRho),4)))
-cat(sprintf("Maximum Rhat value for Tau: %s\n", round(max(mfs10$R$Tau),4)))
-
-mfs10$n.eff
+jsdm_conv(mfs10)
 mfs10$mcmc.info[1:7]
 
 
@@ -1057,7 +956,30 @@ data <- list(
 plot_cor_jsdm(mfs10,data$Y,fac_inter[[8]])
 ```
 
+```{r gjam fs10}
 
+data<-sim_data$FacSparseSp10
+
+#fit_gjam(data,2500,500,"./gjam_models/gjam10fs.rda",interact=fac_inter[[8]])
+load_gjam(data,name="./gjam_models/gjam10fs.rda", interact=fac_inter[[8]])
+#gjfd5<-load_object("./gjam_models/gjam10fs.rda")
+
+#to check posterior density of s in Sigma 
+#gjfd5<-load_object("./gjam_models/gjam10fs.rda")
+#plot(density(gjfd5$chains$sgibbs[,4]))
+
+
+```
+
+### HMSC
+```{r hmsc fs10}
+data<-sim_data$FacSparseSp10
+
+hm_mod<-fit_hmsc(data,"Load",name="./HMmodels/hm10fs.rda" )
+hm_conv(hm_mod)
+hm_inter(hm_mod, interact = fac_inter[[8]])
+
+```
 
 
 
@@ -1072,12 +994,7 @@ mfs20 <- load_object("model-2019-04-15-15-34-20.rda")
 
 summary(mfs20)
 #mfs20$Rhat
-cat(sprintf("Maximum Rhat value for Beta: %s\n", round(max(mfs20$R$B),4)))
-cat(sprintf("Maximum Rhat value for Rho: %s\n", round(max(mfs20$R$Rho),4)))
-cat(sprintf("Maximum Rhat value for EnvRho: %s\n", round(max(mfs20$R$EnvRho),4)))
-cat(sprintf("Maximum Rhat value for Tau: %s\n", round(max(mfs20$R$Tau),4)))
-
-mfs20$n.eff
+jsdm_conv(mfs20)
 mfs20$mcmc.info[1:7]
 
 ######################################################Prepare data
@@ -1097,6 +1014,37 @@ plot_cor_jsdm(mfs20,data$Y,fac_inter[[9]])
 ```
 
 
+### Gjam
+
+```{r gjam fs20}
+
+data<-sim_data$FacSparseSp20
+
+#fit_gjam(data,10000,1500,"./gjam_models/gjam20sd.rda",interact=fac_inter[[9]])
+#load_gjam(data,name="./gjam_models/gjam20fs.rda", interact=fac_inter[[9]])
+#gjfd5<-load_object("./gjam_models/gjam20fd.rda")
+
+#to check posterior density of s in Sigma 
+#gjfd5<-load_object("./gjam_models/gjam20fd.rda")
+#plot(density(gjfd5$chains$sgibbs[,4]))
+
+
+```
+
+
+### HMSC
+
+### HMSC
+```{r hmsc fs20}
+data<-sim_data$FacSparseSp20
+
+hm_mod<-fit_hmsc(data,"Load",name="./HMmodels/hm20fs.rda" )
+hm_conv(hm_mod)
+hm_inter(hm_mod, interact = fac_inter[[9]])
+
+```
+
+
 ## Environmental filtering + Competition dense 5 species
 
 ### JSDM
@@ -1108,12 +1056,8 @@ mcmpd5 <- load_object("model-2019-04-15-16-03-39.rda")
 
 summary(mcmpd5)
 #mcmpd5$Rhat
-cat(sprintf("Maximum Rhat value for Beta: %s\n", round(max(mcmpd5$R$B),4)))
-cat(sprintf("Maximum Rhat value for Rho: %s\n", round(max(mcmpd5$R$Rho),4)))
-cat(sprintf("Maximum Rhat value for EnvRho: %s\n", round(max(mcmpd5$R$EnvRho),4)))
-cat(sprintf("Maximum Rhat value for Tau: %s\n", round(max(mcmpd5$R$Tau),4)))
+jsdm_conv(mcmpd5)
 
-mcmpd5$n.eff
 mcmpd5$mcmc.info[1:7]
 
 
@@ -1136,8 +1080,35 @@ plot_cor_jsdm(mcmpd5,data$Y,comp_inter[[10]])
 
 
 
-## Environmental filtering + Competition dense 10 species
+### Gjam
 
+```{r gjam cmpd5}
+data<-sim_data$CompDenseSp5
+
+fit_gjam(data,5000,500,"./gjam_models/gjam5cmpd.rda",interact=comp_inter[[10]])
+
+#load_gjam(data,name="./gjam_models/gjam5cmpd.rda", interact=,interact=comp_inter[[10]])
+gjfd5<-load_object("./gjam_models/gjam5cmpd.rda")
+
+#to check posterior density of s in Sigma 
+#gjfd5<-load_object("./gjam_models/gjam5cmpd.rda")
+#plot(density(gjfd5$chains$sgibbs[,4]))
+
+
+```
+
+
+```{r hmsc cmpd5}
+data<-sim_data$CompDenseSp5
+
+hm_mod<-fit_hmsc(data,"Fit",name="./HMmodels/hm5cmpd.rda" )
+hm_conv(hm_mod)
+hm_inter(hm_mod, interact = comp_inter[[10]])
+
+```
+
+
+## Environmental filtering + Competition dense 10 species
 
 ```{r model jsdm cmpd10, echo=FALSE}
 #load("model-2019-04-10-15-13-15.rda")
@@ -1145,12 +1116,8 @@ mcmpd10 <- load_object("model-2019-04-16-03-39-17.rda")
 
 summary(mcmpd10)
 #mcmpd10$Rhat
-cat(sprintf("Maximum Rhat value for Beta: %s\n", round(max(mcmpd10$R$B),4)))
-cat(sprintf("Maximum Rhat value for Rho: %s\n", round(max(mcmpd10$R$Rho),4)))
-cat(sprintf("Maximum Rhat value for EnvRho: %s\n", round(max(mcmpd10$R$EnvRho),4)))
-cat(sprintf("Maximum Rhat value for Tau: %s\n", round(max(mcmpd10$R$Tau),4)))
 
-mcmpd10$n.eff
+jsdm_conv(mcmpd10)
 mcmpd10$mcmc.info[1:7]
 
 ######################################################Prepare data
@@ -1171,11 +1138,126 @@ plot_cor_jsdm(mcmpd10,data$Y,comp_inter[[11]])
 
 
 
+### Gjam
+
+```{r gjam cmpd10}
+data<-sim_data$CompDenseSp10
+
+#fit_gjam(data,5000,500,"./gjam_models/gjam10cmpd.rda",interact=comp_inter[[11]])
+
+load_gjam(data,name="./gjam_models/gjam10cmpd.rda", interact=comp_inter[[11]])
+#gjfd5<-load_object("./gjam_models/gjam10cmpd.rda")
+
+#to check posterior density of s in Sigma 
+#gjfd5<-load_object("./gjam_models/gjam20fd.rda")
+#plot(density(gjfd5$chains$sgibbs[,4]))
+
+
+```
+
+
+### HMSC
+
+```{r hmsc cmpd10}
+data<-sim_data$CompDenseSp10
+hm_mod<-fit_hmsc(data,"Load",name="./HMmodels/hm10cmpd.rda" )
+hm_conv(hm_mod)
+hm_inter(hm_mod, interact = comp_inter[[11]])
+
+```
+
+
 
 ## Environmental filtering + Competition dense 20 species
+
+```{r model jsdm cmpd20, echo=FALSE}
+#load("model-2019-04-10-15-13-15.rda")
+mcmpd20 <- load_object("model-2019-04-17-14-00-45.rda")
+
+summary(mcmpd20)
+#mcmpd10$Rhat
+
+jsdm_conv(mcmpd20)
+mcmpd20$mcmc.info[1:7]
+
+######################################################Prepare data
+data<-sim_data$CompDenseSp20
+data <- list(
+  Y = subset(data, select = -env),
+  X = cbind(1, scale(poly(data$env, 2))),
+  covx = cov(cbind(1, scale(poly(data$env, 2)))),
+  K = 3,
+  J = ncol(data) - 1,
+  n = nrow(data),
+  I = diag(ncol(data) - 1),
+  df = ncol(data)
+)
+#Tau_n<-to_prec(mfd10$mean$Tau)
+plot_cor_jsdm(mcmpd20,data$Y,comp_inter[[12]])
+```
+
+
+
+### Gjam
+
+```{r gjam cmpd20}
+data<-sim_data$CompDenseSp20
+
+#fit_gjam(data,5000,500,"./gjam_models/gjam20cmpd.rda",interact=comp_inter[[12]])
+
+load_gjam(data,name="./gjam_models/gjam20cmpd.rda", interact=fac_inter[[6]])
+#gjfd5<-load_object("./gjam_models/gjam20cmpd.rda")
+
+#to check posterior density of s in Sigma 
+#gjfd5<-load_object("./gjam_models/gjam20fd.rda")
+#plot(density(gjfd5$chains$sgibbs[,4]))
+
+
+```
+
+
+### HMSC
+
+```{r hmsc cmpd20}
+data<-sim_data$CompDenseSp20
+
+hm_mod<-fit_hmsc(data,"Load",name="./HMmodels/hm20cmpd.rda" )
+hm_conv(hm_mod)
+hm_inter(hm_mod, interact = comp_inter[[12]])
+
+```
+
+
+
 ## Environmental filtering + Competition sparse 5 species
-## Environmental filtering + Competition dense 10 species
-## Environmental filtering + Competition dense 5 species
+
+```{r model jsdm cmps5, echo=FALSE}
+#load("model-2019-04-17-14-30-01.rda")
+cmps5 <- load_object("model-2019-04-17-14-30-01.rda")
+
+summary(cmps5)
+jsdm_conv(cmps5)
+cmps5$mcmc.info[1:7]
+
+######################################################Prepare data
+data<-sim_data$CompSparseSp5
+data <- list(
+  Y = subset(data, select = -env),
+  X = cbind(1, scale(poly(data$env, 2))),
+  covx = cov(cbind(1, scale(poly(data$env, 2)))),
+  K = 3,
+  J = ncol(data) - 1,
+  n = nrow(data),
+  I = diag(ncol(data) - 1),
+  df = ncol(data)
+)
+
+plot_cor_jsdm(mcmpd10,data$Y,comp_inter[[11]])
+```
+## Environmental filtering + Competition sparse 10 species
+
+
+## Environmental filtering + Competition sparse 5 species
 
 ## Graph 
 
@@ -1184,7 +1266,7 @@ plot_cor_jsdm(mcmpd10,data$Y,comp_inter[[11]])
 ```{r combined models, echo=FALSE, warning=FALSE}
 
 models<-list(EnvEvenSp5=me5,EnvEvenSp10=me10, EnvEvenSp20=me20,FacDenseSp5 =mf5, FacDenseSp10=mfd10, FacDenseSp20=mfd20,
-             FacSparseSp5 =mfs5, FacSparseSp10=mfs10, FacSparseSp20=mfs20, CompDenseSp5=mcmpd5,CompDenseSp10=mcmpd10)
+             FacSparseSp5 =mfs5, FacSparseSp10=mfs10, FacSparseSp20=mfs20, CompDenseSp5=mcmpd5,CompDenseSp10=mcmpd10,CompDenseSp20=mcmpd20)
 
 mean_correlations <- mean_cor(models)
 x <- subset(mean_correlations, type != "Environmental\nFiltering Only")
