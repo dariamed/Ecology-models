@@ -385,6 +385,7 @@ fit_hmsc<-function(data,label="Fit",nsamples = 1000,nchains=2,name="./HMmodels/h
 
 
 
+
 data<-sim_data$EnvEvenSp5
 hm_mod<-fit_hmsc(data,"Load",name="./HMmodels/hm5env.rda" )
 #hm_mod<-load_object("./HMmodels/hm5env.rda")
