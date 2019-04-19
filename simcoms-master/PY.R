@@ -1,7 +1,7 @@
 
 library(plotly)
-#Sys.setenv("plotly_username"="Daria_Bystrova")
-#Sys.setenv("plotly_api_key"="IIYIoDs5TIMnLJQhlMrR")
+# Sys.setenv("plotly_username"="Daria_Bystrova")
+# Sys.setenv("plotly_api_key"="IIYIoDs5TIMnLJQhlMrR")
 #######################################################
 ## Algorithm 3
 
@@ -136,8 +136,11 @@ abline(h=0,col="black")
 #############Compute estimate on a grid
 
 #####Grid for alpha[limited to 0.6], theta 
-xx_m <- seq(0.1,0.6 , by = 0.05)
-yy_m<- seq(1,11 , by = 1)
+xx <- seq(0.1,0.6 , by = 0.025)
+yy<- seq(1,11 , by = 0.5)
+
+# xx_m <- seq(0.1,0.6 , by = 0.05)
+# yy_m<- seq(1,11 , by = 1)
 
 
 ########compute 95% quantile for tau by rbase function *manual
@@ -310,9 +313,9 @@ legend("topright",
 ###################Generating 3D plots.
 
 #####Grid for alpha[limited to 0.6], theta 
-xx <- seq(0.1,0.6 , by = 0.05)
-yy<- seq(1,11 , by = 1)
-
+xx <- seq(0.1,0.6 , by = 0.025)
+yy<- seq(1,11 , by = 0.5)
+#length(xx)==length(yy)
 
 ########compute 95% quantile for tau by rbase function
 compute_tau_est<- function(alpha,theta, eps=0.01){
@@ -324,7 +327,7 @@ compute_tau_est<- function(alpha,theta, eps=0.01){
 }
 
 ########compute 95%  for tau with sort function 
-compute_tau_est_b<- function(alpha,theta, eps=0.01){
+compute_tau_est_b<- function(alpha,theta, eps=0.1){
   T<-rtstable(n,alpha,theta)
   tau<-1+ floor(((eps*T)/alpha)^(-alpha/(1-alpha)))
   taus<-taus<-sort(tau, decreasing=FALSE)
@@ -333,7 +336,7 @@ compute_tau_est_b<- function(alpha,theta, eps=0.01){
 }
 
 ########compute mean  for tau
-compute_tau_mean<- function(alpha,theta, eps=0.01){
+compute_tau_mean<- function(alpha,theta, eps=0.1){
   N_eps<- (eps/alpha)^(-alpha/(1-alpha))
   gamma<- (gamma(1+theta)*gamma(1+ theta/alpha + 1/(1-alpha)))/(gamma(1+theta/alpha)*gamma(1+ alpha/(1-alpha) + theta))
   N<- N_eps*gamma
@@ -341,12 +344,48 @@ compute_tau_mean<- function(alpha,theta, eps=0.01){
 }
 
 
-########compute k-th moment  for tau
-compute_tau_km<- function(alpha,theta, eps=0.1,k=1){
+
+##############  compute variance
+compute_tau_var<- function(alpha,theta, eps=0.1){
   N_eps<- (eps/alpha)^(-alpha/(1-alpha))
-  gamma<- (gamma(1+theta)*gamma(1+ theta/alpha + k/(1-alpha)))/(gamma(1+theta/alpha)*gamma(1+ (k*alpha)/(1-alpha) + theta))
-  N<- N_eps*gamma
+  gamma2<- (gamma(1+theta)*gamma(1+ theta/alpha + 2/(1-alpha)))/(gamma(1+theta/alpha)*gamma(1+ (2*alpha)/(1-alpha) + theta))
+  gamma1<- (gamma(1+theta)*gamma(1+ theta/alpha + 1/(1-alpha)))/(gamma(1+theta/alpha)*gamma(1+ (1*alpha)/(1-alpha) + theta))
+  gamma<-(gamma2-gamma1*gamma1)
+  N<- (N_eps^2)*gamma
+  return(sqrt(N))
+}
+
+
+########compute k-th moment  for tau
+compute_tau_km<- function(alpha,theta, eps=0.1,k){
+  N_eps<- (eps/alpha)^(-alpha/(1-alpha))
+  gamma<- (gamma(1+theta)*gamma(1+ theta/alpha + k/(1-alpha) ))/(gamma(1+theta/alpha)*gamma(1+ (k*alpha)/(1-alpha) + theta))
+  N<- (N_eps^k)*gamma
   return(N)
+}
+
+
+########compute skewness  for tau
+compute_tau_skew<- function(alpha,theta, eps=0.1){
+  mu_3<-compute_tau_km(alpha,theta, eps,k=3)
+  mu_2<-compute_tau_km(alpha,theta, eps,k=2)
+  mu<-compute_tau_km(alpha,theta, eps,k=1)
+  mu_3_prime<- mu_3 - 3*mu*mu_2 + 2*(mu)^3
+  variance<- compute_tau_var(alpha,theta, eps)
+  val<- mu_3_prime/(variance^3)
+  return(val)
+}
+
+########compute kurtosis  for tau
+compute_tau_kurt<- function(alpha,theta, eps=0.1){
+  mu_4<-compute_tau_km(alpha,theta, eps,k=4)
+  mu_3<-compute_tau_km(alpha,theta, eps,k=3)
+  mu_2<-compute_tau_km(alpha,theta, eps,k=2)
+  mu<-compute_tau_km(alpha,theta, eps,k=1)
+  mu_4_prime<- mu_4 - 4*mu*mu_3 + 6*mu_2*(mu^2) - 3*(mu)^4
+  variance<- compute_tau_var(alpha,theta, eps)
+  val<- mu_4_prime/(variance^4)
+  return(val)
 }
 
 ############## constant gamma function in density
@@ -382,11 +421,11 @@ compute_tau_sk<- function(alpha,theta, eps=0.01){
 
 ############################################################
 
-
-compute_assymp<- function(alpha,theta, eps=0.1,k=1){
-  val<- exp(1*k*log(10)*(alpha/(1-alpha)))*((theta/(1-alpha))^k)
-  return(val)
-}
+# 
+# compute_assymp<- function(alpha,theta, eps=0.1,k=1){
+#   val<- exp(1*k*log(10)*(alpha/(1-alpha)))*((theta/(1-alpha))^k)
+#   return(val)
+# }
 
 
 ##Vectorization
@@ -427,7 +466,6 @@ plotly_IMAGE(p_comp_qe, format = "png", out_file = "Errors.png")
 ################################################################################################################################################
 
 z_mean<- outer(xx,yy,Vectorize(compute_tau_mean),eps=0.1)
-
 
 #######Surface for mean and quantile
 p_comp_mq <- plot_ly(showscale = TRUE) %>%
@@ -558,7 +596,7 @@ pk
 
 
 ############################################################################################################################################
-f
+
 gamma_fun <- function(alpha) {
   (cos(pi*alpha/2))^(1/alpha)
 }
@@ -585,10 +623,10 @@ lissage  =function(m){
 
 # applying smoothing to z matrix of integers
 
-z1 = lissage(z1) # do it about ten times :-)
+#z1 = lissage(z1) # do it about ten times :-)
 
 # 3D-plot
-build3ds1<-function(x,y,z,par1="",par2=""){
+build3ds1<-function(x,y,z,par1=""){
   z<-pmin(z,1520)
   nrz <- nrow(z)
   ncz <- ncol(z)
@@ -597,11 +635,9 @@ build3ds1<-function(x,y,z,par1="",par2=""){
   color <- jet.colors(nbcol)
   zfacet <- z[-1, -1] + z[-1, -ncz] + z[-nrz, -1] + z[-nrz, -ncz]
   facetcol <- cut(zfacet, nbcol)
-  
-  
+
   sigma_param<-x
   theta_param<-y
-  #pdf()
   par(mar = c(2,1,2,.1), mgp = c(1,1,0), xaxs = "i", yaxs = "i", las= 1)
   persp(
     x = sigma_param, 
@@ -616,57 +652,58 @@ build3ds1<-function(x,y,z,par1="",par2=""){
     shade = 0.3,
     xlab = "", ylab = "", zlab = "", 
     d = 5, r = 10,
-    cex.axis = 1, cex.lab = 1.3, nticks = 3, main = expression(paste(italic(N^1),"(",italic(epsilon),",",italic(alpha),",",italic(theta),") ,",
-                                                                     paste(epsilon),"=",0.1))
-  )
+    cex.axis = 1, cex.lab = 1.3, nticks = 3, main =par1)
   text(.13,-.37,expression(alpha), cex = 1.5)
   text(-.3,-.35,expression(theta), cex = 1.5)
-  #dev.off()
 }
 
-#nrz <- nrow(z1)
-# ncz <- ncol(z1)
-# jet.colors <- colorRampPalette( c("blue", "red") )
-# nbcol <- 100
-# color <- jet.colors(nbcol)
-# zfacet <- z[-1, -1] + z[-1, -ncz] + z[-nrz, -1] + z[-nrz, -ncz]
-# facetcol <- cut(zfacet, nbcol)
-# 
-# 
-# sigma_param<-xx
-# theta_param<-yy
-# #pdf()
-# par(mar = c(2,1,2,.1), mgp = c(1,1,0), xaxs = "i", yaxs = "i", las= 1)
-# persp(
-#   x = sigma_param, 
-#   y = theta_param, 
-#   z = z, 
-#   zlim = c(0,1520), 
-#   col = color[facetcol], 
-#   theta = -25, 
-#   phi = 25,
-#   ltheta = 120, 
-#   ticktype = "detailed", 
-#   shade = 0.3,
-#   xlab = "", ylab = "", zlab = "", 
-#   d = 5, r = 10,
-#   cex.axis = 1, cex.lab = 1.3, nticks = 3, main = expression(italic(tau)*(italic(epsilon)))
-# )
-# text(.15,-.37,expression(alpha), cex = 1.5)
-# text(-.3,-.35,expression(theta), cex = 1.5)
-#dev.off()
-####Plot errors##################################################################
-#z01<-lissage(z01)
-#z005<-lissage(z005)
-#z001<-lissage(z001)
+
+#####Grid for alpha[limited to 0.6/0.9], theta 
+#xx <- seq(0.1,0.6 , by = 0.025)
+#yy<- seq(1,11 , by = 0.5)
+
+xx_full <- seq(0.1,0.9 , length.out = 40)
+yy_full<- seq(1,15 , length.out = 40)
+
+
+
+
 
 pdf("plot_e1.pdf")
-build3ds1(xx,yy,z01,par1=0.1)
-build3ds1(xx,yy,z005,par1=0.05)
-build3ds1(xx,yy,z001,par1=0.01)
+build3ds1(xx,yy,z01,par1= expression(paste(italic(N^1),"(",italic(epsilon),",",italic(alpha),",",italic(theta),") ,",
+                                           paste(epsilon),"=",0.1)))
+build3ds1(xx,yy,z005,par1= expression(paste(italic(N^1),"(",italic(epsilon),",",italic(alpha),",",italic(theta),") ,",
+                                            paste(epsilon),"=",0.1)))
+build3ds1(xx,yy,z001,par1= expression(paste(italic(N^1),"(",italic(epsilon),",",italic(alpha),",",italic(theta),") ,",
+                                            paste(epsilon),"=",0.1)))
+dev.off()
+
+#########################################Full#######################################
+
+z01_full<-outer(xx_full,yy_full,Vectorize(compute_tau_est_b),eps=0.1)
+z005_full<-outer(xx_full,yy_full,Vectorize(compute_tau_est_b),eps=0.05)
+z001_full<-outer(xx_full,yy_full,Vectorize(compute_tau_est_b),eps=0.01)
+
+
+
+pdf("plot_e1_full_01.pdf")
+build3ds1(xx_full,yy_full,z01_full,par1= expression(paste(italic(N^1),"(",italic(epsilon),",",italic(alpha),",",italic(theta),") ,",
+                                                     paste(epsilon),"=",0.1)))
+dev.off()
+pdf("plot_e1_full_005.pdf")
+
+build3ds1(xx_full,yy_full,z005_full, expression(paste(italic(N^1),"(",italic(epsilon),",",italic(alpha),",",italic(theta),") ,",
+                                                 paste(epsilon),"=",0.05)))
+
+dev.off()
+pdf("plot_e1_full_001.pdf")
+
+build3ds1(xx_full,yy_full,z001_full,par1= expression(paste(italic(N^1),"(",italic(epsilon),",",italic(alpha),",",italic(theta),") ,",
+                                                      paste(epsilon),"=",0.01)))
 dev.off()
 
 
+####################################################################################
 build3ds<-function(x,y,z,par1="",par2=""){
   z<-pmin(z,1520)
   nrz <- nrow(z)
@@ -702,10 +739,6 @@ build3ds<-function(x,y,z,par1="",par2=""){
   text(-.3,-.35,expression(theta), cex = 1.5)
   #dev.off()
 }
-
-
-
-
 
 
 pdf("plot_variance.pdf")
@@ -757,10 +790,24 @@ build3d_diff(xx,yy,z_diff,par1=expression(paste("Difference for ",paste(mu),"+2*
                                                 paste(epsilon),"=",0.1)))
 dev.off()
 
-#################################################################################"
+######################################## SKEWNESS and KURTOSIS #########################################"
 
+
+z_skew<- outer(xx,yy,Vectorize(compute_tau_skew),eps=0.1)
+
+pdf("plot_skew01.pdf")
+build3d_diff(xx,yy,z_skew,par1=expression(paste("Skewness coefficient for ",paste(epsilon),"=",0.1)),lim=3)
+dev.off()
+
+
+z_kurt<- outer(xx,yy,Vectorize(compute_tau_kurt),eps=0.1)
+
+pdf("plot_kurt01.pdf")
+build3d_diff(xx,yy,z_kurt,par1=expression(paste("Kurtosis coefficient for ",paste(epsilon),"=",0.1)),lim=10)
+dev.off()
 
 ##########################################DIFFERENCE FOR e=0.05########################################################################################
+
 
 
 z005<-outer(xx,yy,Vectorize(compute_tau_est_b),eps=0.05)
@@ -781,23 +828,47 @@ build3d_diff(xx,yy,z_diff05,par1=expression(paste("Difference for ",paste(mu),"+
 dev.off()
 
 
-#################################################################################"
+######################################Truncation full###########################################"
+#z01_full
+
+z_mean01_f<- outer(xx_full,yy_full,Vectorize(compute_tau_mean),eps=0.1)
+
+z_var01_f<-outer(xx_full,yy_full,Vectorize(compute_tau_var),eps=0.1)
+
+z_2sd_01_f<-z_mean01_f+2*z_var01_f
+
+z_diff01_f<-z_2sd_01_f-z01_full 
 
 
-z_trunc01<-pmin(z_2sd,1000)
-z_trunc05<-pmin(z_2sd_05,1000)
+
+z005_f<-outer(xx_full,yy_full,Vectorize(compute_tau_est_b),eps=0.05)
+
+z_mean005_f<- outer(xx_full,yy_full,Vectorize(compute_tau_mean),eps=0.05)
+
+z_var005_f<-outer(xx_full,yy_full,Vectorize(compute_tau_var),eps=0.05)
+
+
+z_2sd_05_f<-z_mean005_f+2*z_var005_f
+
+z_diff05_f<-z_2sd_05_f-z005_f 
+
+
+z_trunc01_f<-pmin(z_2sd_01_f,1000)
+
+
+z_trunc05_f<-pmin(z_2sd_05_f,1000)
 
 
 
 
 
-pdf("plot_trunc01.pdf")
-build3d_diff(xx,yy,z_trunc01,par1=expression(paste("Truncation number for ",
+pdf("plot_trunc01_full.pdf")
+build3d_diff(xx_full,yy_full,z_trunc01_f,par1=expression(paste("Truncation number for ",
                                                     paste(epsilon),"=",0.1)),lim=1500)
 dev.off()
 
-pdf("plot_trunc05.pdf")
-build3d_diff(xx,yy,z_trunc05,par1=expression(paste("Truncation number for ",
+pdf("plot_trunc05_full.pdf")
+build3d_diff(xx_full,yy_full,z_trunc05_f,par1=expression(paste("Truncation number for ",
                                                 paste(epsilon),"=",0.05)),lim=1500)
 dev.off()
 
@@ -805,13 +876,27 @@ dev.off()
 
 
 
+###################################Truncation for full##############################################"
+
+z_trunc01<-pmin(z_2sd,1000)
+z_trunc05<-pmin(z_2sd_05,1000)
+
+
+pdf("plot_trunc01.pdf")
+build3d_diff(xx,yy,z_trunc01,par1=expression(paste("Truncation number for ",
+                                                   paste(epsilon),"=",0.1)),lim=1500)
+dev.off()
+
+pdf("plot_trunc05.pdf")
+build3d_diff(xx,yy,z_trunc05,par1=expression(paste("Truncation number for ",
+                                                   paste(epsilon),"=",0.05)),lim=1500)
+dev.off()
 
 
 
 
 
 
-paste("Jaccard vs. Tsim for depths",  min.depth, "to",max.depth,"m", sep=" "))
 
 
 
@@ -819,32 +904,6 @@ paste("Jaccard vs. Tsim for depths",  min.depth, "to",max.depth,"m", sep=" "))
 
 
 
-
-
-
-
-
-
-####SOME DRAFT TESTS##################################################################
-# alpha<-0.5
-# theta<-1
-# x_s<-seq(1/10000,0.1,by=0.001)
-# y1<-1/(x_s^(alpha/(1-alpha)))
-# y2<-theta*log(1/x_s)
-# plot(x_s,y1,col=gray(0),xlab=expression(italic(epsilon)),ylab=expression(italic(tau(epsilon))),xlim=c(0.1,0.0001),lwd=3, type="l")
-# text(1.1,5.1,expression(sigma), cex = 1.5)
-# lines(x_s,y2,col="red")
-# 
-
-# 
-# eps<- 0.1
-# alpha<-0.5
-# theta<-1
-# 
-# N_eps<- (eps/alpha)^(-alpha/(1-alpha))
-# gamma<- (gamma(1+theta)*gamma(1+ theta/alpha + 1/(1-alpha)))/(gamma(1+theta/alpha)*gamma(1+ alpha/(1-alpha) + theta))
-# N<- N_eps*gamma
-# 
 
 
 
