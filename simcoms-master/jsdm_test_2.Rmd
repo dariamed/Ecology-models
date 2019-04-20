@@ -273,7 +273,9 @@ fit_gjam<-function(data, it=2500,burn=500 , name="./gjam_models/temp.rda",intera
   
   mod_gjam1  <- gjam(formula, xdata = xdata, ydata = ydata, modelList = ml)
   save(mod_gjam1, file = name)
-  summary(mod_gjam1)
+  #summary(mod_gjam1)
+  hist(effectiveSize(mod_gjam1$chains$sgibbs), main="ess(beta)",lwd=2,col=gray(.6))
+  hist(effectiveSize(out$chains$bgibbs), main="ess(beta)",lwd=2,col=gray(.6))
   
   Tau <- solve(mod_gjam1$parameters$sigMu)
   Tau_n = to_prec(Tau)
@@ -317,6 +319,9 @@ load_gjam<-function(data,name="./gjam_models/temp.rda",interact=diag(ncol(data$Y
 
   
   gj_mod<-load_object(name)
+  hist(effectiveSize(mod_gjam1$chains$sgibbs), main="ess(beta)",lwd=2,col=gray(.6))
+  hist(effectiveSize(out$chains$bgibbs), main="ess(beta)",lwd=2,col=gray(.6))
+  
   summary(gj_mod)
   
   Tau <- solve(gj_mod$parameters$sigMu)
@@ -351,10 +356,85 @@ load_gjam<-function(data,name="./gjam_models/temp.rda",interact=diag(ncol(data$Y
 ```{r gjam env5, include=TRUE}
 
 ##to setup chains parameters
-data<-sim_data$EnvEvenSp5
-#fit_gjam(data,2000,1000,"./gjam_models/gjam5env.rda")
-load_gjam(data,name="./gjam_models/gjam5env.rda")
+data<-sim_data$FacCompDenseSp5
+fit_gjam(data,30000,15000,"./gjam_models/gjam5env.rda")
+#load_gjam(data,name="./gjam_models/gjam5env.rda")
 
+
+#to check posterior density of s in Sigma 
+#gjfd5<-load_object("./gjam_models/gjam20fd.rda")
+#plot(density(gjfd5$chains$sgibbs[,4]))
+data <- list(
+    Y = subset(data, select = -env),
+    X = cbind(1, scale(poly(data$env, 2))),
+    covx = cov(cbind(1, scale(poly(data$env, 2)))),
+    K = 3,
+    J = ncol(data) - 1,
+    n = nrow(data),
+    I = diag(ncol(data) - 1),
+    df = ncol(data)
+  )
+  xdata<-as.data.frame(data$X[,-1])
+  colnames(xdata)<- c("env","env2")
+  ydata<-as.data.frame(data$Y)
+  ###formula
+  formula<-as.formula( ~env+ env2)
+  rl<- list(r=2,N=5)
+  ml   <- list(ng = 2000, burnin = 500, typeNames = 'PA',reductList=rl)
+  ####fit
+  
+  
+  mod_gjam1  <- gjam(formula, xdata = xdata, ydata = ydata, modelList = ml)
+  #save(mod_gjam1, file = name)
+  #summary(mod_gjam1)
+  
+  
+  hist(effectiveSize(mod_gjam1$chains$sgibbs), main="ess(beta)",lwd=2,col=gray(.6))
+  hist(effectiveSize(out$chains$bgibbs), main="ess(beta)",lwd=2,col=gray(.6))
+  
+  
+  
+  Tau <- solve(mod_gjam1$parameters$sigMu)
+  Tau_n = to_prec(Tau)
+  
+  postH<-apply(mod_gjam1$chains$sgibbs, 2, quantile,0.95)
+  postL<-apply(mod_gjam1$chains$sgibbs, 2, quantile,0.05)
+  
+  convert_to_r_N<-function(ar,r,N){
+  C <- matrix(0,N,r)
+  i.lwr <- which(lower.tri(C, diag = TRUE), arr.ind=TRUE)
+  C[i.lwr] <- ar
+  C<-makeSymm(C)
+  return(t(C))
+  }
+  N<-5
+  r<-2
+  pH<-matrix(postH, nrow=N, byrow = FALSE)
+  pL<-matrix(postL, nrow=N, byrow = FALSE)
+ 
+  postSigma_tr <- matrix(apply(mod_gjam1$chains$sgibbs,2,mean), nrow=N, byrow = FALSE)
+
+  postSigma_tr_signif<-postSigma_tr*(!(pH>0 & pL<0))
+  #R_sign<-cov2cor(mod_gjam1$parameters$sigMu)*(!(pH>0 & pL<0))
+  # how sigma is calculated ?
+  
+  mat<-crossprod(t(postSigma_tr))
+  
+  par(mfrow=c(2,3),oma = c(1, 1, 1, 1))
+  corrplot(cor(ydata), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+  title("Correlation cor(Y)")
+  corrplot(mod_gjam1$parameters$corMu, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+  title("R")
+  corrplot(mod_gjam1$parameters$ematrix, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+  title("E matrix")
+  corrplot(Tau_n, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+  title("Tau")
+  corrplot(R_sign, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+  title("R  signif")
+  corrplot(postSigma_tr_signif, diag = TRUE, order = "original", tl.cex = 0.5, method = "color", type = "full")
+  title("Trunc matrix signif")
+  corrplot(interact, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+  title("True interactions")
 
 ```
 
