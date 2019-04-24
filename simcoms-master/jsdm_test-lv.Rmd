@@ -25,8 +25,8 @@ library(gjam)
 library(Hmsc)
 
 
-setwd("~/Desktop/VirtualCommunity/simcoms-master/ExampleFiles")
-# setwd("~/Documents/GitHub/Ecology-models/simcoms-master/ExampleFiles")
+#setwd("~/Desktop/VirtualCommunity/simcoms-master/ExampleFiles")
+ setwd("~/Documents/GitHub/Ecology-models/simcoms-master/ExampleFiles")
 # lapply(list.files(path = "."),load,.GlobalEnv)
 
 #setwd("~/Tesi/Code/Ecology-models-master/simcoms-master")
@@ -186,8 +186,8 @@ mean_cor<-function(mod){
 metrics_jsdm<-function(model,fac=NULL,comp=NULL,only_env=T){
   
   Rho<-(!model$overlap0$Rho)*model$mean$Rho
-  
-  {if(!is.null(comp) & !is.null(fac)){
+  #{
+    if(!is.null(comp) & !is.null(fac)){
     fac_comp <- fac-comp
     TP_comp <- FN_comp <-TP_fac <- FN_fac <- FP <- TN <- wrong <- 0
     for(i in 1:(nrow(Rho)-1)){
@@ -228,8 +228,8 @@ metrics_jsdm<-function(model,fac=NULL,comp=NULL,only_env=T){
           FP=FP+1
        
       }
-    }
-    }
+#    }
+#    }
     }
     }
   if(!is.null(fac)){
@@ -251,7 +251,7 @@ metrics_jsdm<-function(model,fac=NULL,comp=NULL,only_env=T){
               }
             }
   }
-  
+ }
   if(only_env){
     
       FP <- TN <- 0
@@ -274,7 +274,7 @@ metrics_jsdm<-function(model,fac=NULL,comp=NULL,only_env=T){
   
    list("FP"=FP,"TN"=TN,"TP_comp"=TP_comp,"FN_comp"=FN_comp,"TP_fac"=TP_fac,"FN_fac"=FN_fac,
        "wrong"=wrong,"success_env"=success_env,"success_comp"=success_comp,"success_fac"=success_fac)
-  }
+}
 
 
 
@@ -333,7 +333,7 @@ title("Tau")
 corrplot(Tau_n*(!me5$overlap0$Tau), diag = FALSE, order ="original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
 title("Tau signif")
 
-#j_metric_e5<-metrics_jsdm(me5)
+j_metric_e5<-metrics_jsdm(me5)
 #cat("Success rate ")
 #j_metric_e5$success_env
  cat(sprintf("Success rate: %s\n", metrics_jsdm(me5)$success_env))
@@ -570,7 +570,7 @@ data<-sim_data$EnvEvenSp5
 #Rho_sign<-fit_gjam(data,2000,1000,"./gjam_models/gjam5env.rda")
 Rho_sign<-load_gjam(data,name="./gjam_models/gjam5env.rda")
 
-#g_metric_e5<-metrics_gjam(Rho_sign)
+g_metric_e5<-metrics_gjam(Rho_sign)
 #cat("Success rate ")
 #g_metric_e5$success_env
 cat(" ")
@@ -778,7 +778,7 @@ hm_inter<-function(mod, nchains=2,nsamples = 1000, interact=diag(ns)){
 
 Rho_sign<-hm_inter(hm_mod)
 
-# h_metric_e5<-metrics_hmsc(Rho_sign)
+h_metric_e5<-metrics_hmsc(Rho_sign)
 # cat("Success rate ")
 # h_metric_e5$success_env
 cat(" ")
@@ -933,9 +933,9 @@ data<-sim_data$EnvEvenSp20
 Rho_sign<-load_gjam(data,name="./gjam_models/gjam20env.rda")
 #gje20<-load_object("./gjam_models/gjam20env.rda")
 
-# g_metric_e20<-metrics_gjam(Rho_sign)
-# cat("Success rate ")
-# g_metric_e20$success_env
+g_metric_e20<-metrics_gjam(Rho_sign)
+cat("Success rate ")
+#g_metric_e20$success_env
 
 cat(" ")
 cat(sprintf("Success rate env: %s\n", round(metrics_gjam(Rho_sign)$success_env,3)))
@@ -1027,9 +1027,9 @@ hm_mod<-fit_hmsc(data,"Load",name="./HMmodels/hm20env.rda" )
 hm_conv(hm_mod)
 Rho_sign<-hm_inter(hm_mod)
 
-# h_metric_e20<-metrics_hmsc(Rho_sign)
-# cat("Success score ")
-# h_metric_e20$success_env
+h_metric_e20<-metrics_hmsc(Rho_sign)
+cat("Success score ")
+h_metric_e20$success_env
 cat(" ")
 cat(sprintf("Success rate non-interacting: %s\n", round(metrics_hmsc(Rho_sign)$success_env,3)))
 
@@ -1876,13 +1876,11 @@ hm_mod<-fit_hmsc(data,"Load",nsamples=2000, nchains=2,name="./HMmodels/hm5cmps.r
 hm_conv(hm_mod)
 Rho_sign<-hm_inter(hm_mod, nsamples=2000, nchains=2,interact =  (-1)*comp_inter[[13]])
 
-h_metric_facSparse5<-metrics_hmsc(Rho_sign,comp=comp_inter[[13]],only_env = F)
-# cat("Success rate ")
-# h_metric_facSparse5$success_env
-# h_metric_facSparse5$success_comp
+h_metric_compSparse5<-metrics_hmsc(Rho_sign,comp=comp_inter[[13]],only_env = F)
+
 cat("\n")
-cat(sprintf("Success rate for non-interacting: %s\n", round(h_metric_facSparse5$success_env,3)))
-cat(sprintf("Success rate for competition: %s\n", round(h_metric_facSparse5$success_comp,3)))
+cat(sprintf("Success rate for non-interacting: %s\n", round(h_metric_compSparse5$success_env,3)))
+cat(sprintf("Success rate for competition: %s\n", round(h_metric_compSparse5$success_comp,3)))
 
 
 ```
@@ -1959,14 +1957,11 @@ hm_mod<-fit_hmsc(data,"Load",nsamples=2000, nchains=2,name="./HMmodels/hm10cmps.
 hm_conv(hm_mod)
 Rho_sign<-hm_inter(hm_mod, nsamples=2000, nchains=2,interact =  (-1)*comp_inter[[14]])
 
-h_metric_facSparse10<-metrics_hmsc(Rho_sign,comp=comp_inter[[14]],only_env = F)
-cat("Success rate ")
-h_metric_facSparse10$success_env
-h_metric_facSparse10$success_comp
+h_metric_compSparse10<-metrics_hmsc(Rho_sign,comp=comp_inter[[14]],only_env = F)
 
 cat("\n")
-cat(sprintf("Success rate for non-interacting: %s\n", round(h_metric_facSparse10$success_env,3)))
-cat(sprintf("Success rate for competition: %s\n", round(h_metric_facSparse10$success_comp,3)))
+cat(sprintf("Success rate for non-interacting: %s\n", round(h_metric_compSparse10$success_env,3)))
+cat(sprintf("Success rate for competition: %s\n", round(h_metric_compSparse10$success_comp,3)))
 
 
 ```
@@ -2063,11 +2058,11 @@ cmp_fd5 <- load_object("model-2019-04-19-13-08-47.rda")
 summary(cmp_fd5)
 jsdm_conv(cmp_fd5)
 cmp_fd5$mcmc.info[1:7]
-j_metric_comp_fDense5<-metrics_jsdm(cmp_fd5,comp = comp_inter[[16]],fac = fac_inter[[16]],only_env = F)
+j_metric_FacCompDense5<-metrics_jsdm(cmp_fd5,comp = comp_inter[[16]],fac = fac_inter[[16]],only_env = F)
 cat("\n")
-cat(sprintf("Success rate for non-interacting: %s\n", round(j_metric_comp_fDense5$success_env,3)))
-#cat(sprintf("Success rate for competition: %s\n", round(j_metric_comp_fDense5$success_comp,3)))
-cat(sprintf("Success rate for facilitation: %s\n", round(j_metric_comp_fDense5$success_fac,3)))
+cat(sprintf("Success rate for non-interacting: %s\n", round(j_metric_FacCompDense5$success_env,3)))
+cat(sprintf("Success rate for competition: %s\n", round(j_metric_FacCompDense5$success_comp,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(j_metric_FacCompDense5$success_fac,3)))
 
 ######################################################Prepare data
 data<-sim_data$FacCompDenseSp5
@@ -2098,11 +2093,11 @@ Rho_sign2<-load_gjam(data,"./gjam_models/gjam5cmp_facd2.rda",interact= (-1)*comp
 #Rho_sign5<-fit_gjam(data,20000,5000,"./gjam_models/gjam5cmp_facd2.rda",interact= (-1)*comp_inter[[16]]+fac_inter[[16]])
 #Rho_sign<-load_gjam(data,name="./gjam_models/gjam5cmp_facd.rda", (-1)*comp_inter[[16]]+fac_inter[[16]])
 
-g_metric_cmp_facd5<-metrics_gjam(Rho_sign2,comp=comp_inter[[16]], fac=fac_inter[[16]], only_env = F)
+g_metric_FacCompDense5<-metrics_gjam(Rho_sign2,comp=comp_inter[[16]], fac=fac_inter[[16]], only_env = F)
 cat("\n")
-cat(sprintf("Success rate for non-interacting: %s\n", round(g_metric_cmp_facd5$success_env,3)))
-cat(sprintf("Success rate for competition: %s\n", round(g_metric_cmp_facd5$success_comp,3)))
-cat(sprintf("Success rate for facilitation: %s\n", round(g_metric_cmp_facd5$success_fac,3)))
+cat(sprintf("Success rate for non-interacting: %s\n", round(g_metric_FacCompDense5$success_env,3)))
+cat(sprintf("Success rate for competition: %s\n", round(g_metric_FacCompDense5$success_comp,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(g_metric_FacCompDense5$success_fac,3)))
 
 
 
@@ -2130,12 +2125,12 @@ hm_mod<-fit_hmsc(data,"Load",nsamples=3000, nchains=2,name="./HMmodels/hmcmp_fac
 hm_conv(hm_mod)
 Rho_sign<-hm_inter(hm_mod, nsamples=3000, nchains=2,interact =  (-1)*comp_inter[[16]]+ fac_inter[[16]])
 
-h_metric_FacCompDenseSp5<-metrics_hmsc(Rho_sign,comp=comp_inter[[16]],fac= fac_inter[[16]],only_env = F)
+h_metric_FacCompDense5<-metrics_hmsc(Rho_sign,comp=comp_inter[[16]],fac= fac_inter[[16]],only_env = F)
 
 cat("\n")
-cat(sprintf("Success rate for non-interacting: %s\n", round(h_metric_FacCompDenseSp5$success_env,3)))
-cat(sprintf("Success rate for competition: %s\n", round(h_metric_FacCompDenseSp5$success_comp,3)))
-cat(sprintf("Success rate for facilitation: %s\n", round(h_metric_FacCompDenseSp5$success_fac,3)))
+cat(sprintf("Success rate for non-interacting: %s\n", round(h_metric_FacCompDense5$success_env,3)))
+cat(sprintf("Success rate for competition: %s\n", round(h_metric_FacCompDense5$success_comp,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(h_metric_FacCompDense5$success_fac,3)))
 
 ```
 
@@ -2147,38 +2142,37 @@ cat(sprintf("Success rate for facilitation: %s\n", round(h_metric_FacCompDenseSp
 ### JSDM 
 
 ```{r model jsdm cmp_facd10, echo=FALSE}
-#load("model-2019-04-17-14-30-01.rda")
-# cmp_fd5 <- load_object("model-2019-04-18-01-55-45.rda")
+cmp_fd10 <- load_object("model-2019-04-20-00-37-25.rda")
 # 
-# summary(cmp_fd5)
-# jsdm_conv(cmp_fd5)
-# cmp_fd5$mcmc.info[1:7]
+summary(cmp_fd10)
+jsdm_conv(cmp_fd10)
+cmp_fd10$mcmc.info[1:7]
 # 
-# j_metric_comp_fDense5<-metrics_jsdm(cmp_fd5,comp = comp_inter[[16]],only_env = F)
+j_metric_FacCompDense10<-metrics_jsdm(cmp_fd10,comp = comp_inter[[17]],fac=fac_inter[[17]],only_env = F)
 # # cat("Success rate ")
 # # j_metric_compSparse10$success_env
 # # j_metric_compSparse10$success_comp
 # # 
-# cat("\n")
-# cat(sprintf("Success rate for non-interacting: %s\n", round(j_metric_comp_fDense5$success_env,3)))
-# cat(sprintf("Success rate for competition: %s\n", round(j_metric_comp_fDense5$success_comp,3)))
-# cat(sprintf("Success rate for facilitation: %s\n", round(j_metric_comp_fDense5$success_comp,3)))
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(j_metric_FacCompDense10$success_env,3)))
+cat(sprintf("Success rate for competition: %s\n", round(j_metric_FacCompDense10$success_comp,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(j_metric_FacCompDense10$success_comp,3)))
 # 
 # 
 # ######################################################Prepare data
-# data<-sim_data$sim_data$FacCompDenseSp5
-# data <- list(
-#   Y = subset(data, select = -env),
-#   X = cbind(1, scale(poly(data$env, 2))),
-#   covx = cov(cbind(1, scale(poly(data$env, 2)))),
-#   K = 3,
-#   J = ncol(data) - 1,
-#   n = nrow(data),
-#   I = diag(ncol(data) - 1),
-#   df = ncol(data)
-# )
-# 
-# plot_cor_jsdm(cmp_fd5,data$Y,(-1)*comp_inter[[14]])
+data<-sim_data$FacCompDenseSp10
+data <- list(
+  Y = subset(data, select = -env),
+  X = cbind(1, scale(poly(data$env, 2))),
+  covx = cov(cbind(1, scale(poly(data$env, 2)))),
+  K = 3,
+  J = ncol(data) - 1,
+  n = nrow(data),
+  I = diag(ncol(data) - 1),
+  df = ncol(data)
+)
+
+plot_cor_jsdm(cmp_fd10,data$Y,(-1)*comp_inter[[17]] +fac_inter[[17]] )
 
 ```
 
@@ -2189,12 +2183,12 @@ data<-sim_data$FacCompDenseSp10
 #Rho_sign<-fit_gjam(data,2000,500,"./gjam_models/gjamcmp_facd10.rda",interact=  (-1)*comp_inter[[17]]+fac_inter[[17]])
 Rho_sign<-load_gjam(data,name="./gjam_models/gjamcmp_facd10.rda", interact= (-1)*comp_inter[[17]]+fac_inter[[17]])
 
-g_metric_FacCompDenseSp10<-metrics_gjam(Rho_sign,comp=comp_inter[[17]], fac=fac_inter[[17]], only_env = F)
+g_metric_FacCompDense10<-metrics_gjam(Rho_sign,comp=comp_inter[[17]], fac=fac_inter[[17]], only_env = F)
 
 cat("\n")
-cat(sprintf("Success rate for non-interacting: %s\n", round(g_metric_FacCompDenseSp10$success_env,3)))
-cat(sprintf("Success rate for competition: %s\n", round(g_metric_FacCompDenseSp10$success_comp,3)))
-cat(sprintf("Success rate for facilitation: %s\n", round(g_metric_FacCompDenseSp10$success_fac,3)))
+cat(sprintf("Success rate for non-interacting: %s\n", round(g_metric_FacCompDense10$success_env,3)))
+cat(sprintf("Success rate for competition: %s\n", round(g_metric_FacCompDense10$success_comp,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(g_metric_FacCompDense10$success_fac,3)))
 
 ```
 
@@ -2207,11 +2201,11 @@ hm_mod<-fit_hmsc(data,"Load",nsamples=2000, nchains=2,name="./HMmodels/hmcmp_fac
 hm_conv(hm_mod)
 Rho_sign<-hm_inter(hm_mod, nsamples=2000, nchains=2,interact =  (-1)*comp_inter[[17]] + fac_inter[[17]])
 
-h_metric_FacCompDenseSp10<-metrics_hmsc(Rho_sign,comp=comp_inter[[17]],fac=fac_inter[[17]], only_env = F)
+h_metric_FacCompDense10<-metrics_hmsc(Rho_sign,comp=comp_inter[[17]],fac=fac_inter[[17]], only_env = F)
 cat("\n")
-cat(sprintf("Success rate for non-interacting: %s\n", round(h_metric_FacCompDenseSp10$success_env,3)))
-cat(sprintf("Success rate for competition: %s\n", round(h_metric_FacCompDenseSp10$success_comp,3)))
-cat(sprintf("Success rate for facilitation: %s\n", round(h_metric_FacCompDenseSp10$success_fac,3)))
+cat(sprintf("Success rate for non-interacting: %s\n", round(h_metric_FacCompDense10$success_env,3)))
+cat(sprintf("Success rate for competition: %s\n", round(h_metric_FacCompDense10$success_comp,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(h_metric_FacCompDense10$success_fac,3)))
 
 ```
 
@@ -2221,6 +2215,56 @@ cat(sprintf("Success rate for facilitation: %s\n", round(h_metric_FacCompDenseSp
 ### JSDM 
 
 ```{r model jsdm cmp_facd20, echo=FALSE}
+
+cmp_fd20 <- load_object("model-2019-04-21-11-10-34.rda")
+
+summary(cmp_fd20)
+jsdm_conv(cmp_fd20)
+cmp_fd20$mcmc.info[1:7]
+# 
+j_metric_FacCompDense20<-metrics_jsdm(cmp_fd20,comp = comp_inter[[18]],fac=fac_inter[[18]],only_env = F)
+# # cat("Success rate ")
+# # j_metric_compSparse10$success_env
+# # j_metric_compSparse10$success_comp
+# # 
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(j_metric_FacCompDense20$success_env,3)))
+cat(sprintf("Success rate for competition: %s\n", round(j_metric_FacCompDense20$success_comp,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(j_metric_FacCompDense20$success_comp,3)))
+# 
+# 
+# ######################################################Prepare data
+data<-sim_data$FacCompDenseSp20
+data <- list(
+  Y = subset(data, select = -env),
+  X = cbind(1, scale(poly(data$env, 2))),
+  covx = cov(cbind(1, scale(poly(data$env, 2)))),
+  K = 3,
+  J = ncol(data) - 1,
+  n = nrow(data),
+  I = diag(ncol(data) - 1),
+  df = ncol(data)
+)
+
+plot_cor_jsdm(cmp_fd20,data$Y,(-1)*comp_inter[[18]] +fac_inter[[18]] )
+
+```
+
+
+### Gjam
+
+```{r gjam cmp_facd20}
+data<-sim_data$FacCompDenseSp20
+#Rho_sign<-fit_gjam(data,2000,500,"./gjam_models/gjamcmp_facd20.rda",interact=  (-1)*comp_inter[[18]]+fac_inter[[18]])
+Rho_sign<-load_gjam(data,name="./gjam_models/gjamcmp_facd20.rda", interact= (-1)*comp_inter[[18]]+fac_inter[[18]])
+
+g_metric_FacCompDense20<-metrics_gjam(Rho_sign,comp=comp_inter[[18]], fac=fac_inter[[18]], only_env = F)
+
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(g_metric_FacCompDense20$success_env,3)))
+cat(sprintf("Success rate for competition: %s\n", round(g_metric_FacCompDense20$success_comp,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(g_metric_FacCompDense20$success_fac,3)))
+
 ```
 
 
@@ -2231,11 +2275,11 @@ data<-sim_data$FacCompDenseSp20
 hm_mod<-fit_hmsc(data,"Load",nsamples=2000, nchains=2,name="./HMmodels/hmcmp_facd20.rda" )
 hm_conv(hm_mod)
 Rho_sign<-hm_inter(hm_mod, nsamples=2000, nchains=2,interact =  (-1)*comp_inter[[18]] + fac_inter[[18]])
-h_metric_FacCompDenseSp20<-metrics_hmsc(Rho_sign,comp=comp_inter[[18]],fac=fac_inter[[18]],only_env = F)
+h_metric_FacCompDense20<-metrics_hmsc(Rho_sign,comp=comp_inter[[18]],fac=fac_inter[[18]],only_env = F)
 cat("\n")
-cat(sprintf("Success rate for non-interacting: %s\n", round(h_metric_FacCompDenseSp20$success_env,3)))
-cat(sprintf("Success rate for competition: %s\n", round(h_metric_FacCompDenseSp20$success_comp,3)))
-cat(sprintf("Success rate for facilitation: %s\n", round(h_metric_FacCompDenseSp20$success_fac,3)))
+cat(sprintf("Success rate for non-interacting: %s\n", round(h_metric_FacCompDense20$success_env,3)))
+cat(sprintf("Success rate for competition: %s\n", round(h_metric_FacCompDense20$success_comp,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(h_metric_FacCompDense20$success_fac,3)))
 
 ```
 
@@ -2245,8 +2289,38 @@ cat(sprintf("Success rate for facilitation: %s\n", round(h_metric_FacCompDenseSp
 
 ### JSDM 
 
-```{r model jsdm cmp_facd20, echo=FALSE}
+```{r model jsdm cmp_facs5, echo=FALSE}
+cmp_fds5 <- load_object("model-2019-04-21-11-39-52.rda")
+# 
+summary(cmp_fds5)
+jsdm_conv(cmp_fds5)
+cmp_fds5$mcmc.info[1:7]
+# 
+j_metric_FacCompSparse5<-metrics_jsdm(cmp_fds5,comp = comp_inter[[19]],fac=fac_inter[[19]],only_env = F)
+# # cat("Success rate ")
+# # j_metric_compSparse10$success_env
+# # j_metric_compSparse10$success_comp
+# # 
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(j_metric_FacCompSparse5$success_env,3)))
+cat(sprintf("Success rate for competition: %s\n", round(j_metric_FacCompSparse5$success_comp,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(j_metric_FacCompSparse5$success_comp,3)))
+# 
+# 
+# ######################################################Prepare data
+data<-sim_data$FacCompSparseSp5
+data <- list(
+  Y = subset(data, select = -env),
+  X = cbind(1, scale(poly(data$env, 2))),
+  covx = cov(cbind(1, scale(poly(data$env, 2)))),
+  K = 3,
+  J = ncol(data) - 1,
+  n = nrow(data),
+  I = diag(ncol(data) - 1),
+  df = ncol(data)
+)
 
+plot_cor_jsdm(cmp_fds5,data$Y,(-1)*comp_inter[[19]] +fac_inter[[19]] )
 ```
 
 ### Gjam
@@ -2255,12 +2329,12 @@ cat(sprintf("Success rate for facilitation: %s\n", round(h_metric_FacCompDenseSp
 data<-sim_data$FacCompSparseSp5
 #Rho_sign<-fit_gjam(data,2000,500,"./gjam_models/gjamcmp_facs5.rda",interact= (-1)*comp_inter[[19]]+ fac_inter[[19]] )
 Rho_sign<-load_gjam(data,name="./gjam_models/gjamcmp_facs5.rda", interact=  (-1)*comp_inter[[19]]+ fac_inter[[19]])
-g_metric_FacCompSparseSp5<-metrics_gjam(Rho_sign,comp=comp_inter[[15]], only_env = F)
+g_metric_FacCompSparse5<-metrics_gjam(Rho_sign,comp=comp_inter[[15]], only_env = F)
 
 cat("\n")
-cat(sprintf("Success rate for non-interacting: %s\n", round(g_metric_FacCompSparseSp5$success_env,3)))
-cat(sprintf("Success rate for competition: %s\n", round(g_metric_FacCompSparseSp5$success_comp,3)))
-cat(sprintf("Success rate for competition: %s\n", round(g_metric_FacCompSparseSp5$success_comp,3)))
+cat(sprintf("Success rate for non-interacting: %s\n", round(g_metric_FacCompSparse5$success_env,3)))
+cat(sprintf("Success rate for competition: %s\n", round(g_metric_FacCompSparse5$success_comp,3)))
+cat(sprintf("Success rate for competition: %s\n", round(g_metric_FacCompSparse5$success_comp,3)))
 
 ```
 
@@ -2272,12 +2346,12 @@ data<-sim_data$FacCompSparseSp5
 hm_mod<-fit_hmsc(data,"Load",nsamples=2000, nchains=2,name="./HMmodels/hmcmp_facs5.rda" )
 hm_conv(hm_mod)
 Rho_sign<-hm_inter(hm_mod, nsamples=2000, nchains=2,interact =  (-1)*comp_inter[[19]]+ fac_inter[[19]])
-
-FacCompSparseSp5<-metrics_hmsc(Rho_sign,comp=comp_inter[[19]],fac= fac_inter[[19]] ,only_env = F)
+ 
+h_metric_FacCompSparse5<-metrics_hmsc(Rho_sign,comp=comp_inter[[19]],fac= fac_inter[[19]] ,only_env = F)
 cat("\n")
-cat(sprintf("Success rate for non-interacting: %s\n", round(FacCompSparseSp5$success_env,3)))
-cat(sprintf("Success rate for competition: %s\n", round(FacCompSparseSp5$success_comp,3)))
-cat(sprintf("Success rate for facilitation: %s\n", round(FacCompSparseSp5$success_fac,3)))
+cat(sprintf("Success rate for non-interacting: %s\n", round(h_metric_FacCompSparse5$success_env,3)))
+cat(sprintf("Success rate for competition: %s\n", round(h_metric_FacCompSparse5$success_comp,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(h_metric_FacCompSparse5$success_fac,3)))
 
 ```
 
@@ -2288,7 +2362,37 @@ cat(sprintf("Success rate for facilitation: %s\n", round(FacCompSparseSp5$succes
 ### JSDM 
 
 ```{r model jsdm cmp_facs10, echo=FALSE}
+cmp_fds10 <- load_object("model-2019-04-21-22-58-58.rda")
+# 
+summary(cmp_fds10)
+jsdm_conv(cmp_fds10)
+cmp_fds10$mcmc.info[1:7]
+# 
+j_metric_FacCompSparse10<-metrics_jsdm(cmp_fds10,comp = comp_inter[[20]],fac=fac_inter[[20]],only_env = F)
+# # cat("Success rate ")
+# # j_metric_compSparse10$success_env
+# # j_metric_compSparse10$success_comp
+# # 
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(j_metric_FacCompSparse10$success_env,3)))
+cat(sprintf("Success rate for competition: %s\n", round(j_metric_FacCompSparse10$success_comp,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(j_metric_FacCompSparse10$success_comp,3)))
+# 
+# 
+# ######################################################Prepare data
+data<-sim_data$FacCompSparseSp10
+data <- list(
+  Y = subset(data, select = -env),
+  X = cbind(1, scale(poly(data$env, 2))),
+  covx = cov(cbind(1, scale(poly(data$env, 2)))),
+  K = 3,
+  J = ncol(data) - 1,
+  n = nrow(data),
+  I = diag(ncol(data) - 1),
+  df = ncol(data)
+)
 
+plot_cor_jsdm(cmp_fds10,data$Y,(-1)*comp_inter[[20]] +fac_inter[[20]] )
 ```
 
 
@@ -2299,11 +2403,11 @@ data<-sim_data$FacCompSparseSp10
 #Rho_sign<-fit_gjam(data,2000,500,"./gjam_models/gjamcmp_facs10.rda",interact= (-1)*comp_inter[[20]] +fac_inter[[20]])
 Rho_sign<-load_gjam(data,name="./gjam_models/gjamcmp_facs10.rda", interact=  (-1)*comp_inter[[20]] +fac_inter[[20]])
 
-g_metric_FacCompSparseSp10<-metrics_gjam(Rho_sign,comp=comp_inter[[20]],fac=fac_inter[[20]], only_env = F)
+g_metric_FacCompSparse10<-metrics_gjam(Rho_sign,comp=comp_inter[[20]],fac=fac_inter[[20]], only_env = F)
 cat("\n")
-cat(sprintf("Success rate for non-interacting: %s\n", round(g_metric_FacCompSparseSp10$success_env,3)))
-cat(sprintf("Success rate for competition: %s\n", round(g_metric_FacCompSparseSp10$success_comp,3)))
-cat(sprintf("Success rate for facilitation: %s\n", round(g_metric_FacCompSparseSp10$success_fac,3)))
+cat(sprintf("Success rate for non-interacting: %s\n", round(g_metric_FacCompSparse10$success_env,3)))
+cat(sprintf("Success rate for competition: %s\n", round(g_metric_FacCompSparse10$success_comp,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(g_metric_FacCompSparse10$success_fac,3)))
 
 ```
 
@@ -2316,11 +2420,11 @@ hm_mod<-fit_hmsc(data,"Load",nsamples=2000, nchains=2,name="./HMmodels/hmcmp_fac
 hm_conv(hm_mod)
 Rho_sign<-hm_inter(hm_mod, nsamples=2000, nchains=2,interact =  (-1)*comp_inter[[20]] +fac_inter[[20]])
 
-h_metric_FacCompSparseSp10<-metrics_hmsc(Rho_sign,comp=comp_inter[[20]],fac=fac_inter[[20]],only_env = F)
+h_metric_FacCompSparse10<-metrics_hmsc(Rho_sign,comp=comp_inter[[20]],fac=fac_inter[[20]],only_env = F)
 cat("\n")
-cat(sprintf("Success rate for non-interacting: %s\n", round(h_metric_FacCompSparseSp10$success_env,3)))
-cat(sprintf("Success rate for competition: %s\n", round(h_metric_FacCompSparseSp10$success_comp,3)))
-cat(sprintf("Success rate for facilitation: %s\n", round(h_metric_FacCompSparseSp10$success_fac,3)))
+cat(sprintf("Success rate for non-interacting: %s\n", round(h_metric_FacCompSparse10$success_env,3)))
+cat(sprintf("Success rate for competition: %s\n", round(h_metric_FacCompSparse10$success_comp,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(h_metric_FacCompSparse10$success_fac,3)))
 
 ```
 
@@ -2331,7 +2435,37 @@ cat(sprintf("Success rate for facilitation: %s\n", round(h_metric_FacCompSparseS
 ### JSDM 
 
 ```{r model jsdm cmp_facs20, echo=FALSE}
+cmp_fds20 <- load_object("model-2019-04-23-09-42-18.rda")
 
+summary(cmp_fds20)
+jsdm_conv(cmp_fds20)
+cmp_fds20$mcmc.info[1:7]
+# 
+j_metric_FacCompSparse20<-metrics_jsdm(cmp_fds20,comp = comp_inter[[21]],fac=fac_inter[[21]],only_env = F)
+# # cat("Success rate ")
+# # j_metric_compSparse10$success_env
+# # j_metric_compSparse10$success_comp
+# # 
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(j_metric_FacCompSparse20$success_env,3)))
+cat(sprintf("Success rate for competition: %s\n", round(j_metric_FacCompSparse20$success_comp,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(j_metric_FacCompSparse20$success_comp,3)))
+# 
+# 
+# ######################################################Prepare data
+data<-sim_data$FacCompSparseSp20
+data <- list(
+  Y = subset(data, select = -env),
+  X = cbind(1, scale(poly(data$env, 2))),
+  covx = cov(cbind(1, scale(poly(data$env, 2)))),
+  K = 3,
+  J = ncol(data) - 1,
+  n = nrow(data),
+  I = diag(ncol(data) - 1),
+  df = ncol(data)
+)
+
+plot_cor_jsdm(cmp_fds20,data$Y,(-1)*comp_inter[[21]] +fac_inter[[21]] )
 ```
 
 ### Gjam
@@ -2340,11 +2474,11 @@ cat(sprintf("Success rate for facilitation: %s\n", round(h_metric_FacCompSparseS
 data<-sim_data$FacCompSparseSp20
 #Rho_sign<-fit_gjam(data,2000,500,"./gjam_models/gjamcmp_facs20.rda",interact= (-1)*comp_inter[[21]]+fac_inter[[21]])
 Rho_sign<-load_gjam(data,name="./gjam_models/gjamcmp_facs20.rda", interact= (-1)*comp_inter[[21]]+fac_inter[[21]])
-g_metric_cmp_facs20<-metrics_gjam(Rho_sign,comp=comp_inter[[21]], fac=fac_inter[[21]],only_env = F)
+g_metric_FacCompSparse20<-metrics_gjam(Rho_sign,comp=comp_inter[[21]], fac=fac_inter[[21]],only_env = F)
 cat("\n")
-cat(sprintf("Success rate for non-interacting: %s\n", round(g_metric_cmp_facs20$success_env,3)))
-cat(sprintf("Success rate for competition: %s\n", round(g_metric_cmp_facs20$success_comp,3)))
-cat(sprintf("Success rate for facilitation: %s\n", round(g_metric_cmp_facs20$success_fac,3)))
+cat(sprintf("Success rate for non-interacting: %s\n", round(g_metric_FacCompSparse20$success_env,3)))
+cat(sprintf("Success rate for competition: %s\n", round(g_metric_FacCompSparse20$success_comp,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(g_metric_FacCompSparse20$success_fac,3)))
 
 ```
 
@@ -2355,11 +2489,11 @@ data<-sim_data$FacCompSparseSp20
 hm_mod<-fit_hmsc(data,"Load",nsamples=2000, nchains=2,name="./HMmodels/hmcmp_facs20.rda" )
 hm_conv(hm_mod)
 Rho_sign<-hm_inter(hm_mod, nsamples=2000, nchains=2,interact =  (-1)*comp_inter[[21]] +fac_inter[[21]])
-h_metric_cmp_facs20<-metrics_hmsc(Rho_sign,comp=comp_inter[[21]],fac=fac_inter[[21]],only_env = F)
+h_metric_FacCompSparse20<-metrics_hmsc(Rho_sign,comp=comp_inter[[21]],fac=fac_inter[[21]],only_env = F)
 cat("\n")
-cat(sprintf("Success rate for non-interacting: %s\n", round(h_metric_cmp_facs20$success_env,3)))
-cat(sprintf("Success rate for competition: %s\n", round(h_metric_cmp_facs20$success_comp,3)))
-cat(sprintf("Success rate for facilitation: %s\n", round(h_metric_cmp_facs20$success_fac,3)))
+cat(sprintf("Success rate for non-interacting: %s\n", round(h_metric_FacCompSparse20$success_env,3)))
+cat(sprintf("Success rate for competition: %s\n", round(h_metric_FacCompSparse20$success_comp,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(h_metric_FacCompSparse20$success_fac,3)))
 
 ```
 
@@ -2391,6 +2525,180 @@ ggplot(mean_correlations) +
   ylab("Correlation") +
   theme_bw() +
   theme(legend.position = "top")
+
+
+
+
+
+
+# first part just for me to create fake variables
+
+# h_metric_e5<- list("success_env"=runif(1,0,1),"success_comp"=NULL,"success_fac"=NULL)
+# g_metric_e5<- list("success_env"=runif(1,0,1),"success_comp"=NULL,"success_fac"=NULL)
+# j_metric_e5<- list("success_env"=runif(1,0,1),"success_comp"=NULL,"success_fac"=NULL)
+# h_metric_e10<- list("success_env"=runif(1,0,1),"success_comp"=NULL,"success_fac"=NULL)
+# g_metric_e10<- list("success_env"=runif(1,0,1),"success_comp"=NULL,"success_fac"=NULL)
+# j_metric_e10<- list("success_env"=runif(1,0,1),"success_comp"=NULL,"success_fac"=NULL)
+# h_metric_e20<- list("success_env"=runif(1,0,1),"success_comp"=NULL,"success_fac"=NULL)
+# g_metric_e20<- list("success_env"=runif(1,0,1),"success_comp"=NULL,"success_fac"=NULL)
+# j_metric_e20<- list("success_env"=runif(1,0,1),"success_comp"=NULL,"success_fac"=NULL)
+# 
+# h_metric_facDense5<- list("success_env"=runif(1,0,1),"success_comp"=NULL,"success_fac"=runif(1,0,1))
+# g_metric_facDense5<- list("success_env"=runif(1,0,1),"success_comp"=NULL,"success_fac"=runif(1,0,1))
+# j_metric_facDense5<- list("success_env"=runif(1,0,1),"success_comp"=NULL,"success_fac"=runif(1,0,1))
+# h_metric_facDense10<- list("success_env"=runif(1,0,1),"success_comp"=NULL,"success_fac"=runif(1,0,1))
+# g_metric_facDense10<- list("success_env"=runif(1,0,1),"success_comp"=NULL,"success_fac"=runif(1,0,1))
+# j_metric_facDense10<- list("success_env"=runif(1,0,1),"success_comp"=NULL,"success_fac"=runif(1,0,1))
+# h_metric_facDense20<- list("success_env"=runif(1,0,1),"success_comp"=NULL,"success_fac"=runif(1,0,1))
+# g_metric_facDense20<- list("success_env"=runif(1,0,1),"success_comp"=NULL,"success_fac"=runif(1,0,1))
+# j_metric_facDense20<- list("success_env"=runif(1,0,1),"success_comp"=NULL,"success_fac"=runif(1,0,1))
+# 
+# h_metric_compSparse5<- list("success_env"=runif(1,0,1),"success_fac"=NULL,"success_comp"=runif(1,0,1))
+# g_metric_compSparse5<- list("success_env"=runif(1,0,1),"success_fac"=NULL,"success_comp"=runif(1,0,1))
+# j_metric_compSparse5<- list("success_env"=runif(1,0,1),"success_fac"=NULL,"success_comp"=runif(1,0,1))
+# h_metric_compSparse10<- list("success_env"=runif(1,0,1),"success_fac"=NULL,"success_comp"=runif(1,0,1))
+# g_metric_compSparse10<- list("success_env"=runif(1,0,1),"success_fac"=NULL,"success_comp"=runif(1,0,1))
+# j_metric_compSparse10<- list("success_env"=runif(1,0,1),"success_fac"=NULL,"success_comp"=runif(1,0,1))
+# h_metric_compSparse20<- list("success_env"=runif(1,0,1),"success_fac"=NULL,"success_comp"=runif(1,0,1))
+# g_metric_compSparse20<- list("success_env"=runif(1,0,1),"success_fac"=NULL,"success_comp"=runif(1,0,1))
+# j_metric_compSparse20<- list("success_env"=runif(1,0,1),"success_fac"=NULL,"success_comp"=runif(1,0,1))
+# 
+# 
+# h_metric_compDense5<- list("success_env"=runif(1,0,1),"success_fac"=NULL,"success_comp"=runif(1,0,1))
+# g_metric_compDense5<- list("success_env"=runif(1,0,1),"success_fac"=NULL,"success_comp"=runif(1,0,1))
+# j_metric_compDense5<- list("success_env"=runif(1,0,1),"success_fac"=NULL,"success_comp"=runif(1,0,1))
+# h_metric_compDense10<- list("success_env"=runif(1,0,1),"success_fac"=NULL,"success_comp"=runif(1,0,1))
+# g_metric_compDense10<- list("success_env"=runif(1,0,1),"success_fac"=NULL,"success_comp"=runif(1,0,1))
+# j_metric_compDense10<- list("success_env"=runif(1,0,1),"success_fac"=NULL,"success_comp"=runif(1,0,1))
+# h_metric_compDense20<- list("success_env"=runif(1,0,1),"success_fac"=NULL,"success_comp"=runif(1,0,1))
+# g_metric_compDense20<- list("success_env"=runif(1,0,1),"success_fac"=NULL,"success_comp"=runif(1,0,1))
+# j_metric_compDense20<- list("success_env"=runif(1,0,1),"success_fac"=NULL,"success_comp"=runif(1,0,1))
+# 
+# h_metric_facSparse5<- list("success_env"=runif(1,0,1),"success_comp"=NULL,"success_fac"=runif(1,0,1))
+# g_metric_facSparse5<- list("success_env"=runif(1,0,1),"success_comp"=NULL,"success_fac"=runif(1,0,1))
+# j_metric_facSparse5<- list("success_env"=runif(1,0,1),"success_comp"=NULL,"success_fac"=runif(1,0,1))
+# h_metric_facSparse10<- list("success_env"=runif(1,0,1),"success_comp"=NULL,"success_fac"=runif(1,0,1))
+# g_metric_facSparse10<- list("success_env"=runif(1,0,1),"success_comp"=NULL,"success_fac"=runif(1,0,1))
+# j_metric_facSparse10<- list("success_env"=runif(1,0,1),"success_comp"=NULL,"success_fac"=runif(1,0,1))
+# h_metric_facSparse20<- list("success_env"=runif(1,0,1),"success_comp"=NULL,"success_fac"=runif(1,0,1))
+# g_metric_facSparse20<- list("success_env"=runif(1,0,1),"success_comp"=NULL,"success_fac"=runif(1,0,1))
+# j_metric_facSparse20<- list("success_env"=runif(1,0,1),"success_comp"=NULL,"success_fac"=runif(1,0,1))
+# 
+# g_metric_FacCompSparseSp5<- list("success_env"=runif(1,0,1),"success_comp"=runif(1,0,1),"success_fac"=runif(1,0,1))
+# h_metric_FacCompSparseSp5<- list("success_env"=runif(1,0,1),"success_comp"=runif(1,0,1),"success_fac"=runif(1,0,1))
+# j_metric_FacCompSparseSp5<- list("success_env"=runif(1,0,1),"success_comp"=runif(1,0,1),"success_fac"=runif(1,0,1))
+# g_metric_FacCompSparseSp10<- list("success_env"=runif(1,0,1),"success_comp"=runif(1,0,1),"success_fac"=runif(1,0,1))
+# h_metric_FacCompSparseSp10<- list("success_env"=runif(1,0,1),"success_comp"=runif(1,0,1),"success_fac"=runif(1,0,1))
+# j_metric_FacCompSparseSp10<- list("success_env"=runif(1,0,1),"success_comp"=runif(1,0,1),"success_fac"=runif(1,0,1))
+# g_metric_FacCompSparseSp20<- list("success_env"=runif(1,0,1),"success_comp"=runif(1,0,1),"success_fac"=runif(1,0,1))
+# h_metric_FacCompSparseSp20<- list("success_env"=runif(1,0,1),"success_comp"=runif(1,0,1),"success_fac"=runif(1,0,1))
+# j_metric_FacCompSparseSp20<- list("success_env"=runif(1,0,1),"success_comp"=runif(1,0,1),"success_fac"=runif(1,0,1))
+# 
+# g_metric_FacCompDenseSp5<- list("success_env"=runif(1,0,1),"success_comp"=runif(1,0,1),"success_fac"=runif(1,0,1))
+# h_metric_FacCompDenseSp5<- list("success_env"=runif(1,0,1),"success_comp"=runif(1,0,1),"success_fac"=runif(1,0,1))
+# j_metric_FacCompDenseSp5<- list("success_env"=runif(1,0,1),"success_comp"=runif(1,0,1),"success_fac"=runif(1,0,1))
+# g_metric_FacCompDenseSp10<- list("success_env"=runif(1,0,1),"success_comp"=runif(1,0,1),"success_fac"=runif(1,0,1))
+# h_metric_FacCompDenseSp10<- list("success_env"=runif(1,0,1),"success_comp"=runif(1,0,1),"success_fac"=runif(1,0,1))
+# j_metric_FacCompDenseSp10<- list("success_env"=runif(1,0,1),"success_comp"=runif(1,0,1),"success_fac"=runif(1,0,1))
+# g_metric_FacCompDenseSp20<- list("success_env"=runif(1,0,1),"success_comp"=runif(1,0,1),"success_fac"=runif(1,0,1))
+# h_metric_FacCompDenseSp20<- list("success_env"=runif(1,0,1),"success_comp"=runif(1,0,1),"success_fac"=runif(1,0,1))
+# j_metric_FacCompDenseSp20<- list("success_env"=runif(1,0,1),"success_comp"=runif(1,0,1),"success_fac"=runif(1,0,1))
+
+all<-list("j_metric_e5"=j_metric_e5,"g_metric_e5"=g_metric_e5,"h_metric_e5"=h_metric_e5,
+          "j_metric_e10"=j_metric_e10,"g_metric_e10"=g_metric_e10,"h_metric_e10"=h_metric_e10,
+          "j_metric_e20"=j_metric_e20,"g_metric_e20"=g_metric_e20,"h_metric_e20"=h_metric_e20,
+          "h_metric_facDense5"=h_metric_facDense5,"g_metric_facDense5"=g_metric_facDense5,"j_metric_facDense5"=j_metric_facDense5,
+          "h_metric_facDense10"=h_metric_facDense10,"g_metric_facDense10"=g_metric_facDense10,"j_metric_facDense10"=j_metric_facDense10,
+          "h_metric_facDense20"=h_metric_facDense20,"g_metric_facDense20"=g_metric_facDense20,"j_metric_facDense20"=j_metric_facDense20,
+          "h_metric_facSparse5"=h_metric_facSparse5,"g_metric_facSparse5"=g_metric_facSparse5,"j_metric_facSparse5"=j_metric_facSparse5,
+          "h_metric_facSparse10"=h_metric_facSparse10,"g_metric_facSparse10"=g_metric_facSparse10,"j_metric_facSparse10"=j_metric_facSparse10,
+          "h_metric_facSparse20"=h_metric_facSparse20,"g_metric_facSparse20"=g_metric_facSparse20,"j_metric_facSparse10"=j_metric_facSparse20,
+          "h_metric_compDense5"=h_metric_compDense5,"g_metric_compDense5"=g_metric_compDense5,"j_metric_compDense5"=j_metric_compDense5,
+          "h_metric_compDense10"=h_metric_compDense10,"g_metric_compDense10"=g_metric_compDense10,"j_metric_compDense10"=j_metric_compDense10,
+          "h_metric_compDense20"=h_metric_compDense20,"g_metric_compDense20"=g_metric_compDense20,"j_metric_compDense20"=j_metric_compDense20,
+          "h_metric_compSparse5"=h_metric_compSparse5,"g_metric_compSparse5"=g_metric_compSparse5,"j_metric_compSparse5"=j_metric_compSparse5,
+          "h_metric_compSparse10"=h_metric_compSparse10,"g_metric_compSparse10"=g_metric_compSparse10,"j_metric_compSparse10"=j_metric_compSparse10,
+          "h_metric_compSparse20"=h_metric_compSparse20,"g_metric_compSparse20"=g_metric_compSparse20,"j_metric_compSparse20"=j_metric_compSparse20,
+          "g_metric_faccompSparseSp5"= g_metric_FacCompSparse5,"h_metric_faccompSparseSp5"=h_metric_FacCompSparse5, "j_metric_faccompSparseSp5"=j_metric_FacCompSparse5,
+          "g_metric_faccompSparseSp10"= g_metric_FacCompSparse10,"h_metric_faccompSparseSp10"=h_metric_FacCompSparse10, "j_metric_faccompSparseSp10"=j_metric_FacCompSparse10,
+          "g_metric_faccompSparseSp20"= g_metric_FacCompSparse20,"h_metric_faccompSparseSp20"=h_metric_FacCompSparse20, "j_metric_faccompSparseSp20"=j_metric_FacCompSparse20,
+          "g_metric_faccompDenseSp5"= g_metric_FacCompDense5,"h_metric_faccompDenseSp5"=h_metric_FacCompDense5, "j_metric_faccompDenseSp5"=j_metric_FacCompDense5,
+          "g_metric_faccompDenseSp10"= g_metric_FacCompDense10,"h_metric_faccompDenseSp10"=h_metric_FacCompDense10, "j_metric_faccompDenseSp10"=j_metric_FacCompDense10,
+          "g_metric_faccompDenseSp20"= g_metric_FacCompDense20,"h_metric_faccompDenseSp20"=h_metric_FacCompDense20, "j_metric_faccompDenseSp20"=j_metric_FacCompDense20
+        )
+          
+table<-as.data.frame(matrix(NA,nrow=63, ncol=8,dimnames=list(NULL,c("success_env","success_comp","success_fac","n_sp","Facilitation","Competition","sparsity","model"))))
+                                                  
+for(i in 1:length(names(all))){
+  if(!is.null(all[[i]]$success_env)) table[i,"success_env"]<-all[[i]]$success_env
+  if(!is.null(all[[i]]$success_comp)) table[i,"success_comp"]<-all[[i]]$success_comp
+  if(!is.null(all[[i]]$success_fac)) table[i,"success_fac"]<-all[[i]]$success_fac
+  
+  if(length(grep("5",names(all)[i]))>0) table[i,"n_sp"]<-5
+  if(length(grep("10",names(all)[i]))>0) table[i,"n_sp"]<-10
+  if(length(grep("20",names(all)[i]))>0) table[i,"n_sp"]<-20
+  
+  if(length(grep("fac",names(all)[i]))>0){ table[i,"Facilitation"]<-"facilitation"}#else{table[i,"facilition"]<-NULL}
+  if(length(grep("comp",names(all)[i]))>0){ table[i,"Competition"]<-"competition"}#else{table[i,"competition"]<-NULL}
+  #if(!(length(grep("comp",names(all)[i]))>0) | length(grep("fac",names(all)[i]))>0) {table[i,"Comp_fac"]<-"comp_fac"}else{table[i,"Comp_fac"]<-NULL}
+  
+  
+  if(length(grep("Dense",names(all)[i]))>0){ table[i,"sparsity"]<-"dense"}else{table[i,"sparsity"]<-"sparse"}
+  
+  if(length(grep("j_",names(all)[i]))>0) table[i,"model"]<-"Jsdm"
+  if(length(grep("g_",names(all)[i]))>0) table[i,"model"]<-"Gjam"
+  if(length(grep("h_",names(all)[i]))>0) table[i,"model"]<-"Hmsc"
+  
+}
+
+table_comp<-table[which(!is.na(table$success_comp)),]
+table_fac<-table[which(!is.na(table$success_fac)),]
+
+tc<-cbind(table_comp$success_comp,table_comp$model,rep("All",nrow(table_comp)),rep("Int",nrow(table_comp)))
+tc<-rbind(tc,cbind(table_comp[which(table_comp$n_sp==5),"success_comp"],table_comp[which(table_comp$n_sp==5),"model"],rep("5",sum(table_comp$n_sp==5)),rep("Int",sum(table_comp$n_sp==5))))
+tc<-rbind(tc,cbind(table_comp[which(table_comp$n_sp==10),"success_comp"],table_comp[which(table_comp$n_sp==10),"model"],rep("10",sum(table_comp$n_sp==10)),rep("Int",sum(table_comp$n_sp==10))))
+tc<-rbind(tc,cbind(table_comp[which(table_comp$n_sp==20),"success_comp"],table_comp[which(table_comp$n_sp==20),"model"],rep("20",sum(table_comp$n_sp==20)),rep("Int",sum(table_comp$n_sp==20))))
+tc<-rbind(tc,cbind(table_comp[which(table_comp$sparsity=="dense"),"success_comp"],table_comp[which(table_comp$sparsity=="dense"),"model"],rep("dense",sum(table_comp$sparsity=="dense")),rep("Int",sum(table_comp$sparsity=="dense"))))
+tc<-rbind(tc,cbind(table_comp[which(table_comp$sparsity=="sparse"),"success_comp"],table_comp[which(table_comp$sparsity=="sparse"),"model"],rep("sparse",sum(table_comp$sparsity=="sparse")),rep("Int",sum(table_comp$sparsity=="sparse"))))
+tc<-rbind(tc,cbind(table_comp$success_env,table_comp$model,rep("All_env",nrow(table_comp)),rep("Env",nrow(table_comp))))
+tc<-rbind(tc,cbind(table_comp[which(table_comp$n_sp==5),"success_env"],table_comp[which(table_comp$n_sp==5),"model"],rep("5_env",sum(table_comp$n_sp==5)),rep("Env",sum(table_comp$n_sp==5))))
+tc<-rbind(tc,cbind(table_comp[which(table_comp$n_sp==10),"success_env"],table_comp[which(table_comp$n_sp==10),"model"],rep("10_env",sum(table_comp$n_sp==10)),rep("Env",sum(table_comp$n_sp==10))))
+tc<-rbind(tc,cbind(table_comp[which(table_comp$n_sp==20),"success_env"],table_comp[which(table_comp$n_sp==20),"model"],rep("20_env",sum(table_comp$n_sp==20)),rep("Env",sum(table_comp$n_sp==20))))
+
+tc<-data.frame("success"=as.numeric(tc[,1]),"model"=tc[,2],"fac"=tc[,3],"int"=rep("Competition",nrow(tc)),"col"=tc[,4])
+
+
+
+tf<-cbind(table_fac$success_fac,table_fac$model,rep("All",nrow(table_fac)),rep("Int",nrow(table_fac)))
+tf<-rbind(tf,cbind(table_fac[which(table_fac$n_sp==5),"success_fac"],table_fac[which(table_fac$n_sp==5),"model"],rep("5",sum(table_fac$n_sp==5)),rep("Int",sum(table_fac$n_sp==5))))
+tf<-rbind(tf,cbind(table_fac[which(table_fac$n_sp==10),"success_fac"],table_fac[which(table_fac$n_sp==10),"model"],rep("10",sum(table_fac$n_sp==10)),rep("Int",sum(table_fac$n_sp==10))))
+tf<-rbind(tf,cbind(table_fac[which(table_fac$n_sp==20),"success_fac"],table_fac[which(table_fac$n_sp==20),"model"],rep("20",sum(table_fac$n_sp==20)),rep("Int",sum(table_fac$n_sp==20))))
+tf<-rbind(tf,cbind(table_fac[which(table_fac$sparsity=="dense"),"success_fac"],table_fac[which(table_fac$sparsity=="dense"),"model"],rep("dense",sum(table_fac$sparsity=="dense")),rep("Int",sum(table_fac$sparsity=="dense"))))
+tf<-rbind(tf,cbind(table_fac[which(table_fac$sparsity=="sparse"),"success_fac"],table_fac[which(table_fac$sparsity=="sparse"),"model"],rep("sparse",sum(table_fac$sparsity=="sparse")),rep("Int",sum(table_fac$sparsity=="sparse"))))
+tf<-rbind(tf,cbind(table_fac$success_env,table_fac$model,rep("All_env",nrow(table_fac)),rep("Env",nrow(table_fac))))
+tf<-rbind(tf,cbind(table_fac[which(table_fac$n_sp==5),"success_env"],table_fac[which(table_fac$n_sp==5),"model"],rep("5_env",sum(table_fac$n_sp==5)),rep("Env",sum(table_fac$n_sp==5))))
+tf<-rbind(tf,cbind(table_fac[which(table_fac$n_sp==10),"success_env"],table_fac[which(table_fac$n_sp==10),"model"],rep("10_env",sum(table_fac$n_sp==10)),rep("Env",sum(table_fac$n_sp==10))))
+tf<-rbind(tf,cbind(table_fac[which(table_fac$n_sp==20),"success_env"],table_fac[which(table_fac$n_sp==20),"model"],rep("20_env",sum(table_fac$n_sp==20)),rep("Env",sum(table_fac$n_sp==20))))
+
+tf<-data.frame("success"=as.numeric(tf[,1]),"model"=tf[,2],"fac"=tf[,3],"int"=rep("Facilitation",nrow(tf)),"col"=tf[,4])
+
+
+
+
+
+table<-rbind(tf,tc)
+
+p<-ggplot(data=table)+geom_boxplot(aes(y=as.numeric(success),x=as.factor(fac),fill=as.factor(col)))+
+  scale_x_discrete(name="Parameters", breaks=c("All","5","10","20","dense","sparse","All_env","5_env","10_env","20_env"),
+                   labels=c("All","5","10","20","dense","sparse","All","5","10","20"),limits=c("All","5","10","20","dense","sparse","All_env","5_env","10_env","20_env"))+
+  scale_y_continuous(name="% success")+
+  scale_fill_discrete(name = "Success in retrieving_", labels = c("Sensibility (non int.)","Sensitivity (int."))+
+  facet_wrap( ~ int+model, scales="free")
+p
+
+
+
+
 
 ```
 
