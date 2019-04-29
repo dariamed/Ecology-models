@@ -712,7 +712,6 @@ metrics_hmsc<-function(Rho, comp=NULL,fac=NULL,only_env=T){
 }
 
 
-
 hm_inter<-function(mod, nchains=2,nsamples = 1000, interact=diag(ns)){
   getOmega = function(a,r=1)
   return(crossprod(a$Lambda[[r]]))
@@ -726,19 +725,22 @@ hm_inter<-function(mod, nchains=2,nsamples = 1000, interact=diag(ns)){
   postOmegaLo=apply(postOmega,c(1,2),quantile,0.05)
   
   postR<-array(dim=c(ns,ns,nchains*nsamples))
-  for(i in 1:dim(postOmega)[3])
+  postT<-array(dim=c(ns,ns,nchains*nsamples))
+  for(i in 1:dim(postOmega)[3]){
   postR[,,i]<-stats::cov2cor(postOmega[,,i])
-  
+  postT[,,i]<- -stats::cov2cor(solve(postOmega[,,i]+diag(ns)))
+  }
   
   postRMean = apply(postR,c(1,2),mean)
   postRUp=apply(postR,c(1,2),quantile,0.95)
   postRLo=apply(postR,c(1,2),quantile,0.05)
   
-  Tau = solve(postOmegaMean)
-  Tau_n = -cov2cor(Tau)
-  
+  postTMean = apply(postT,c(1,2),mean)
+  postTUp=apply(postT,c(1,2),quantile,0.95)
+  postTLo=apply(postT,c(1,2),quantile,0.05)
   
   Toplot_R<-postRMean*(!(postRUp>0 & postRLo<0))
+  Toplot_T<-postTMean*(!(postTUp>0 & postTLo<0))
   
   # Omegacor<- computeAssociations(m)
   # supportLevel<- 0.95
@@ -751,13 +753,13 @@ hm_inter<-function(mod, nchains=2,nsamples = 1000, interact=diag(ns)){
   corrplot(postRMean, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
   title("R")
   corrplot(Toplot_R, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
-  title("R non zero value")
-  corrplot(Tau_n, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
-  title("Partial correlation non zero value")
+  title("Plot only non zero value")
+  corrplot(Toplot_T, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+  title("Partial correlation matrix")
   corrplot(interact, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
   title("True interactions")
   
-  return(list(Rho_sign=Toplot_R,Tau_sign=Tau_n))
+  return(list(Rho_sign=Toplot_R,Tau_sign=Toplot_T)) 
 }
 
 hm_mod_R<-hm_inter(hm_mod,nchains=2,nsamples = 3000)
