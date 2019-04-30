@@ -489,7 +489,9 @@ load_gjam<-function(data,it=2500,burn=500,name="./gjam_models/temp.rda",interact
   ind <-which(array(diag(S)[lower.tri(diag(S),diag=T)])==1)
   par(mfrow=c(1,3),oma = c(1, 1, 1, 1))
   hist(effectiveSize(gj_mod$chains$sgibbs[,-ind]), main="sigma non diagonal elements",lwd=2,col=gray(.6))
+  
   hist(effectiveSize(gj_mod$chains$sgibbs[,ind]), main="sigma diagonal elements",lwd=2,col=gray(.6))
+  
   hist(effectiveSize(gj_mod$chains$bgibbs), main="ess(beta)",lwd=2,col=gray(.6))
  
   
@@ -3585,8 +3587,6 @@ predict_y_jsdm <- function(x, ns = 1000) {
   }
 
 
-#me5_pred<-predict_y_jsdm(me5)
-
 predictions <- sapply(models, predict_y_jsdm)
 
 prediction_means <- sapply(predictions, apply, 1:2, mean)
@@ -3598,6 +3598,37 @@ prediction_sds <- sapply(predictions, apply, 1:2, sd)
 
 
 
+
+
+plot( d$X[,2],pnorm(prediction_means$EnvEvenSp5[,1]))
+lines(dnorm(d$X[,2],2,20))
+
+require(reshape2)
+ggplot(data = melt(me5$sims.list$B[,,1])) + geom_boxplot
+
+
+boxplot(me5$sims.list$B[,1,1])
+abline(h=quantile(X,0.25),col="red",lty=2)
+abline(h=quantile(X,0.75),col="red",lty=2)
+
+
+plot( d$X[,2],pnorm(prediction_sds$EnvEvenSp5[,1]))
+
+
+x <-d$X[,2]
+y <- dnorm(x, mean=2, sd=20)
+plot(d$X[,2], y, type="l", lwd=2)
+
+plot(d$X[,2], type="l", lwd=2)
+
+plotQuant(me5$sims.list$B)
+
+library(ggplot2)
+ggplot(stack(as.data.frame(me5$sims.list$B[,,1])), aes(x = ind, y = values)) +
+  geom_boxplot()
+
+
+gj_mod$chains$bgibbsUn
 
 ```
 

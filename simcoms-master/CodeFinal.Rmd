@@ -398,20 +398,3 @@ ggplot(mean_correlations) +
 #prediction_means <- sapply(predictions, apply, 1:2, mean)
 
 #prediction_sds <- sapply(predictions, apply, 1:2, sd)
-
-theta<-1
-alpha<- seq(0.1,0.97, by=0.001)
-k<- 50
-f<- (gamma(theta)*gamma(theta/alpha + k*alpha/(1-alpha)))/(gamma(theta/alpha)*gamma(theta + k*alpha/(1-alpha)))
-
-
-plot(f[1:950])
-
-
-
-k<- 50
-f<- (gamma(theta/alpha + k*alpha/(1-alpha))/gamma(theta + k*alpha/(1-alpha)))
-
-
-plot(f[1:950])
-
