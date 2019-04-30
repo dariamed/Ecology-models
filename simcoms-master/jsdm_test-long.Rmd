@@ -469,7 +469,7 @@ fit_gjam<-function(data, it=2500,burn=500 , name="./gjam_models/temp.rda",intera
 
 
 ###this function only loads the model and return the R and T significant
-load_gjam<-function(data,it=2500,burn=500,name="./gjam_models/temp.rda",interact=diag(ncol(data$Y))){
+load_gjam<-function(data,it=2500,burn=500,name="./gjam_models/temp.rda",interact=diag(ncol(data$Y)),autoC=F){
   #setup parameters
   data <- list(
     Y = subset(data, select = -env),
@@ -491,8 +491,12 @@ load_gjam<-function(data,it=2500,burn=500,name="./gjam_models/temp.rda",interact
   hist(effectiveSize(gj_mod$chains$sgibbs[,-ind]), main="sigma non diagonal elements",lwd=2,col=gray(.6))
   hist(effectiveSize(gj_mod$chains$sgibbs[,ind]), main="sigma diagonal elements",lwd=2,col=gray(.6))
   hist(effectiveSize(gj_mod$chains$bgibbs), main="ess(beta)",lwd=2,col=gray(.6))
-  acfplot(mcmc(gj_mod$chains$sgibbs))
-  acfplot(mcmc(gj_mod$chains$bgibbs))
+  
+   if(autoC){
+      plot(acfplot(mcmc(gj_mod$chains$bgibbs)))
+      plot(acfplot(mcmc(gj_mod$chains$sgibbs)))
+  }
+
   
   postH<-apply(gj_mod$chains$sgibbs[burn:dim(gj_mod$chains$sgibbs)[1],], 2, quantile,0.95)
   postL<-apply(gj_mod$chains$sgibbs[burn:dim(gj_mod$chains$sgibbs)[1],], 2, quantile,0.05)
@@ -508,16 +512,6 @@ load_gjam<-function(data,it=2500,burn=500,name="./gjam_models/temp.rda",interact
     si <- solve(ss)
     tau[,,j-burn] <- -cov2cor(si)
   }
-    # sgibbs<-gj_mod$chains$sgibbs
-    # tau<-array(NA,dim=c(data$J,data$J,1000))
-    # for(j in (1:1000)){
-    #   ss <- expandSigma_rmd(sgibbs[j,], S = 5)
-    #   si <- solve(ss)
-    #   tau[,,j] <- -cov2cor(si)
-    # }
-
-  
-  
   
   tau_mean<-apply(tau,c(1,2), mean)
   tau_HI<-apply(tau,c(1,2),quantile,0.95)
@@ -555,7 +549,7 @@ load_gjam<-function(data,it=2500,burn=500,name="./gjam_models/temp.rda",interact
 ##to setup chains parameters
 data<-sim_data$EnvEvenSp5
 #Rho_sign<-fit_gjam(data,2500,500,name="./gjam_models/gjam5env.rda")
-mod_gjam<-load_gjam(data,2500,500,name="./gjam_models/gjam5env.rda")
+mod_gjam<-load_gjam(data,name="./gjam_models/gjam5env.rda", autoC=T)
 
 g_metric_e5<-metrics_gjam(mod_gjam$Rho_sign)
 cat(" ")
@@ -603,19 +597,21 @@ Convergence:
 
 ```{r hmsc convergence, include=TRUE}
 
-hm_conv<-function(mod){
+hm_conv<-function(mod, autoC=F){
   codaList = convertToCodaObject(mod)
 
   #convergence histograms
   hist(effectiveSize(codaList$Beta), main="ess(beta)",lwd=2,col=gray(.6))
   hist(gelman.diag(codaList$Beta,multivariate=FALSE)$psrf,lwd=2,col=gray(.6), main="psrf(beta)")
-  acfplot(codaList$Beta)
-  acfplot(codaList$Omega[[1]])
+  if(autoC){
+      plot(acfplot(codaList$Beta))
+      plot(acfplot(codaList$Omega[[1]]))
+  }
   hist(effectiveSize(codaList$Omega[[1]]), main="ess(omega)",lwd=2,col=gray(.6))
   hist(gelman.diag(codaList$Omega[[1]], multivariate=FALSE)$psrf,lwd=2,col=gray(.6),      main="psrf(omega)")
 }
 
-hm_conv(mod=hm_mod)
+hm_conv(mod=hm_mod,autoC=TRUE )
 ```
 
 
