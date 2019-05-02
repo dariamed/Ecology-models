@@ -247,13 +247,13 @@ predict_y_jsdm <- function(x, ns = 1000) {
 }
 
 
-pred_me5<-pnorm(predict_y_jsdm(me5))
+pred_j<-pnorm(predict_y_jsdm(me5))
 
 
-pred_me5_mean <- apply(pred_me5, 1:2, mean)
+pred_j_mean <- apply(pred_j, 1:2, mean)
 
-pred_me5_05 <- apply(pred_me5, 1:2, quantile,0.05)
-pred_me5_95 <- apply(pred_me5, 1:2, quantile,0.95)
+pred_j_05 <- apply(pred_j, 1:2, quantile,0.05)
+pred_j_95 <- apply(pred_j, 1:2, quantile,0.95)
 
 
 
@@ -637,9 +637,9 @@ mod_list_Tau<-list.append(mod_list_Tau,gjam=mod_gjam$Tau_sign)
 
 
 
-pred_gj_mu <- mod_gjam$predict$sdList$yMu
+pred_gj_mean <- mod_gjam$predict$sdList$yMu
 pred_gj_05 <- mod_gjam$predict$piList$yLo
-pred_gj_95 <- mod_gjam$predict$piList$yLo
+pred_gj_95 <- mod_gjam$predict$piList$yHi
 
 
 
@@ -844,7 +844,7 @@ hm_inter<-function(mod, nchains=2,nsamples = 1000, interact=diag(ns)){
   return(list(Rho_sign=Toplot_R,Tau_sign=Toplot_T)) 
 }
 
-hm_mod_R<-hm_inter(hm_mod,nchains=2,nsamples = 3000)
+hm_mod_R<-hm_inter(hm_mod,nchains=2,nsamples = 1000)
 
 h_metric_e5<-metrics_hmsc(hm_mod_R$Rho_sign)
 h_metric_e5_p<-metrics_hmsc(hm_mod_R$Tau_sign)
@@ -864,9 +864,9 @@ colnames(XData)<-c("env","env2")
 
 pred_hm<-simplify2array(predict(hm_mod,XData=XData,expected=T))
 
-pred_hm_mean <- apply(pred_me5, c(1,2), mean)
-pred_hm_05 <- apply(pred_me5, c(1,2), quantile,0.05)
-pred_hm_95 <- apply(pred_me5, c(1,2), quantile,0.95)
+pred_hm_mean <- apply(pred_hm, c(1,2), mean)
+pred_hm_05 <- apply(pred_hm, c(1,2), quantile,0.05)
+pred_hm_95 <- apply(pred_hm, c(1,2), quantile,0.95)
 
 
 
@@ -878,12 +878,152 @@ pred_hm_95 <- apply(pred_me5, c(1,2), quantile,0.95)
 ```{r response to environnment env5, include=TRUE}
 # to be finished
 #fundamental niche
-# nspecies<-5
-# niche_optima  = seq(2, 98, nspecies)
-# niche_breadth = 20
-# for(i in 1:nspecies)
-#   assign(paste0("fund_sp_",i),dnorm(1)
-# 
+np<-500
+nspecies<-5
+niche_optima  = seq(2, 98, length.out=nspecies)
+niche_breadth = 20
+
+#dataframe for fundamental niches
+table_fundamental<-data.frame()
+
+for(i in 1:nspecies){
+  tmp<-data.frame(xx=0:100,niche=dnorm(0:100,mean=niche_optima[i],sd=niche_breadth)/dnorm(niche_optima[i],mean=niche_optima[i],sd=niche_breadth),species=i)
+  table_fundamental<-rbind(table_fundamental,tmp)
+}
+
+xx<-data$env
+
+table_jsdm<-data.frame()
+  
+for(i in 1:nspecies) {
+  tmp<-data.frame(xx=xx,mean=pred_j_mean[,i],q_95=pred_j_95[,i],q_05=pred_j_05[,i],type=rep("jsdm",np),species=rep(i,np))
+  table_jsdm<-rbind(table_jsdm,tmp)
+}
+
+
+table_gjam<-data.frame()
+  
+for(i in 1:nspecies) {
+  tmp<-data.frame(xx=xx,mean=pred_gj_mean[,i],q_95=pred_gj_95[,i],q_05=pred_gj_05[,i],type=rep("gjam",np),species=rep(i,np))
+  table_gjam<-rbind(table_gjam,tmp)
+}
+
+
+table_hmsc<-data.frame()
+  
+for(i in 1:nspecies) {
+  tmp<-data.frame(xx=xx,mean=pred_hm_mean[,i],q_95=pred_hm_95[,i],q_05=pred_hm_05[,i],type=rep("hmsc",np),species=rep(i,np))
+  table_hmsc<-rbind(table_hmsc,tmp)
+}
+  
+#table for predictions
+table<-rbind(table_jsdm,table_gjam,table_hmsc)
+
+#table for observations
+Y_data = subset(data, select = -env)
+
+table_obs<-data.frame()
+
+for(i in 1:nspecies){
+  tmp<-data.frame(xx=xx,obs=Y_data[,i],species=rep(i,np))
+  table_obs<-rbind(table_obs,tmp)
+}
+
+
+######## FIRST TYPE OF PLOT
+# 1 plot for each species, so one figure with 5 plots, in total 3 figures, one for each model
+
+#jsdm 
+
+for(i in 1:5)
+local({
+  i<-i
+  tmp<-table_jsdm[which(table_jsdm$species==i),]
+  tmp_obs<-table_obs[which(table_obs$species==i),]
+  tmp_fund<-table_fundamental[which(table_fundamental$species==i),]
+  g<<-ggplot()+
+    geom_ribbon(aes(x=tmp$xx,ymin=tmp$q_05,ymax=tmp$q_95),alpha=0.5)+
+    geom_line(aes(x=tmp$xx,y=tmp$mean,color = "Predicted probability"),lwd=1.5)+
+    geom_point(aes(x=tmp_obs$xx,y=tmp_obs$obs),col="#000066",size=0.5) +xlab("Environmental gradient")+ylab("Probability of presence")+
+    geom_line(data=tmp_fund,aes(x=tmp_fund$xx,y=tmp_fund$niche,color = "Fundamental niche"),lwd=1)+
+    labs(title=paste0("JSDM, Species ",i))+
+    scale_color_manual(name = c("Legend"), values = c("Predicted probability" = "#FF6666","Fundamental niche"="#9999FF"))
+
+    assign(paste0("p",i), g, pos =1)
+})
+
+
+grid.arrange(p1,p2,p3,p4,p5,nrow=ceiling(nspecies/2))
+
+
+
+#gjam
+for(i in 1:5)
+local({
+  i<-i
+  tmp<-table_gjam[which(table_gjam$species==i),]
+  tmp_obs<-table_obs[which(table_obs$species==i),]
+  tmp_fund<-table_fundamental[which(table_fundamental$species==i),]
+  g<<-ggplot()+
+    geom_ribbon(aes(x=tmp$xx,ymin=tmp$q_05,ymax=tmp$q_95),alpha=0.5)+
+    geom_line(aes(x=tmp$xx,y=tmp$mean,color = "Predicted probability"),lwd=1.5)+
+    geom_point(aes(x=tmp_obs$xx,y=tmp_obs$obs),col="#000066",size=0.5) +xlab("Environmental gradient")+ylab("Probability of presence")+
+    geom_line(data=tmp_fund,aes(x=tmp_fund$xx,y=tmp_fund$niche,color = "Fundamental niche"),lwd=1)+
+    labs(title=paste0("GJAM, Species ",i))+
+    scale_color_manual(name = c("Legend"), values = c("Predicted probability" = "#FF6666","Fundamental niche"="#9999FF"))
+
+  
+  assign(paste0("p",i), g, pos =1)
+})
+
+
+grid.arrange(p1,p2,p3,p4,p5,nrow=ceiling(nspecies/2))
+
+
+#hmsc
+for(i in 1:5)
+local({
+  i<-i
+  tmp<-table[which(table_hmsc$species==i),]
+  tmp_obs<-table_obs[which(table_obs$species==i),]
+  tmp_fund<-table_fundamental[which(table_fundamental$species==i),]
+  g<<-ggplot()+
+    geom_ribbon(aes(x=tmp$xx,ymin=tmp$q_05,ymax=tmp$q_95),alpha=0.5)+
+    geom_line(aes(x=tmp$xx,y=tmp$mean,color = "Predicted probability"),lwd=1.5)+
+    geom_point(aes(x=tmp_obs$xx,y=tmp_obs$obs),col="#000066",size=0.5) +xlab("Environmental gradient")+ylab("Probability of presence")+
+    geom_line(data=tmp_fund,aes(x=tmp_fund$xx,y=tmp_fund$niche,color = "Fundamental niche"),lwd=1)+
+    labs(title=paste0("HMSC, Species ",i))+
+    scale_color_manual(name = c("Legend"), values = c("Predicted probability" = "#FF6666","Fundamental niche"="#9999FF"))
+
+  assign(paste0("p",i), g, pos =1)
+})
+
+
+grid.arrange(p1,p2,p3,p4,p5,nrow=ceiling(nspecies/2))
+
+
+
+########SECOND TYPE OF PLOT
+for(i in 1:5)
+local({
+  i<-i
+  tmp<-table[which(table$species==i),]
+  tmp_obs<-table_obs[which(table_obs$species==i),]
+  tmp_fund<-table_fundamental[which(table_fundamental$species==i),]
+  g<<-ggplot()+
+    geom_ribbon(aes(x=tmp$xx,ymin=tmp$q_05,ymax=tmp$q_95,col=as.factor(tmp$type)),alpha=0.5)+
+    geom_line(aes(x=tmp$xx,y=tmp$mean,col=as.factor(tmp$type)),lwd=1.5)+
+    geom_point(aes(x=tmp_obs$xx,y=tmp_obs$obs),col="#000066",size=0.5) +xlab("Environmental gradient")+ylab("Probability of presence")+
+    geom_line(data=tmp_fund,aes(x=tmp_fund$xx,y=tmp_fund$niche,color = "Fundamental niche"),lwd=1)+
+    labs(title=paste0("HMSC, Species ",i))+
+    scale_color_manual(name = c("Legend"), values = c("jsdm" = "#FF6666","gjam" = "#FFFF66","hmsc" = "#FFB266","Fundamental niche"="#9999FF"))
+  assign(paste0("p",i), g, pos =1)
+})
+
+
+grid.arrange(p1,p2,p3,p4,p5,nrow=ceiling(species/2))
+
+
 
 
 ```
