@@ -509,11 +509,18 @@ fit_gjam<-function(data, it=2500,burn=500 , name="./gjam_models/temp.rda",intera
   
   Tau_sign<-tau_mean*(!(tau_HI>0 & tau_LO<0))
   
-  newdata   <- list(xdata = xdata, nsim = 50 )
+  #newdata   <- list(xdata = xdata, nsim = 50 )
 
-
-  p1<-gjamPredict(mod_gjam1,newdata)
-  p1
+  x<- data$X
+  #p1<-gjamPredict(mod_gjam1)
+  mu<-array(NA,dim=c(data$n,data$J,it))
+  for(k in 1:it){
+      for(j in 1:data$J){
+    
+         mu[,j,k] <- pnorm(x%*%mod_gjam1$chains$bgibbs[k,(3*(j-1)+1):(3*j)])
+          
+    }
+  }
   
   # par(mfrow=c(2,3),oma = c(1, 1, 1, 1))
   # corrplot(cor(ydata), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200),   type = "lower")
@@ -528,7 +535,7 @@ fit_gjam<-function(data, it=2500,burn=500 , name="./gjam_models/temp.rda",intera
   # title("R signif")
   # corrplot(interact, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
   # title("True interactions")
-  return(list(Rho_sign=R_sign,Tau_sign=Tau_sign,predict=p1))
+  return(list(Rho_sign=R_sign,Tau_sign=Tau_sign,predict=mu))
 
   }
 
@@ -582,11 +589,18 @@ load_gjam<-function(data,it=2500,burn=500,name="./gjam_models/temp.rda",interact
     # }
   #new<-list(data$X[floor(seq(1, data$n, length.out = 100)),2])
 
-  newdata   <- list(xdata = xdata, nsim = 50 )
+  #newdata   <- list(xdata = xdata, nsim = 50 )
 
-  p1<-gjamPredict(gj_mod,newdata)
-  
-  
+  x<- data$X
+  #p1<-gjamPredict(mod_gjam1)
+  mu<-array(NA,dim=c(data$n,data$J,it))
+  for(k in 1:it){
+      for(j in 1:data$J){
+    
+         mu[,j,k] <- pnorm(x%*%mod_gjam1$chains$bgibbs[k,(3*(j-1)+1):(3*j)])
+          
+    }
+  }
   
   
   tau_mean<-apply(tau,c(1,2), mean)
@@ -611,7 +625,7 @@ load_gjam<-function(data,it=2500,burn=500,name="./gjam_models/temp.rda",interact
   corrplot(interact, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
   title("True interactions")
   
-  return(list(Rho_sign=R_sign,Tau_sign=Tau_sign,predict=p1))
+  return(list(Rho_sign=R_sign,Tau_sign=Tau_sign,predict=mu))
 }
 
 ######################################################################
@@ -637,9 +651,10 @@ mod_list_Tau<-list.append(mod_list_Tau,gjam=mod_gjam$Tau_sign)
 
 
 
-pred_gj_mean <- mod_gjam$predict$sdList$yMu
-pred_gj_05 <- mod_gjam$predict$piList$yLo
-pred_gj_95 <- mod_gjam$predict$piList$yHi
+pred_gj_mean <-apply(mod_gjam$predict, 1:2,mean)
+pred_gj_05 <- apply(mod_gjam$predict, 1:2,quantile,0.05)
+pred_gj_95 <- apply(mod_gjam$predict, 1:2,quantile,0.95)
+
 
 
 
@@ -862,8 +877,30 @@ XData=as.data.frame(X)
 new<-XData[floor(seq(1, 500, length.out = 100)),]
 colnames(XData)<-c("env","env2")
 
+pred_hm<-simplify2array(predict(hm_mod,expected=F))
+
 pred_hm<-simplify2array(predict(hm_mod,XData=XData,expected=T))
 
+
+paramX <- hm_mod$results$estimation$paramX[,,i]
+
+res[,,i]<-tcrossprod(data$X,paramX)
+
+postBeta1 = array(unlist(mod$postList[[1]],getOmega),c(3,ns,mod$samples))
+postBeta2 = array(unlist(lapply(mod$postList[[2]],getOmega)),c(ns,ns,mod$samples))
+  
+postOmega<-abind(postOmega1,postOmega2,along=3)
+  
+x<- data$X
+#p1<-gjamPredict(mod_gjam1)
+pred_hm<-array(NA,dim=c(hm_mod$ny,hm_mod$ns,2*hm_mod$samples)) #2 is nchains
+for(k in 1:(2*hm_mod$samples)){
+    if(k<=hm_mod$samples){pred_hm[,,k] <- pnorm(x%*%hm_mod$postList[[1]][[k]]$Beta)
+    }else {pred_hm[,,k] <- pnorm(x%*%hm_mod$postList[[2]][[k-hm_mod$samples]]$Beta)}
+
+}
+  
+  
 pred_hm_mean <- apply(pred_hm, c(1,2), mean)
 pred_hm_05 <- apply(pred_hm, c(1,2), quantile,0.05)
 pred_hm_95 <- apply(pred_hm, c(1,2), quantile,0.95)
@@ -998,7 +1035,7 @@ local({
   assign(paste0("p",i), g, pos =1)
 })
 
-
+x11()
 grid.arrange(p1,p2,p3,p4,p5,nrow=ceiling(nspecies/2))
 
 
@@ -1020,8 +1057,8 @@ local({
   assign(paste0("p",i), g, pos =1)
 })
 
-
-grid.arrange(p1,p2,p3,p4,p5,nrow=ceiling(species/2))
+x11()
+grid.arrange(p1,p2,p3,p4,p5,nrow=ceiling(nspecies/2))
 
 
 
