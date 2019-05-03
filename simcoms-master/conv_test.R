@@ -20,6 +20,8 @@ ggs_autocorrelation(ggs(gjam_mc)) ###autocr
 
 plotESSBurn(gjam_mc)  ### describe how much should be done the burnin
 
+xyplot(s2s1)
+
 
 hist(effectiveSize(mod_gjam1$chains$sgibbs), main="ess(beta)",lwd=2,col=gray(.6))
 hist(effectiveSize(mod_gjam1$chains$bgibbs), main="ess(beta)",lwd=2,col=gray(.6))
