@@ -871,34 +871,23 @@ mod_list_Rho<-list.append(mod_list_Rho,hmsc=hm_mod_R$Rho_sign)
 mod_list_Tau<-list.append(mod_list_Tau,hmsc=hm_mod_R$Tau_sign)
 
 
-#prediction
-X<-scale(poly(data$env[1:500], 2))
-XData=as.data.frame(X)
-new<-XData[floor(seq(1, 500, length.out = 100)),]
-colnames(XData)<-c("env","env2")
-
-pred_hm<-simplify2array(predict(hm_mod,expected=F))
-
-pred_hm<-simplify2array(predict(hm_mod,XData=XData,expected=T))
-
-
-paramX <- hm_mod$results$estimation$paramX[,,i]
-
-res[,,i]<-tcrossprod(data$X,paramX)
-
 postBeta1 = array(unlist(mod$postList[[1]],getOmega),c(3,ns,mod$samples))
 postBeta2 = array(unlist(lapply(mod$postList[[2]],getOmega)),c(ns,ns,mod$samples))
   
 postOmega<-abind(postOmega1,postOmega2,along=3)
   
-x<- data$X
-#p1<-gjamPredict(mod_gjam1)
+
+
+#prediction
+#pred_hm<-simplify2array(predict(hm_mod,expected=F))
+x = cbind(1, scale(poly(data$env, 2)))
 pred_hm<-array(NA,dim=c(hm_mod$ny,hm_mod$ns,2*hm_mod$samples)) #2 is nchains
 for(k in 1:(2*hm_mod$samples)){
     if(k<=hm_mod$samples){pred_hm[,,k] <- pnorm(x%*%hm_mod$postList[[1]][[k]]$Beta)
     }else {pred_hm[,,k] <- pnorm(x%*%hm_mod$postList[[2]][[k-hm_mod$samples]]$Beta)}
 
 }
+
   
   
 pred_hm_mean <- apply(pred_hm, c(1,2), mean)
