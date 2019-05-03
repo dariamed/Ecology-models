@@ -11,10 +11,10 @@ ml  <- list(ng = ng, burnin = burnin, typeNames = 'PA')
 colnames(xdata)<- c("env","env2")
 formula<- ~env + env2
 mod_gjam_low <- gjam(formula, xdata, ydata, modelList = ml)
-
+## to set thininhg - choose by =..
 ind<-seq(1,dim(mod_gjam_low$chains$sgibbs)[1], by=1)
 gjam_mc<- mcmc(mod_gjam_low$chains$sgibbs[ind,])
-s2s1<- mcmc(mod_gjam_low$chains$sgibbs[ind,2])
+s2s1<- mcmc(mod_gjam_low$chains$sgibbs[ind,1])
 acfplot(gjam_mc)  ##autocor plot
 ggs_autocorrelation(ggs(gjam_mc)) ###autocr
 
