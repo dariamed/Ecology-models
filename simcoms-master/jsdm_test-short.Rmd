@@ -3596,12 +3596,14 @@ prediction_q95 <- sapply(predictions, apply, 1:2, quantile,0.05)
 
 prediction_sds <- sapply(predictions, apply, 1:2, sd)
 
+x <- d$X[,2][order(d$X[,2])]
+y <- dnorm(x, mean=2, sd=20)
+plot(x, y, type="l", lwd=1)
 
 
-
-
-plot( d$X[,2],pnorm(prediction_means$EnvEvenSp5[,1]))
-lines(dnorm(d$X[,2],2,20))
+ind<- order(d$X[,2])
+plot(d$X[,2][ind],pnorm(prediction_means$EnvEvenSp5[,1][ind]))
+plot(d$X[,2][ind], y)
 
 require(reshape2)
 ggplot(data = melt(me5$sims.list$B[,,1])) + geom_boxplot
