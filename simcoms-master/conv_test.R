@@ -2,18 +2,36 @@
 library(gjam)
 library(coda)
 library(fitR)
+library(ggmcmc)
+
+
+setwd("~/Tesi/Code/Ecology-models-master_1/simcoms-master")
+
+# lapply(list.files(path = "."),load,.GlobalEnv)
+
+#setwd("~/Tesi/Code/Ecology-models-master/simcoms-master")
+load("params.rds")
+load("sim_names.rds")
+load("comp_inter.rds")
+load("fac_inter.rds")
+sim_data<-readRDS("sim_data.rds")
+
 ng <- 10000
 burnin <- 1000
 data_10<- sim_data$EnvEvenSp10
 ns<-10
 ydata<-data_10[,-11]
 xdata<-scale(poly(data_10$env, 2))
-ml  <- list(ng = ng, burnin = burnin, typeNames = 'PA')
+rl <-list(N=ns, r=3)
+ml  <- list(ng = ng, burnin = burnin, typeNames = 'PA',reductList=rl)
+
 colnames(xdata)<- c("env","env2")
 formula<- ~env + env2
 mod_gjam_low <- gjam(formula, xdata, ydata, modelList = ml)
+
+
 ## to set thininhg - choose by =..
-ind<-seq(1,dim(mod_gjam_low$chains$sgibbs)[1], by=10)
+ind<-seq(1,dim(mod_gjam_low$chains$sgibbs)[1], by=1)
 
 
 gjam_mc<- mcmc(mod_gjam_low$chains$sgibbs[ind,]) #thinned sigma
