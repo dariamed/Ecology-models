@@ -4,7 +4,6 @@ library(coda)
 library(fitR)
 library(ggmcmc)
 
-
 setwd("~/Tesi/Code/Ecology-models-master_1/simcoms-master")
 
 # lapply(list.files(path = "."),load,.GlobalEnv)
