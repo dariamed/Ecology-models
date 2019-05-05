@@ -59,3 +59,57 @@ x11()
 cumuplot(beta_mcmc)
 dev.off()
 
+
+
+
+
+#########TEST for the convergence in real data
+
+library(repmis)
+d <- "https://github.com/jimclarkatduke/gjam/blob/master/forestTraits.RData?raw=True"
+source_data(d)
+xdata <- forestTraits$xdata[,c(1,2,8)]
+y  <- gjamReZero(forestTraits$treesDeZero)  # extract y
+treeYdata  <- gjamTrimY(y,10)$y             # at least 10 plots
+dim(treeYdata)
+#treeYdata[1:5,1:6]
+
+rl   <- list(r = 8, N = 40)
+ml   <- list(ng = 2500, burnin = 500, typeNames = 'DA', reductList = rl)
+form <- as.formula( ~ temp*deficit + I(temp^2) + I(deficit^2) )
+out  <- gjam(form, xdata = xdata, ydata = treeYdata, modelList = ml)
+# 
+
+
+########SIMPLE DATA SET
+xdata_short<- xdata[1:500,1:2]
+ydata_short<-treeYdata[1:500,1:5]
+ml   <- list(ng = 25000, burnin = 5000, typeNames = 'DA')
+form <- as.formula( ~ temp+ deficit)
+mod_s  <- gjam(form, xdata = xdata_short, ydata = ydata_short, modelList = ml)
+
+###############################Convergence#########################################
+
+ind<-seq(1,dim(mod_s$chains$sgibbs)[1], by=1)
+gjam_mc<- mcmc(mod_s$chains$sgibbs[ind,]) #thinned sigma
+s2s1<- mcmc(mod_s$chains$sgibbs[ind,2]) #s2s1 chain
+ind_d<-vector()
+ind_d[1]<-1
+for (i in 1:9) ind_d[i+1]<- ind_d[i]+ns-i+1
+gjam_mc_nd<- mcmc(mod_s$chains$sgibbs[ind,-ind_d]) #thinned sigma non diagonal elements
+
+#acf
+#acfplot(gjam_mc)  ##autocor plot
+ggs_autocorrelation(ggs(gjam_mc)) ###autocr
+
+
+#traceplots
+x11()
+
+
+#nESS crazy low
+xyplot(s2s1)
+hist(effectiveSize(gjam_mc), main="ess(sigma)",lwd=2,col=gray(.6),breaks=100)
+hist(effectiveSize(gjam_mc_nd), main="ess(sigma) only non diagonal terms",lwd=2,col=gray(.6))
+
+
