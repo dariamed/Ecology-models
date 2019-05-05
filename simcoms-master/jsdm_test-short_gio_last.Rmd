@@ -71,11 +71,6 @@ setwd("~/Documents/GitHub/Ecology-models/simcoms-master")
 sim_data<-readRDS("sim_data.rds")
 
 #setwd("~/Tesi/Code/Ecology-models-master/simcoms-master/ExampleFiles")
-
-#' Extract correlation parameter means
-#+ mean-correlations
-
-
 prob_cooccur_es <- function(Y) {
   K <- ncol(Y)
   ans <- matrix(0, K, K)
@@ -250,17 +245,6 @@ predict_y_jsdm <- function(x, ns = 1000) {
 }
 
 
-pred_j<-pnorm(predict_y_jsdm(me5))
-
-
-pred_j_mean <- apply(pred_j, 1:2, mean)
-
-pred_j_05 <- apply(pred_j, 1:2, quantile,0.05)
-pred_j_95 <- apply(pred_j, 1:2, quantile,0.95)
-
-
-pred_jsdm<-list(pred_j_mean=pred_j_mean,pred_j_05=pred_j_05,pred_j_95=pred_j_95)
-
 ```
 
 
@@ -321,7 +305,6 @@ j_metric_e5<-metrics_jsdm(me5)
 #j_metric_e5$success_env
  cat(sprintf("Success rate: %s\n", metrics_jsdm(me5)$success_env))
  
-
 mod_list_Rho<-list()
 mod_list_Rho<-list(jsdm =as.matrix(me5$mean$Rho*(!me5$overlap0$Rho))) 
 mod_list_Tau<-list()
@@ -329,8 +312,13 @@ mod_list_Tau<-list(jsdm =as.matrix(me5$mean$Rho*(!me5$overlap0$Rho)))
 
 
 
+####Prediction
+pred_j<-pnorm(predict_y_jsdm(me5))
+pred_j_mean <- apply(pred_j, 1:2, mean)
 
-
+pred_j_05 <- apply(pred_j, 1:2, quantile,0.05)
+pred_j_95 <- apply(pred_j, 1:2, quantile,0.95)
+pred_jsdm<-list(pred_j_mean=pred_j_mean,pred_j_05=pred_j_05,pred_j_95=pred_j_95)
 
 
 
@@ -346,7 +334,6 @@ makeSymm <- function(m) {
   return(m)
 }
 
-
 expandSigma_rmd <- function(sigma, S){
 
   ss <- diag(S)
@@ -354,8 +341,6 @@ expandSigma_rmd <- function(sigma, S){
   ss[upper.tri(ss)] <- t(ss)[upper.tri(ss)]
   ss
 }
-
-
 
 convert_to_m<-function(ar){
   d <-floor((sqrt(length(ar)*8+1)-1)/2)
@@ -638,7 +623,6 @@ load_gjam<-function(data,it=2500,burn=500,name="./gjam_models/temp.rda",interact
 
 
 ```{r gjam env5,include=FALSE}
-
 ##to setup chains parameters
 data<-sim_data$EnvEvenSp5
 #mod_gjam<-fit_gjam(data,2500,500,name="./gjam_models/gjam5env.rda")
@@ -651,24 +635,18 @@ cat(sprintf("Success rate: %s\n", metrics_gjam(mod_gjam$Rho_sign)$success_env))
 
 mod_list_Rho<-list.append(mod_list_Rho,gjam=mod_gjam$Rho_sign)
 mod_list_Tau<-list.append(mod_list_Tau,gjam=mod_gjam$Tau_sign)
-
-
-
+#####Prediction
 pred_gj_mean <-apply(mod_gjam$predict, 1:2,mean)
 pred_gj_05 <- apply(mod_gjam$predict, 1:2,quantile,0.05)
 pred_gj_95 <- apply(mod_gjam$predict, 1:2,quantile,0.95)
 
 pred_gjam<- list(pred_gj_mean=pred_gj_mean,pred_gj_05=pred_gj_05,pred_gj_95=pred_gj_95)
 
-
-
-
 ```
 
 ### HMSC
 
 ```{r hmsc, include=FALSE, results=FALSE,}
-
 #setwd("~/Tesi/Code/Ecology-models-master/simcoms-master/ExampleFiles")
 fit_hmsc<-function(data,label="Fit",nsamples = 1000,nchains=2,name="./HMmodels/hmtemp.rda" ){
   if (label=="Fit"){
@@ -701,10 +679,8 @@ hm_mod<-load_object("./HMmodels/hm5env.rda")
 Convergence:
 
 ```{r hmsc convergence, include=FALSE}
-
 hm_conv<-function(mod){
   codaList = convertToCodaObject(mod)
-
   #convergence histograms
   hist(effectiveSize(codaList$Beta), main="ess(beta)",lwd=2,col=gray(.6))
   hist(gelman.diag(codaList$Beta,multivariate=FALSE)$psrf,lwd=2,col=gray(.6), main="psrf(beta)")
@@ -906,13 +882,8 @@ pred_hmsc<- list(pred_hm_mean=pred_hm_mean,pred_hm_05=pred_hm_05,pred_hm_95=pred
 
 ## Plot species responses
 
-
-
 ```{r function response to environnment env5, include=TRUE,echo=FALSE}
-# to be finished
-#fundamental niche
-
-create_plot_response<- function(data, nsp=10,pred_gjam, pred_jsdm,pred_hmsc ){
+create_plot_response<- function(data, nsp=5,pred_gjam, pred_jsdm,pred_hmsc ){
   np<-nrow(data)
   nspecies<-nsp
   niche_optima  = seq(2, 98, length.out=nspecies)
@@ -941,43 +912,33 @@ for(i in 1:nspecies) {
   
 }
 ######## GJAM
-
-
 table_gjam<-data.frame()
 
 pred_gj_mean<-pred_gjam$pred_gj_mean
 pred_gj_95<-pred_gjam$pred_gj_95
 pred_gj_05<-pred_gjam$pred_gj_05
 
-
-  
 for(i in 1:nspecies) {
   tmp<-data.frame(xx=xx,mean=pred_gj_mean[,i],q_95=pred_gj_95[,i],q_05=pred_gj_05[,i],type=rep("gjam",np),species=rep(i,np))
   table_gjam<-rbind(table_gjam,tmp)
 }
 
 #HMSC
-
 table_hmsc<-data.frame()
 pred_hm_mean<-pred_hmsc$pred_hm_mean
 pred_hm_95<-pred_hmsc$pred_hm_95
 pred_hm_05<-pred_hmsc$pred_hm_05
-
-
   
 for(i in 1:nspecies) {
   tmp<-data.frame(xx=xx,mean=pred_hm_mean[,i],q_95=pred_hm_95[,i],q_05=pred_hm_05[,i],type=rep("hmsc",np),species=rep(i,np))
   table_hmsc<-rbind(table_hmsc,tmp)
 }
   
-
-  
 #table for predictions
 table<-rbind(table_jsdm,table_gjam,table_hmsc)
 
 #table for observations
 Y_data = subset(data, select = -env)
-
 table_obs<-data.frame()
 
 for(i in 1:nspecies){
@@ -986,14 +947,11 @@ for(i in 1:nspecies){
 }
 
 
-
-
 ######## FIRST TYPE OF PLOT
 # 1 plot for each species, so one figure with 5 plots, in total 3 figures, one for each model
-
+p_1<-list()
 #jsdm 
-
-for(i in 1:5)
+for(i in 1:nsp)
 local({
   i<-i
   tmp<-table_jsdm[which(table_jsdm$species==i),]
@@ -1006,17 +964,18 @@ local({
     geom_line(data=tmp_fund,aes(x=tmp_fund$xx,y=tmp_fund$niche,color = "Fundamental niche"),lwd=1)+
     labs(title=paste0("JSDM, Species ",i))+
     scale_color_manual(name = c("Legend"), values = c("Predicted probability" = "#FF6666","Fundamental niche"="#9999FF"))
-
+    p_1<<-list.append(p_1,g)
     assign(paste0("p",i), g, pos =1)
 })
 
-
-grid.arrange(p1,p2,p3,p4,p5,nrow=ceiling(nspecies/2))
-
+if(nsp==5){
+  grid.arrange(p1,p2,p3,p4,p5,nrow=ceiling(nspecies/2))
+} else{ p_1}
 
 
 #gjam
-for(i in 1:5)
+p_2<-list()
+for(i in 1:nsp)
 local({
   i<-i
   tmp<-table_gjam[which(table_gjam$species==i),]
@@ -1030,20 +989,20 @@ local({
     labs(title=paste0("GJAM, Species ",i))+
     scale_color_manual(name = c("Legend"), values = c("Predicted probability" = "#FF6666","Fundamental niche"="#9999FF"))
 
-  
+  p_2<<-list.append(p_2,g)
   assign(paste0("p",i), g, pos =1)
 })
 
-
-grid.arrange(p1,p2,p3,p4,p5,nrow=ceiling(nspecies/2))
-
-
-
-
+if (nsp==5){
+  grid.arrange(p1,p2,p3,p4,p5,nrow=ceiling(nspecies/2))
+}else{ 
+  p_2
+  }
 
 
 #hmsc
-for(i in 1:5)
+p_3<-list()
+for(i in 1:nsp)
 local({
   i<-i
   tmp<-table[which(table_hmsc$species==i),]
@@ -1056,17 +1015,23 @@ local({
     geom_line(data=tmp_fund,aes(x=tmp_fund$xx,y=tmp_fund$niche,color = "Fundamental niche"),lwd=1)+
     labs(title=paste0("HMSC, Species ",i))+
     scale_color_manual(name = c("Legend"), values = c("Predicted probability" = "#FF6666","Fundamental niche"="#9999FF"))
-
+   p_3<<-list.append(p_3,g)
   assign(paste0("p",i), g, pos =1)
 })
 
-x11()
-grid.arrange(p1,p2,p3,p4,p5,nrow=ceiling(nspecies/2))
+#x11()
+if (nsp==5){
+  grid.arrange(p1,p2,p3,p4,p5,nrow=ceiling(nspecies/2))
+}else{ 
+  p_3
+  }
+
 
 
 
 ########SECOND TYPE OF PLOT
-for(i in 1:5)
+p_4<-list()
+for(i in 1:nsp)
 local({
   i<-i
   tmp<-table[which(table$species==i),]
@@ -1077,21 +1042,23 @@ local({
     geom_line(aes(x=tmp$xx,y=tmp$mean,col=as.factor(tmp$type)),lwd=1.5)+
     geom_point(aes(x=tmp_obs$xx,y=tmp_obs$obs),col="#000066",size=0.5) +xlab("Environmental gradient")+ylab("Probability of presence")+
     geom_line(data=tmp_fund,aes(x=tmp_fund$xx,y=tmp_fund$niche,color = "Fundamental niche"),lwd=1)+
-    labs(title=paste0("HMSC, Species ",i))+
+    labs(title=paste0("All models, Species ",i))+
     scale_color_manual(name = c("Legend"), values = c("jsdm" = "#FF6666","gjam" = "#FFFF66","hmsc" = "#FFB266","Fundamental niche"="#9999FF"))
+  p_4<<-list.append(p_4,g)
   assign(paste0("p",i), g, pos =1)
 })
 
-x11()
-grid.arrange(p1,p2,p3,p4,p5,nrow=ceiling(nspecies/2))
+if (nsp==5){
+  grid.arrange(p1,p2,p3,p4,p5,nrow=ceiling(nspecies/2))
+}else{ 
+  p_4
+  }
+#x11()
+#grid.arrange(p1,p2,p3,p4,p5,nrow=ceiling(nspecies/2))
   
 }
 
-
-
 create_plot_response(sim_data$EnvEvenSp5, nsp=5,pred_gjam, pred_jsdm,pred_hmsc )
-
-
 
 ```
 
@@ -1268,9 +1235,7 @@ prepare_table<- function(datab,name,class){
   return(data_out)
 }
 
-
 ########GJAM####################################################
-
 prepare_beta_gjam<-function(datab,name,class){
   beta_out<-melt(datab)
   beta_out$rn<-rownames(beta_out)
@@ -1302,6 +1267,7 @@ prepare_beta_hmsc<-function(datab,name,class,vcol,vrow){
 
 
 create_beta_plot<- function(gjmod, jsdmmod, hmmod){
+  nsp<-hmmod$ns
   beta_mean<-prepare_table(jsdmmod$mean$B,name="mean",class="jsdm")
   beta_q25<-prepare_table(datab=jsdmmod$q2.5$B,name="low",class="jsdm")
   beta_q97<-prepare_table(jsdmmod$q97.5$B,name="high",class="jsdm")
@@ -1348,7 +1314,8 @@ create_beta_plot<- function(gjmod, jsdmmod, hmmod){
   data_beta$name<- paste(data_beta$name,data_beta$sp)
   data_beta[, 'model'] <- as.factor(data_beta[, 'model'])
   
-
+  
+if(nsp==5){
 p <- ggplot(data_beta, aes(mean, beta, colour = model))
 q<- p + geom_point( size = 2) +xlab("Environmental gradient")+ylab("Coefficients")+scale_y_discrete(
         labels=c("inter" =expression(beta[0]),"env" = expression(beta[1]),"env2" = expression(beta[2])))+
@@ -1356,8 +1323,19 @@ q<- p + geom_point( size = 2) +xlab("Environmental gradient")+ylab("Coefficients
   geom_vline(aes(xintercept = 0),size = 0.2, colour = "red") + theme(strip.text.x = element_text(size = 10, colour = "black")) +
    ggtitle("Comparison of the estimated covariates coefficiens")
 q
+}else{
+for(i in 1:nsp){
+  tmp<-data_beta[which(data_beta$sp==i),]
+  p <- ggplot(tmp, aes(mean, beta, colour = model))
+  q<- p + geom_point( size = 2) +xlab("Environmental gradient")+ylab("Coefficients")+scale_y_discrete(
+        labels=c("inter" =expression(beta[0]),"env" = expression(beta[1]),"env2" = expression(beta[2])))+
+  geom_errorbarh(aes(xmax = high, xmin = low, height = .3))+
+  geom_vline(aes(xintercept = 0),size = 0.2, colour = "red") + theme(strip.text.x = element_text(size = 10, colour = "black")) +
+   ggtitle(paste("Comparison of the estimated covariates coefficiens for specie ",i))
+print(q)
+ }
 }
-
+}
 
 #######
 create_beta_plot(load_object("./gjam_models/gjam5env.rda"),me5,hmmod=load_object("./HMmodels/hm5env.rda"))
@@ -1383,9 +1361,6 @@ ALL3<-function(jsdm_mod,gjam_mod,hmsc_mod,interact=diag(5)){
 ALL3(mod_list_Rho$jsdm,mod_list_Rho$gjam,mod_list_Rho$hmsc,diag(5))
 
 ```
-
-
-
 
 
 
@@ -1455,29 +1430,23 @@ plot_cor_jsdm<-function(mod,y,interact=diag(ncol(y))){
 }
 
 #plot_cor_jsdm(me10,data$Y)
-
-
+###Correlation
 mod_list_Rho<-list()
 mod_list_Rho<-list(jsdm =me10$mean$Rho*(!me10$overlap0$Rho)) 
- 
 mod_list_Tau<-list()
 mod_list_Tau<-list(jsdm =me10$mean$Rho*(!me10$overlap0$Rho)) 
-
+##Prediction
 pred_j<-pnorm(predict_y_jsdm(me10))
 pred_j_mean <- apply(pred_j, 1:2, mean)
 pred_j_05 <- apply(pred_j, 1:2, quantile,0.05)
 pred_j_95 <- apply(pred_j, 1:2, quantile,0.95)
 
 pred_jsdm<-list(pred_j_mean=pred_j_mean,pred_j_05=pred_j_05,pred_j_95=pred_j_95)
-
-
-
 ```
 
 ### Gjam
 
 ```{r gjam en10,include=FALSE}
-
 data<-sim_data$EnvEvenSp10
 
 #Rho_sign<-fit_gjam(data,3000,500,"./gjam_models/gjam10env.rda")
@@ -1488,27 +1457,20 @@ g_metric_e10<-metrics_gjam(gjam_mod$Rho_sign)
 g_metric_e10_p<-metrics_gjam(gjam_mod$Tau_sign)
 cat("Success rate ")
 g_metric_e10$success_env
-
+###Correlation
 mod_list_Rho<-list.append(mod_list_Rho,gjam=gjam_mod$Rho_sign) 
 mod_list_Tau<-list.append(mod_list_Tau,gjam=gjam_mod$Tau_sign) 
-
-
-
+##Prediction
 pred_gj_mean <-apply(gjam_mod$predict, 1:2,mean)
 pred_gj_05 <- apply(gjam_mod$predict, 1:2,quantile,0.05)
 pred_gj_95 <- apply(gjam_mod$predict, 1:2,quantile,0.95)
-
 pred_gjam<- list(pred_gj_mean=pred_gj_mean,pred_gj_05=pred_gj_05,pred_gj_95=pred_gj_95)
-
-
 ```
 
 ### HMSC
 ```{r hmsc en10,include=FALSE}
-
 data<-sim_data$EnvEvenSp10
 hm_mod<-fit_hmsc(data,"Load",name="./HMmodels/hm10env.rda" )
-
 hm_conv(hm_mod)
 hm_mod_R<-hm_inter(hm_mod)
 
@@ -1519,7 +1481,6 @@ h_metric_e10_p<-metrics_hmsc(hm_mod_R$Tau_sign)
 cat(" ")
 cat(sprintf("Success rate: %s\n", h_metric_e10$success_env))
 cat(sprintf("Success rate: %s\n", h_metric_e10$success_fac))
-
 
 mod_list_Rho<-list.append(mod_list_Rho, hmsc=hm_mod_R$Rho_sign) 
 mod_list_Tau<-list.append(mod_list_Tau, hmsc=hm_mod_R$Tau_sign) 
@@ -1533,32 +1494,21 @@ for(k in 1:(2*hm_mod$samples)){
 
 }
 
-pred_hm_mean <- apply(pred_hm, c(1,2), mean)
-# pred_hm_05 <- apply(pred_hm, c(1,2), quantile,0.05)
-# pred_hm_95 <- apply(pred_hm, c(1,2), quantile,0.95)
-# 
-
 pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
                  pred_hm_05=apply(pred_hm, c(1,2), quantile,0.05),
                  pred_hm_95=apply(pred_hm, c(1,2), quantile,0.95))
 
 
-#plot(data$env,pred_hm_mean[,1])
+#plot(data$env,pred_hmsc$pred_hm_mean[,1])
 
 
 ```
 
 
-
-
 ```{r all models rho env10, include=TRUE}
-
 create_beta_plot(load_object("./gjam_models/gjam10env.rda"),me10,load_object("./HMmodels/hm10env.rda"))
-
-
+#data, nsp=5,pred_gjam, pred_jsdm,pred_hmsc 
 create_plot_response(data=sim_data$EnvEvenSp10, nsp=10,pred_gjam, pred_jsdm,pred_hmsc )
-
-
 
 ALL3(mod_list_Rho$jsdm,mod_list_Rho$gjam,mod_list_Rho$hmsc,diag(10))
 
@@ -1651,9 +1601,6 @@ pred_gj_05 <- apply(gjam_mod$predict, 1:2,quantile,0.05)
 pred_gj_95 <- apply(gjam_mod$predict, 1:2,quantile,0.95)
 
 pred_gjam<- list(pred_gj_mean=pred_gj_mean,pred_gj_05=pred_gj_05,pred_gj_95=pred_gj_95)
-
-
-
 
 ```
 
@@ -1768,8 +1715,6 @@ pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
                  pred_hm_05=apply(pred_hm, c(1,2), quantile,0.05),
                  pred_hm_95=apply(pred_hm, c(1,2), quantile,0.95))
 
-
-
 ```
 
 
@@ -1777,9 +1722,9 @@ pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
 
 ```{r all models env20, include=TRUE}
 
-create_beta_plot(load_object("./gjam_models/gjam20env.rda"),me10,load_object("./HMmodels/hm20env.rda"))
+create_beta_plot(load_object("./gjam_models/gjam20env.rda"),me20,load_object("./HMmodels/hm20env.rda"))
 
-create_plot_response(sim_data$EnvEvenSp20, nsp=5,pred_gjam, pred_jsdm,pred_hmsc )
+create_plot_response(sim_data$EnvEvenSp20, nsp=20,pred_gjam, pred_jsdm,pred_hmsc )
 
 
 ALL3(mod_list_Rho$jsdm,mod_list_Rho$gjam,mod_list_Rho$hmsc,diag(20))
@@ -1877,8 +1822,6 @@ pred_gj_95 <- apply(gjam_mod$predict, 1:2,quantile,0.95)
 
 pred_gjam<- list(pred_gj_mean=pred_gj_mean,pred_gj_05=pred_gj_05,pred_gj_95=pred_gj_95)
 
-
-
 ```
 
 
@@ -1925,9 +1868,9 @@ pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
 
 
 ```{r all models facd5, include=TRUE}
-create_beta_plot(load_object("./gjam_models/gjam20env.rda"),me10,load_object("./HMmodels/hm20env.rda"))
+create_beta_plot(load_object("./gjam_models/gjam5f.rda"),mfd5,load_object("./HMmodels/hm5fd.rda" ))
 
-create_plot_response(sim_data$EnvEvenSp20, nsp=5,pred_gjam, pred_jsdm,pred_hmsc )
+create_plot_response(sim_data$FacDenseSp5, nsp=5,pred_gjam, pred_jsdm,pred_hmsc )
 
 
 ALL3(mod_list_Rho$jsdm,mod_list_Rho$gjam,mod_list_Rho$hmsc,fac_inter[[4]])
@@ -2068,9 +2011,9 @@ pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
 
 
 ```{r all models facd10, include=TRUE}
-create_beta_plot(load_object("./gjam_models/gjam20env.rda"),me10,load_object("./HMmodels/hm20env.rda"))
+create_beta_plot(load_object("./gjam_models/gjam10fd.rda"),mfd10,load_object("./HMmodels/hm10fd.rda"))
 
-create_plot_response(sim_data$EnvEvenSp20, nsp=5,pred_gjam, pred_jsdm,pred_hmsc )
+create_plot_response(sim_data$FacDenseSp10, nsp=10,pred_gjam, pred_jsdm,pred_hmsc )
 
 
 ALL3(mod_list_Rho$jsdm,mod_list_Rho$gjam,mod_list_Rho$hmsc,fac_inter[[5]])
@@ -2215,9 +2158,9 @@ pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
 
 ```{r all models facd20, include=TRUE}
 
-create_beta_plot(load_object("./gjam_models/gjam20env.rda"),me10,load_object("./HMmodels/hm20env.rda"))
+create_beta_plot(load_object("./gjam_models/gjam20fd.rda"),mfd20,load_object("./HMmodels/hm20fd.rda"))
 
-create_plot_response(sim_data$EnvEvenSp20, nsp=5,pred_gjam, pred_jsdm,pred_hmsc )
+create_plot_response(sim_data$FacDenseSp20, nsp=20,pred_gjam, pred_jsdm,pred_hmsc )
 
 ALL3(mod_list_Rho$jsdm,mod_list_Rho$gjam,mod_list_Rho$hmsc,fac_inter[[6]])
 
@@ -2367,9 +2310,9 @@ pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
 
 
 ```{r all models fs5, include=TRUE}
-create_beta_plot(load_object("./gjam_models/gjam20env.rda"),me10,load_object("./HMmodels/hm20env.rda"))
+create_beta_plot(load_object("./gjam_models/gjam5fs.rda"),mfs5,load_object("./HMmodels/hm5fs.rda"))
 
-create_plot_response(sim_data$EnvEvenSp20, nsp=5,pred_gjam, pred_jsdm,pred_hmsc )
+create_plot_response(sim_data$FacSparseSp5, nsp=5,pred_gjam, pred_jsdm,pred_hmsc )
 
 
 ALL3(mod_list_Rho$jsdm,mod_list_Rho$gjam,mod_list_Rho$hmsc,fac_inter[[7]])
@@ -2490,36 +2433,23 @@ for(k in 1:(2*hm_mod$samples)){
 
 }
 
-# pred_hm_mean <- apply(pred_hm, c(1,2), mean)
-# pred_hm_05 <- apply(pred_hm, c(1,2), quantile,0.05)
-# pred_hm_95 <- apply(pred_hm, c(1,2), quantile,0.95)
-# 
-
 pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
                  pred_hm_05=apply(pred_hm, c(1,2), quantile,0.05),
                  pred_hm_95=apply(pred_hm, c(1,2), quantile,0.95))
-
-
 ```
 
 
 ```{r all models fs10, include=TRUE}
-create_beta_plot(load_object("./gjam_models/gjam20env.rda"),me10,load_object("./HMmodels/hm20env.rda"))
+create_beta_plot(load_object("./gjam_models/gjam10fs.rda"),mfs10,load_object("./HMmodels/hm10fs.rda"))
 
-create_plot_response(sim_data$EnvEvenSp20, nsp=5,pred_gjam, pred_jsdm,pred_hmsc )
-
-
+create_plot_response(sim_data$FacSparseSp10, nsp=10,pred_gjam, pred_jsdm,pred_hmsc )
 ALL3(mod_list_Rho$jsdm,mod_list_Rho$gjam,mod_list_Rho$hmsc,fac_inter[[8]])
-
 ```
 
 
 
 ```{r all models tau fs10, include=TRUE}
-
-
 ALL4(mod_list_Tau$jsdm,mod_list_Tau$gjam,mod_list_Tau$hmsc,fac_inter[[8]])
-
 ```
 
 
@@ -2538,13 +2468,9 @@ jsdm_conv(mfs20)
 mfs20$mcmc.info[1:7]
 
 j_metric_facSparse20<-metrics_jsdm(mfs20,fac = fac_inter[[9]],only_env = F)
-# cat("Success rate ")
-# j_metric_facSparse20$success_env
-# j_metric_facSparse20$success_fac
 cat("\n")
 cat(sprintf("Success rate for non-interacting: %s\n", round(j_metric_facSparse20$success_env,3)))
 cat(sprintf("Success rate for facilitation: %s\n", round(j_metric_facSparse20$success_fac,3)))
-
 ######################################################Prepare data
 data<-sim_data$FacSparseSp20
 data <- list(
@@ -2557,9 +2483,6 @@ data <- list(
   I = diag(ncol(data) - 1),
   df = ncol(data)
 )
-#Tau_n<-to_prec(mfd10$mean$Tau)
-#plot_cor_jsdm(mfs20,data$Y,fac_inter[[9]])
-
 mod_list_Rho<-list()
 mod_list_Rho<-list(jsdm =mfs20$mean$Rho*(!mfs20$overlap0$Rho)) 
 
@@ -2614,9 +2537,6 @@ pred_gjam<- list(pred_gj_mean=pred_gj_mean,pred_gj_05=pred_gj_05,pred_gj_95=pred
 
 ```
 
-
-### HMSC
-
 ### HMSC
 ```{r hmsc fs20,include=FALSE}
 data<-sim_data$FacSparseSp20
@@ -2641,37 +2561,24 @@ for(k in 1:(2*hm_mod$samples)){
 
 }
 
-# pred_hm_mean <- apply(pred_hm, c(1,2), mean)
-# pred_hm_05 <- apply(pred_hm, c(1,2), quantile,0.05)
-# pred_hm_95 <- apply(pred_hm, c(1,2), quantile,0.95)
-# 
-
 pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
                  pred_hm_05=apply(pred_hm, c(1,2), quantile,0.05),
                  pred_hm_95=apply(pred_hm, c(1,2), quantile,0.95))
-
-
 ```
 
 
 
 
 ```{r all models fs20, include=TRUE}
-
-create_beta_plot(load_object("./gjam_models/gjam20env.rda"),me10,load_object("./HMmodels/hm20env.rda"))
-
-create_plot_response(sim_data$EnvEvenSp20, nsp=5,pred_gjam, pred_jsdm,pred_hmsc )
-
+create_beta_plot(load_object("./gjam_models/gjam20fs.rda"),mfs20,load_object("./HMmodels/hm20fs.rda"))
+create_plot_response(sim_data$FacSparseSp20, nsp=20,pred_gjam, pred_jsdm,pred_hmsc )
 ALL3(mod_list_Rho$jsdm,mod_list_Rho$gjam,mod_list_Rho$hmsc,fac_inter[[9]])
 
 ```
 
 
 ```{r all models tau fs20, include=TRUE}
-
-
 ALL4(mod_list_Tau$jsdm,mod_list_Tau$gjam,mod_list_Tau$hmsc,fac_inter[[9]])
-
 ```
 
 
@@ -2729,8 +2636,6 @@ pred_jsdm<-list(pred_j_mean=pred_j_mean,pred_j_05=pred_j_05,pred_j_95=pred_j_95)
 
 ```
 
-
-
 ### Gjam
 
 ```{r gjam cmpd5,include=FALSE}
@@ -2756,16 +2661,11 @@ cat(sprintf("Success rate for facilitation: %s\n", round(g_metric_compDense5$suc
 #plot(density(gjfd5$chains$sgibbs[,4]))
 mod_list_Rho<-list.append(mod_list_Rho, gjam=gjam_mod$Rho_sign) 
 mod_list_Tau<-list.append(mod_list_Tau, gjam=gjam_mod$Tau_sign) 
-
-
+#Prediction
 pred_gj_mean <-apply(gjam_mod$predict, 1:2,mean)
 pred_gj_05 <- apply(gjam_mod$predict, 1:2,quantile,0.05)
 pred_gj_95 <- apply(gjam_mod$predict, 1:2,quantile,0.95)
-
 pred_gjam<- list(pred_gj_mean=pred_gj_mean,pred_gj_05=pred_gj_05,pred_gj_95=pred_gj_95)
-
-
-
 ```
 
 
@@ -2796,17 +2696,9 @@ for(k in 1:(2*hm_mod$samples)){
 
 }
 
-# pred_hm_mean <- apply(pred_hm, c(1,2), mean)
-# pred_hm_05 <- apply(pred_hm, c(1,2), quantile,0.05)
-# pred_hm_95 <- apply(pred_hm, c(1,2), quantile,0.95)
-# 
-
 pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
                  pred_hm_05=apply(pred_hm, c(1,2), quantile,0.05),
                  pred_hm_95=apply(pred_hm, c(1,2), quantile,0.95))
-
-
-
 
 ```
 
@@ -2815,11 +2707,8 @@ pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
 
 
 ```{r all models cmpd5, include=TRUE}
-create_beta_plot(load_object("./gjam_models/gjam20env.rda"),me10,load_object("./HMmodels/hm20env.rda"))
-
-create_plot_response(sim_data$EnvEvenSp20, nsp=5,pred_gjam, pred_jsdm,pred_hmsc )
-
-
+create_beta_plot(load_object("./gjam_models/gjam5cmpd.rda"),mcmpd5,load_object("./HMmodels/hm5cmpd.rda"))
+create_plot_response(sim_data$CompDenseSp5, nsp=5,pred_gjam, pred_jsdm,pred_hmsc )
 ALL3(mod_list_Rho$jsdm,mod_list_Rho$gjam,mod_list_Rho$hmsc,(-1)*comp_inter[[10]])
 
 ```
@@ -2827,10 +2716,7 @@ ALL3(mod_list_Rho$jsdm,mod_list_Rho$gjam,mod_list_Rho$hmsc,(-1)*comp_inter[[10]]
 
 
 ```{r all models tau fcmpd5, include=TRUE}
-
-
 ALL4(mod_list_Tau$jsdm,mod_list_Tau$gjam,mod_list_Tau$hmsc,(-1)*comp_inter[[10]])
-
 ```
 
 ## Environmental filtering + Competition dense 10 species
@@ -2865,25 +2751,19 @@ data <- list(
   I = diag(ncol(data) - 1),
   df = ncol(data)
 )
-#Tau_n<-to_prec(mfd10$mean$Tau)
-#plot_cor_jsdm(mcmpd10,data$Y,(-1)*comp_inter[[11]])
-
-
-
-
+##Correlation
 mod_list_Rho<-list()
 mod_list_Rho<-list(jsdm =mcmpd10$mean$Rho*(!mcmpd10$overlap0$Rho))  
 
 mod_list_Tau<-list()
 mod_list_Tau<-list(jsdm =mcmpd10$mean$Rho*(!mcmpd10$overlap0$Rho))  
- 
+ ##Prediction
 pred_j<-pnorm(predict_y_jsdm(mcmpd10))
 pred_j_mean <- apply(pred_j, 1:2, mean)
 pred_j_05 <- apply(pred_j, 1:2, quantile,0.05)
 pred_j_95 <- apply(pred_j, 1:2, quantile,0.95)
 
 pred_jsdm<-list(pred_j_mean=pred_j_mean,pred_j_05=pred_j_05,pred_j_95=pred_j_95)
- 
 
 ```
 
@@ -2893,7 +2773,6 @@ pred_jsdm<-list(pred_j_mean=pred_j_mean,pred_j_05=pred_j_05,pred_j_95=pred_j_95)
 
 ```{r gjam cmpd10,include=FALSE}
 data<-sim_data$CompDenseSp10
-
 #Rho_sign<-fit_gjam(data,5000,500,"./gjam_models/gjam10cmpd.rda",interact=comp_inter[[11]])
 
 gjam_mod<-load_gjam(data,5000,500,name="./gjam_models/gjam10cmpd.rda", interact= (-1)*comp_inter[[11]])
@@ -2909,24 +2788,15 @@ g_metric_compDense10_p<-metrics_gjam(gjam_mod$Tau_sign,comp=comp_inter[[11]], on
 cat("\n")
 cat(sprintf("Success rate for non-interacting: %s\n", round(g_metric_compDense10$success_env,3)))
 cat(sprintf("Success rate for competition: %s\n", round(g_metric_compDense10$success_comp,3)))
-
-
-#to check posterior density of s in Sigma 
-#gjfd5<-load_object("./gjam_models/gjam20fd.rda")
-#plot(density(gjfd5$chains$sgibbs[,4]))
-
+###Correlation
 mod_list_Rho<-list.append(mod_list_Rho, gjam=gjam_mod$Rho_sign) 
 mod_list_Tau<-list.append(mod_list_Tau, gjam=gjam_mod$Tau_sign) 
-
-
+#Prediction
 pred_gj_mean <-apply(gjam_mod$predict, 1:2,mean)
 pred_gj_05 <- apply(gjam_mod$predict, 1:2,quantile,0.05)
 pred_gj_95 <- apply(gjam_mod$predict, 1:2,quantile,0.95)
 
 pred_gjam<- list(pred_gj_mean=pred_gj_mean,pred_gj_05=pred_gj_05,pred_gj_95=pred_gj_95)
-
-
-
 ```
 
 
@@ -2940,8 +2810,6 @@ hm_mod_R<-hm_inter(hm_mod,nsamples=5000, nchains=2, interact =  (-1)*comp_inter[
 
 h_metric_compDense10<-metrics_hmsc(hm_mod_R$Rho_sign,comp=comp_inter[[11]],only_env = F)
 h_metric_compDense10_p<-metrics_hmsc(hm_mod_R$Tau_sign,comp=comp_inter[[11]],only_env = F)
-
-
 cat("\n")
 cat(sprintf("Success rate for non-interacting: %s\n", round(h_metric_compDense10$success_env,3)))
 cat(sprintf("Success rate for competition: %s\n", round(h_metric_compDense10$success_comp,3)))
@@ -2957,24 +2825,18 @@ for(k in 1:(2*hm_mod$samples)){
 
 }
 
-# pred_hm_mean <- apply(pred_hm, c(1,2), mean)
-# pred_hm_05 <- apply(pred_hm, c(1,2), quantile,0.05)
-# pred_hm_95 <- apply(pred_hm, c(1,2), quantile,0.95)
-# 
-
 pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
                  pred_hm_05=apply(pred_hm, c(1,2), quantile,0.05),
                  pred_hm_95=apply(pred_hm, c(1,2), quantile,0.95))
-
 
 ```
 
 
 
 ```{r all models cmpd10, include=TRUE}
-create_beta_plot(load_object("./gjam_models/gjam20env.rda"),me10,load_object("./HMmodels/hm20env.rda"))
+create_beta_plot(load_object("./gjam_models/gjam10cmpd.rda"),mcmpd10,load_object("./HMmodels/hm10cmpd.rda"))
 
-create_plot_response(sim_data$EnvEvenSp20, nsp=5,pred_gjam, pred_jsdm,pred_hmsc )
+create_plot_response(sim_data$CompDenseSp10, nsp=10,pred_gjam, pred_jsdm,pred_hmsc )
 
 
 ALL3(mod_list_Rho$jsdm,mod_list_Rho$gjam,mod_list_Rho$hmsc,(-1)*comp_inter[[11]])
@@ -3058,11 +2920,6 @@ gjam_mod<-load_gjam(data,10000,1000,name="./gjam_models/gjam20cmpd.rda", interac
 
 g_metric_compDense20<-metrics_gjam(gjam_mod$Rho_sign,comp=comp_inter[[12]], only_env = F)
 g_metric_compDense20_p<-metrics_gjam(gjam_mod$Tau_sign,comp=comp_inter[[12]], only_env = F)
-
-# cat("Success rate ")
-# g_metric_compDense20$success_env
-# g_metric_compDense20$success_comp
-
 cat("\n")
 cat(sprintf("Success rate for non-interacting: %s\n", round(g_metric_compDense20$success_env,3)))
 cat(sprintf("Success rate for competition: %s\n", round(g_metric_compDense20$success_comp,3)))
@@ -3112,16 +2969,13 @@ for(k in 1:(2*hm_mod$samples)){
 pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
                  pred_hm_05=apply(pred_hm, c(1,2), quantile,0.05),
                  pred_hm_95=apply(pred_hm, c(1,2), quantile,0.95))
-
-
 ```
 
 
 ```{r all models cmpd20, include=TRUE}
-create_beta_plot(load_object("./gjam_models/gjam20env.rda"),me10,load_object("./HMmodels/hm20env.rda"))
+create_beta_plot(load_object("./gjam_models/gjam20cmpd.rda"),mcmpd20,load_object("./HMmodels/hm20cmpd.rda" ))
 
-create_plot_response(sim_data$EnvEvenSp20, nsp=5,pred_gjam, pred_jsdm,pred_hmsc )
-
+create_plot_response(sim_data$CompDenseSp20, nsp=20,pred_gjam, pred_jsdm,pred_hmsc )
 
 ALL3(mod_list_Rho$jsdm,mod_list_Rho$gjam,mod_list_Rho$hmsc,(-1)*comp_inter[[12]])
 
@@ -3133,10 +2987,7 @@ ALL3(mod_list_Rho$jsdm,mod_list_Rho$gjam,mod_list_Rho$hmsc,(-1)*comp_inter[[12]]
 
 
 ```{r all models tau cmpd20, include=TRUE}
-
-
 ALL4(mod_list_Tau$jsdm,mod_list_Tau$gjam,mod_list_Tau$hmsc,(-1)*comp_inter[[12]])
-
 ```
 
 
@@ -3256,8 +3107,6 @@ pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
                  pred_hm_05=apply(pred_hm, c(1,2), quantile,0.05),
                  pred_hm_95=apply(pred_hm, c(1,2), quantile,0.95))
 
-
-
 ```
 
 
@@ -3266,16 +3115,12 @@ pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
 create_beta_plot(load_object("./gjam_models/gjam5cmps.rda"),cmps5,load_object("./HMmodels/hm5cmps.rda"))
 
 create_plot_response(sim_data$CompSparseSp5, nsp=5,pred_gjam, pred_jsdm,pred_hmsc )
-
-
 ALL3(mod_list_Rho$jsdm,mod_list_Rho$gjam,mod_list_Rho$hmsc,(-1)*comp_inter[[13]])
 
 ```
 
 
 ```{r all models tau cmps5, include=TRUE}
-
-
 ALL4(mod_list_Tau$jsdm,mod_list_Tau$gjam,mod_list_Tau$hmsc,(-1)*comp_inter[[13]])
 
 ```
@@ -3322,13 +3167,11 @@ mod_list_Rho<-list(jsdm =cmps10$mean$Rho*(!cmps10$overlap0$Rho))
 
 mod_list_Tau<-list()
 mod_list_Tau<-list(jsdm =cmps10$mean$Rho*(!cmps10$overlap0$Rho)) 
-  
-
+###Prediction  
 pred_j<-pnorm(predict_y_jsdm(cmps10))
 pred_j_mean <- apply(pred_j, 1:2, mean)
 pred_j_05 <- apply(pred_j, 1:2, quantile,0.05)
 pred_j_95 <- apply(pred_j, 1:2, quantile,0.95)
-
 pred_jsdm<-list(pred_j_mean=pred_j_mean,pred_j_05=pred_j_05,pred_j_95=pred_j_95)
 
 ```
@@ -3344,15 +3187,13 @@ gjam_mod<-load_gjam(data,2000,500,name="./gjam_models/gjam10cmps.rda", interact=
 g_metric_compSparse10<-metrics_gjam(gjam_mod$Rho_sign,comp=comp_inter[[14]], only_env = F)
 g_metric_compSparse10_p<-metrics_gjam(gjam_mod$Tau_sign,comp=comp_inter[[14]], only_env = F)
 
-
 cat("\n")
 cat(sprintf("Success rate for non-interacting: %s\n", round(g_metric_compSparse10$success_env,3)))
 cat(sprintf("Success rate for competition: %s\n", round(g_metric_compSparse10$success_comp,3)))
-
-
+###Coorrelation
 mod_list_Rho<-list.append(mod_list_Rho, gjam=gjam_mod$Rho_sign) 
 mod_list_Tau<-list.append(mod_list_Tau, gjam=gjam_mod$Tau_sign) 
-
+###Prediction
 
 pred_gj_mean <-apply(gjam_mod$predict, 1:2,mean)
 pred_gj_05 <- apply(gjam_mod$predict, 1:2,quantile,0.05)
@@ -3402,8 +3243,6 @@ pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
 create_beta_plot(load_object("./gjam_models/gjam10cmps.rda"),cmps10,load_object("./HMmodels/hm10cmps.rda"))
 
 create_plot_response(sim_data$CompSparseSp10, nsp=10,pred_gjam, pred_jsdm,pred_hmsc )
-
-
 ALL3(mod_list_Rho$jsdm,mod_list_Rho$gjam,mod_list_Rho$hmsc,(-1)*comp_inter[[14]])
 
 ```
@@ -3464,8 +3303,6 @@ pred_j_05 <- apply(pred_j, 1:2, quantile,0.05)
 pred_j_95 <- apply(pred_j, 1:2, quantile,0.95)
 
 pred_jsdm<-list(pred_j_mean=pred_j_mean,pred_j_05=pred_j_05,pred_j_95=pred_j_95)
-
- 
 ```
 
 ### Gjam
@@ -3489,8 +3326,6 @@ pred_gj_05 <- apply(gjam_mod$predict, 1:2,quantile,0.05)
 pred_gj_95 <- apply(gjam_mod$predict, 1:2,quantile,0.95)
 
 pred_gjam<- list(pred_gj_mean=pred_gj_mean,pred_gj_05=pred_gj_05,pred_gj_95=pred_gj_95)
-
-
 ```
 
 
@@ -4690,7 +4525,7 @@ title("CompSparseSp20")
 ```
 
 
-## Prediction
+
 
 ```{r prediction, echo=FALSE}
 
