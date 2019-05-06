@@ -3,6 +3,9 @@ library(gjam)
 library(coda)
 library(fitR)
 library(ggmcmc)
+#to recreate sigma
+Rcpp::sourceCpp('~/Tesi/Code/modified_gjam/Gjam/src/cppFns.cpp')
+source("~/Tesi/Code/modified_gjam/Gjam/R/gjamHfunctions_mod.R")
 
 setwd("~/Tesi/Code/Ecology-models-master_1/simcoms-master")
 
@@ -21,7 +24,8 @@ data_10<- sim_data$EnvEvenSp10
 ns<-10
 ydata<-data_10[,-11]
 xdata<-scale(poly(data_10$env, 2))
-rl <-list(N=ns, r=3)
+r<-3
+rl <-list(N=ns-1, r=r)
 ml  <- list(ng = ng, burnin = burnin, typeNames = 'PA',reductList=rl)
 
 colnames(xdata)<- c("env","env2")
@@ -76,3 +80,19 @@ x11()
 cumuplot(beta_mcmc)
 dev.off()
 
+.expandSigmaChains(snames, sgibbs, otherpar, simIndex=simIndex,
+                   sigErrGibbs, kgibbs, REDUCT)
+
+sigma<-invsigma<-array(NA,dim=c(ns,ns,ng))
+
+sgibbs<-mod_gjam_low$chains$sgibbs
+sigErrGibbs<-mod_gjam_low$chains$sigErrGibbs
+kgibbs<-mod_gjam_low$chains$kgibbs
+N<-mod_gjam_low$modelList$reductList$N
+r<-mod_gjam_low$modelList$reductList$r
+
+for(j in 1:ng){
+    Z  <- matrix(sgibbs[j,],N,r)
+    sigma[,,j] <- .expandSigma(sigErrGibbs[j], ns, Z = Z, kgibbs[j,], REDUCT = T) #sigma
+    invsigma[,,j] <- invWbyRcpp(sigErrGibbs[j], Z[kgibbs[j,],]) #inverse sigma
+} 
