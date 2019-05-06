@@ -342,7 +342,6 @@ makeSymm <- function(m) {
   return(m)
 }
 
-
 expandSigma_rmd <- function(sigma, S){
 
   ss <- diag(S)
@@ -350,8 +349,6 @@ expandSigma_rmd <- function(sigma, S){
   ss[upper.tri(ss)] <- t(ss)[upper.tri(ss)]
   ss
 }
-
-
 
 convert_to_m<-function(ar){
   d <-floor((sqrt(length(ar)*8+1)-1)/2)
@@ -560,14 +557,12 @@ load_gjam<-function(data,it=2500,burn=500,name="./gjam_models/temp.rda",interact
   hist(effectiveSize(gj_mod$chains$sgibbs[,ind]), main="sigma diagonal elements",lwd=2,col=gray(.6))
   hist(effectiveSize(gj_mod$chains$bgibbs), main="ess(beta)",lwd=2,col=gray(.6))
  
-  
   postH<-apply(gj_mod$chains$sgibbs[burn:dim(gj_mod$chains$sgibbs)[1],], 2, quantile,0.95)
   postL<-apply(gj_mod$chains$sgibbs[burn:dim(gj_mod$chains$sgibbs)[1],], 2, quantile,0.05)
   pH<-convert_to_m(postH)
   pL<-convert_to_m(postL)
   R_sign<-cov2cor(gj_mod$parameters$sigMu)*(!(pH>0 & pL<0))
-  
-  
+
   sgibbs<-gj_mod$chains$sgibbs
   tau<-array(NA,dim=c(data$J,data$J,it-burn))
   for(j in (burn:it)){
@@ -575,15 +570,10 @@ load_gjam<-function(data,it=2500,burn=500,name="./gjam_models/temp.rda",interact
     si <- solve(ss)
     tau[,,j-burn] <- -cov2cor(si)
   }
-
-  
   #new<-list(data$X[floor(seq(1, data$n, length.out = 100)),2])
   colnames(xdata)<- c("env","env2")
   newdata   <- list(xdata = xdata, nsim = 50 )
   p1<-gjamPredict(gj_mod,newdata )
-  
-  
-  
   
   tau_mean<-apply(tau,c(1,2), mean)
   tau_HI<-apply(tau,c(1,2),quantile,0.95)
@@ -617,36 +607,26 @@ load_gjam<-function(data,it=2500,burn=500,name="./gjam_models/temp.rda",interact
 
 
 ```{r gjam env5,include=FALSE}
-
 ##to setup chains parameters
 data<-sim_data$EnvEvenSp5
 #mod_gjam<-fit_gjam(data,2500,500,name="./gjam_models/gjam5env.rda")
 mod_gjam<-load_gjam(data,2500,500,name="./gjam_models/gjam5env.rda")
-
 g_metric_e5<-metrics_gjam(mod_gjam$Rho_sign)
 g_metric_e5_p<-metrics_gjam(mod_gjam$Tau_sign)
 cat(" ")
 cat(sprintf("Success rate: %s\n", metrics_gjam(mod_gjam$Rho_sign)$success_env))
-
+####Correlation
 mod_list_Rho<-list.append(mod_list_Rho,gjam=mod_gjam$Rho_sign)
 mod_list_Tau<-list.append(mod_list_Tau,gjam=mod_gjam$Tau_sign)
-
-
-
+######Prediction
 pred_gj_mean <- mod_gjam$predict$sdList$yMu
 pred_gj_05 <- mod_gjam$predict$piList$yLo
 pred_gj_95 <- mod_gjam$predict$piList$yHi
-
-
-
-
-
 ```
 
 ### HMSC
 
 ```{r hmsc, include=FALSE, results=FALSE,}
-
 #setwd("~/Tesi/Code/Ecology-models-master/simcoms-master/ExampleFiles")
 fit_hmsc<-function(data,label="Fit",nsamples = 1000,nchains=2,name="./HMmodels/hmtemp.rda" ){
   if (label=="Fit"){
@@ -676,19 +656,15 @@ fit_hmsc<-function(data,label="Fit",nsamples = 1000,nchains=2,name="./HMmodels/h
 # plotGradient(m, Gradient, pred=predY, measure="S", showData = TRUE)
 #   
 }
-
-
 data<-sim_data$EnvEvenSp5
 #hm_mod<-fit_hmsc(data,"Fit",name="./HMmodels/hm5env.rda" )
 hm_mod<-load_object("./HMmodels/hm5env.rda")
-
 ```
 
 
 Convergence:
 
 ```{r hmsc convergence, include=FALSE}
-
 hm_conv<-function(mod){
   codaList = convertToCodaObject(mod)
 
@@ -702,7 +678,6 @@ hm_conv<-function(mod){
 
 hm_conv(hm_mod)
 ```
-
 
 
 Study of interactions
@@ -854,7 +829,6 @@ hm_mod_R<-hm_inter(hm_mod,nchains=2,nsamples = 1000)
 h_metric_e5<-metrics_hmsc(hm_mod_R$Rho_sign)
 h_metric_e5_p<-metrics_hmsc(hm_mod_R$Tau_sign)
 
-
 cat(" ")
 cat(sprintf("Success rate: %s\n", metrics_hmsc(hm_mod_R$Rho_sign)$success_env))
 mod_list_Rho<-list.append(mod_list_Rho,hmsc=hm_mod_R$Rho_sign)
@@ -871,9 +845,6 @@ pred_hm<-simplify2array(predict(hm_mod,XData=XData,expected=T))
 pred_hm_mean <- apply(pred_hm, c(1,2), mean)
 pred_hm_05 <- apply(pred_hm, c(1,2), quantile,0.05)
 pred_hm_95 <- apply(pred_hm, c(1,2), quantile,0.95)
-
-
-
 
 ```
 
