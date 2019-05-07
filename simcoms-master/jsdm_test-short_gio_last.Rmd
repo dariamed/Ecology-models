@@ -29,6 +29,7 @@ library(devtools)
 #install_github("sbfnk/fitR")
 library(fitR) ###load through github
 library(reshape)
+library(AUC)
 
 #setwd("~/Documents/GitHub/Ecology-models/simcoms-master")
 
@@ -278,7 +279,7 @@ to_prec<-function(m){
 }
 
 #Tau_n<-matrix(nrow=dim(model$mean$Tau)[1], ncol=dim(model$mean$Tau)[1])
-Tau_n<-to_prec(me5$mean$Tau)
+#Tau_n<-to_prec(me5$mean$Tau)
 #Tau_k<-Tau_n*(!(model$q97.5$Tau>0 & model$q2.5$Tau<0))
 
 par(mfrow=c(2,4),oma = c(3, 1, 2, 1))
@@ -298,10 +299,10 @@ corrplot(me5$mean$Rho, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 
 title("Rho")
 corrplot(me5$mean$Rho*(!me5$overlap0$Rho), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
 title("Rho signif")
-corrplot(Tau_n, diag = FALSE, order ="original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
-title("Tau")
-corrplot(Tau_n*(!me5$overlap0$Tau), diag = FALSE, order ="original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
-title("Tau signif")
+# corrplot(Tau_n, diag = FALSE, order ="original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+# title("Tau")
+# corrplot(Tau_n*(!me5$overlap0$Tau), diag = FALSE, order ="original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+# title("Tau signif")
 
 j_metric_e5<-metrics_jsdm(me5)
 #cat("Success rate ")
@@ -322,6 +323,11 @@ pred_j_mean <- apply(pred_j, 1:2, mean)
 pred_j_05 <- apply(pred_j, 1:2, quantile,0.05)
 pred_j_95 <- apply(pred_j, 1:2, quantile,0.95)
 pred_jsdm<-list(pred_j_mean=pred_j_mean,pred_j_05=pred_j_05,pred_j_95=pred_j_95)
+
+#prepare AUC
+AUC_j_env<-vector()
+for(i in 1:data$J) AUC_j_env<-c(AUC_j_env,auc(roc(pred_j_mean[,i],factor(data$Y[,i]))))
+
 
 
 ```
@@ -642,6 +648,10 @@ pred_gj_mean <-apply(mod_gjam$predict, 1:2,mean)
 pred_gj_05 <- apply(mod_gjam$predict, 1:2,quantile,0.05)
 pred_gj_95 <- apply(mod_gjam$predict, 1:2,quantile,0.95)
 
+AUC_g_env<-vector()
+for(i in 1:(ncol(data)-1)) AUC_g_env<-c(AUC_g_env,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
+
+
 pred_gjam<- list(pred_gj_mean=pred_gj_mean,pred_gj_05=pred_gj_05,pred_gj_95=pred_gj_95)
 
 ```
@@ -878,6 +888,10 @@ pred_hm_95 <- apply(pred_hm, c(1,2), quantile,0.95)
 
 
 pred_hmsc<- list(pred_hm_mean=pred_hm_mean,pred_hm_05=pred_hm_05,pred_hm_95=pred_hm_95)
+
+AUC_h_env<-vector()
+for(i in 1:(ncol(data)-1)) AUC_h_env<-c(AUC_h_env,auc(roc(pred_hm_mean[,i],factor(data[,i]))))
+
 
 ```
 
@@ -1456,6 +1470,9 @@ pred_j_95 <- apply(pred_j, 1:2, quantile,0.95)
   
 
 pred_jsdm<-list(pred_j_mean=pred_j_mean,pred_j_05=pred_j_05,pred_j_95=pred_j_95)
+
+for(i in 1:data$J) AUC_j_env<-c(AUC_j_env,auc(roc(pred_j_mean[,i],factor(data$Y[,i]))))
+
 ```
 
 ### Gjam
@@ -1478,6 +1495,9 @@ mod_list_Tau<-list.append(mod_list_Tau,gjam=gjam_mod$Tau_sign)
 pred_gj_mean <-apply(gjam_mod$predict, 1:2,mean)
 pred_gj_05 <- apply(gjam_mod$predict, 1:2,quantile,0.05)
 pred_gj_95 <- apply(gjam_mod$predict, 1:2,quantile,0.95)
+
+for(i in 1:(ncol(data)-1)) AUC_g_env<-c(AUC_g_env,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
+
 pred_gjam<- list(pred_gj_mean=pred_gj_mean,pred_gj_05=pred_gj_05,pred_gj_95=pred_gj_95)
 ```
 
@@ -1512,6 +1532,7 @@ pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
                  pred_hm_05=apply(pred_hm, c(1,2), quantile,0.05),
                  pred_hm_95=apply(pred_hm, c(1,2), quantile,0.95))
 
+for(i in 1:(ncol(data)-1)) AUC_h_env<-c(AUC_h_env,auc(roc(pred_hmsc$pred_hm_mean[,i],factor(data[,i]))))
 
 #plot(data$env,pred_hmsc$pred_hm_mean[,1])
 
@@ -1590,6 +1611,8 @@ pred_j_95 <- apply(pred_j, 1:2, quantile,0.95)
 
 pred_jsdm<-list(pred_j_mean=pred_j_mean,pred_j_05=pred_j_05,pred_j_95=pred_j_95)
 
+for(i in 1:data$J) AUC_j_env<-c(AUC_j_env,auc(roc(pred_j_mean[,i],factor(data$Y[,i]))))
+
 
 ```
 
@@ -1622,6 +1645,8 @@ pred_jsdm<-list(pred_j_mean=pred_j_mean,pred_j_05=pred_j_05,pred_j_95=pred_j_95)
   pred_gj_05 <- apply(gjam_mod$predict, 1:2,quantile,0.05)
   pred_gj_95 <- apply(gjam_mod$predict, 1:2,quantile,0.95)
   
+  for(i in 1:(ncol(data)-1)) AUC_g_env<-c(AUC_g_env,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
+
   pred_gjam<- list(pred_gj_mean=pred_gj_mean,pred_gj_05=pred_gj_05,pred_gj_95=pred_gj_95)
 
 ```
@@ -1737,6 +1762,9 @@ pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
                  pred_hm_05=apply(pred_hm, c(1,2), quantile,0.05),
                  pred_hm_95=apply(pred_hm, c(1,2), quantile,0.95))
 
+for(i in 1:(ncol(data)-1)) AUC_h_env<-c(AUC_h_env,auc(roc(pred_hmsc$pred_hm_mean[,i],factor(data[,i]))))
+
+
 ```
 
 
@@ -1816,7 +1844,11 @@ pred_j_05 <- apply(pred_j, 1:2, quantile,0.05)
 pred_j_95 <- apply(pred_j, 1:2, quantile,0.95)
 
 pred_jsdm<-list(pred_j_mean=pred_j_mean,pred_j_05=pred_j_05,pred_j_95=pred_j_95)
+
+AUC_j_fac_dense<-vector()
+for(i in 1:data$J) AUC_j_fac_dense<-c(AUC_j_fac_dense,auc(roc(pred_j_mean[,i],factor(data$Y[,i]))))
   
+
 ```
 
 ### Gjam
@@ -1848,6 +1880,10 @@ mod_list_Tau<-list.append(mod_list_Tau,gjam=gjam_mod$Tau_sign)
 pred_gj_mean <-apply(gjam_mod$predict, 1:2,mean)
 pred_gj_05 <- apply(gjam_mod$predict, 1:2,quantile,0.05)
 pred_gj_95 <- apply(gjam_mod$predict, 1:2,quantile,0.95)
+
+AUC_g_fac_dense<-vector()
+for(i in 1:(ncol(data)-1)) AUC_g_fac_dense<-c(AUC_g_fac_dense,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
+
 
 pred_gjam<- list(pred_gj_mean=pred_gj_mean,pred_gj_05=pred_gj_05,pred_gj_95=pred_gj_95)
 
@@ -1890,6 +1926,9 @@ for(k in 1:(2*hm_mod$samples)){
 pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
                  pred_hm_05=apply(pred_hm, c(1,2), quantile,0.05),
                  pred_hm_95=apply(pred_hm, c(1,2), quantile,0.95))
+
+AUC_h_fac_dense<-vector()
+for(i in 1:(ncol(data)-1)) AUC_h_fac_dense<-c(AUC_h_fac_dense,auc(roc(pred_hmsc$pred_hm_mean[,i],factor(data[,i]))))
 
 
 ```
@@ -1968,6 +2007,9 @@ pred_j_95 <- apply(pred_j, 1:2, quantile,0.95)
 
 pred_jsdm<-list(pred_j_mean=pred_j_mean,pred_j_05=pred_j_05,pred_j_95=pred_j_95)
 
+for(i in 1:data$J) AUC_j_fac_dense<-c(AUC_j_fac_dense,auc(roc(pred_j_mean[,i],factor(data$Y[,i]))))
+
+
 ```
 
 
@@ -1998,6 +2040,8 @@ mod_list_Tau<-list.append(mod_list_Tau,gjam=gjam_mod$Tau_sign)
 pred_gj_mean <-apply(gjam_mod$predict, 1:2,mean)
 pred_gj_05 <- apply(gjam_mod$predict, 1:2,quantile,0.05)
 pred_gj_95 <- apply(gjam_mod$predict, 1:2,quantile,0.95)
+
+for(i in 1:(ncol(data)-1)) AUC_g_fac_dense<-c(AUC_g_fac_dense,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
 
 pred_gjam<- list(pred_gj_mean=pred_gj_mean,pred_gj_05=pred_gj_05,pred_gj_95=pred_gj_95)
 
@@ -2042,6 +2086,7 @@ pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
                  pred_hm_05=apply(pred_hm, c(1,2), quantile,0.05),
                  pred_hm_95=apply(pred_hm, c(1,2), quantile,0.95))
 
+for(i in 1:(ncol(data)-1)) AUC_h_fac_dense<-c(AUC_h_fac_dense,auc(roc(pred_hmsc$pred_hm_mean[,i],factor(data[,i]))))
 
 ```
 
@@ -2119,6 +2164,8 @@ pred_j_95 <- apply(pred_j, 1:2, quantile,0.95)
 
 pred_jsdm<-list(pred_j_mean=pred_j_mean,pred_j_05=pred_j_05,pred_j_95=pred_j_95)
 
+for(i in 1:data$J) AUC_j_fac_dense<-c(AUC_j_fac_dense,auc(roc(pred_j_mean[,i],factor(data$Y[,i]))))
+
 ```
 
 
@@ -2154,6 +2201,8 @@ mod_list_Tau<-list.append(mod_list_Tau, gjam=gjam_mod$Tau_sign)
 pred_gj_mean <-apply(gjam_mod$predict, 1:2,mean)
 pred_gj_05 <- apply(gjam_mod$predict, 1:2,quantile,0.05)
 pred_gj_95 <- apply(gjam_mod$predict, 1:2,quantile,0.95)
+
+for(i in 1:(ncol(data)-1)) AUC_g_fac_dense<-c(AUC_g_fac_dense,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
 
 pred_gjam<- list(pred_gj_mean=pred_gj_mean,pred_gj_05=pred_gj_05,pred_gj_95=pred_gj_95)
 
@@ -2195,6 +2244,7 @@ pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
                  pred_hm_05=apply(pred_hm, c(1,2), quantile,0.05),
                  pred_hm_95=apply(pred_hm, c(1,2), quantile,0.95))
 
+for(i in 1:(ncol(data)-1)) AUC_h_fac_dense<-c(AUC_h_fac_dense,auc(roc(pred_hmsc$pred_hm_mean[,i],factor(data[,i]))))
 
 ```
 
@@ -2278,6 +2328,10 @@ pred_j_95 <- apply(pred_j, 1:2, quantile,0.95)
 
 pred_jsdm<-list(pred_j_mean=pred_j_mean,pred_j_05=pred_j_05,pred_j_95=pred_j_95)
 
+AUC_j_fac_sparse<-vector()
+for(i in 1:data$J) AUC_j_fac_sparse<-c(AUC_j_fac_sparse,auc(roc(pred_j_mean[,i],factor(data$Y[,i]))))
+
+
 ```
 
 
@@ -2312,6 +2366,9 @@ mod_list_Tau<-list.append(mod_list_Tau, gjam=gjam_mod$Tau_sign)
 pred_gj_mean <-apply(gjam_mod$predict, 1:2,mean)
 pred_gj_05 <- apply(gjam_mod$predict, 1:2,quantile,0.05)
 pred_gj_95 <- apply(gjam_mod$predict, 1:2,quantile,0.95)
+
+AUC_g_fac_sparse<-vector()
+for(i in 1:(ncol(data)-1)) AUC_g_fac_sparse<-c(AUC_g_fac_sparse,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
 
 pred_gjam<- list(pred_gj_mean=pred_gj_mean,pred_gj_05=pred_gj_05,pred_gj_95=pred_gj_95)
 
@@ -2352,7 +2409,8 @@ pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
                  pred_hm_05=apply(pred_hm, c(1,2), quantile,0.05),
                  pred_hm_95=apply(pred_hm, c(1,2), quantile,0.95))
 
-
+AUC_h_fac_sparse<-vector()
+for(i in 1:(ncol(data)-1)) AUC_h_fac_sparse<-c(AUC_h_fac_sparse,auc(roc(pred_hmsc$pred_hm_mean[,i],factor(data[,i]))))
 
 ```
 
@@ -2434,6 +2492,9 @@ pred_j_95 <- apply(pred_j, 1:2, quantile,0.95)
 
 pred_jsdm<-list(pred_j_mean=pred_j_mean,pred_j_05=pred_j_05,pred_j_95=pred_j_95)
 
+for(i in 1:data$J) AUC_j_fac_sparse<-c(AUC_j_fac_sparse,auc(roc(pred_j_mean[,i],factor(data$Y[,i]))))
+
+
 ```
 
 ```{r gjam fs10,include=FALSE}
@@ -2460,6 +2521,8 @@ mod_list_Tau<-list.append(mod_list_Tau, gjam=gjam_mod$Tau_sign)
 pred_gj_mean <-apply(gjam_mod$predict, 1:2,mean)
 pred_gj_05 <- apply(gjam_mod$predict, 1:2,quantile,0.05)
 pred_gj_95 <- apply(gjam_mod$predict, 1:2,quantile,0.95)
+
+for(i in 1:(ncol(data)-1)) AUC_g_fac_sparse<-c(AUC_g_fac_sparse,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
 
 pred_gjam<- list(pred_gj_mean=pred_gj_mean,pred_gj_05=pred_gj_05,pred_gj_95=pred_gj_95)
 
@@ -2493,6 +2556,8 @@ for(k in 1:(2*hm_mod$samples)){
 pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
                  pred_hm_05=apply(pred_hm, c(1,2), quantile,0.05),
                  pred_hm_95=apply(pred_hm, c(1,2), quantile,0.95))
+
+for(i in 1:(ncol(data)-1)) AUC_h_fac_sparse<-c(AUC_h_fac_sparse,auc(roc(pred_hmsc$pred_hm_mean[,i],factor(data[,i]))))
 ```
 
 
@@ -2560,6 +2625,9 @@ pred_j_95 <- apply(pred_j, 1:2, quantile,0.95)
 
 pred_jsdm<-list(pred_j_mean=pred_j_mean,pred_j_05=pred_j_05,pred_j_95=pred_j_95)
 
+for(i in 1:data$J) AUC_j_fac_sparse<-c(AUC_j_fac_sparse,auc(roc(pred_j_mean[,i],factor(data$Y[,i]))))
+
+
 ```
 
 
@@ -2596,7 +2664,7 @@ pred_gj_95 <- apply(gjam_mod$predict, 1:2,quantile,0.95)
 
 pred_gjam<- list(pred_gj_mean=pred_gj_mean,pred_gj_05=pred_gj_05,pred_gj_95=pred_gj_95)
 
-
+for(i in 1:(ncol(data)-1)) AUC_g_fac_sparse<-c(AUC_g_fac_sparse,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
 
 
 ```
@@ -2628,6 +2696,8 @@ for(k in 1:(2*hm_mod$samples)){
 pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
                  pred_hm_05=apply(pred_hm, c(1,2), quantile,0.05),
                  pred_hm_95=apply(pred_hm, c(1,2), quantile,0.95))
+
+for(i in 1:(ncol(data)-1)) AUC_h_fac_sparse<-c(AUC_h_fac_sparse,auc(roc(pred_hmsc$pred_hm_mean[,i],factor(data[,i]))))
 ```
 
 
@@ -2666,8 +2736,8 @@ cat("Success rate ")
 j_metric_compDense5$success_env
 j_metric_compDense5$success_comp
 cat("\n")
-cat(sprintf("Success rate for non-interacting: %s\n", round(h_metric_facSparse20$success_env,3)))
-cat(sprintf("Success rate for facilitation: %s\n", round(h_metric_facSparse20$success_fac,3)))
+# cat(sprintf("Success rate for non-interacting: %s\n", round(h_metric_facSparse20$success_env,3)))
+# cat(sprintf("Success rate for facilitation: %s\n", round(h_metric_facSparse20$success_fac,3)))
 
 ######################################################Prepare data
 data<-sim_data$CompDenseSp5
@@ -2705,6 +2775,10 @@ pred_j_95 <- apply(pred_j, 1:2, quantile,0.95)
 
 pred_jsdm<-list(pred_j_mean=pred_j_mean,pred_j_05=pred_j_05,pred_j_95=pred_j_95)
 
+AUC_j_comp_dense<-vector()
+for(i in 1:data$J) AUC_j_comp_dense<-c(AUC_j_comp_dense,auc(roc(pred_j_mean[,i],factor(data$Y[,i]))))
+
+
 ```
 
 ### Gjam
@@ -2737,6 +2811,9 @@ pred_gj_mean <-apply(gjam_mod$predict, 1:2,mean)
 pred_gj_05 <- apply(gjam_mod$predict, 1:2,quantile,0.05)
 pred_gj_95 <- apply(gjam_mod$predict, 1:2,quantile,0.95)
 pred_gjam<- list(pred_gj_mean=pred_gj_mean,pred_gj_05=pred_gj_05,pred_gj_95=pred_gj_95)
+
+AUC_g_comp_dense<-vector()
+for(i in 1:(ncol(data)-1)) AUC_g_comp_dense<-c(AUC_g_comp_dense,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
 ```
 
 
@@ -2770,6 +2847,9 @@ for(k in 1:(2*hm_mod$samples)){
 pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
                  pred_hm_05=apply(pred_hm, c(1,2), quantile,0.05),
                  pred_hm_95=apply(pred_hm, c(1,2), quantile,0.95))
+
+AUC_h_comp_dense<-vector()
+for(i in 1:(ncol(data)-1)) AUC_h_comp_dense<-c(AUC_h_comp_dense,auc(roc(pred_hmsc$pred_hm_mean[,i],factor(data[,i]))))
 
 ```
 
@@ -2842,6 +2922,9 @@ pred_j_95 <- apply(pred_j, 1:2, quantile,0.95)
 
 pred_jsdm<-list(pred_j_mean=pred_j_mean,pred_j_05=pred_j_05,pred_j_95=pred_j_95)
 
+for(i in 1:data$J) AUC_j_comp_dense<-c(AUC_j_comp_dense,auc(roc(pred_j_mean[,i],factor(data$Y[,i]))))
+
+
 ```
 
 
@@ -2874,6 +2957,8 @@ pred_gj_05 <- apply(gjam_mod$predict, 1:2,quantile,0.05)
 pred_gj_95 <- apply(gjam_mod$predict, 1:2,quantile,0.95)
 
 pred_gjam<- list(pred_gj_mean=pred_gj_mean,pred_gj_05=pred_gj_05,pred_gj_95=pred_gj_95)
+
+for(i in 1:(ncol(data)-1)) AUC_g_comp_dense<-c(AUC_g_comp_dense,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
 ```
 
 
@@ -2905,6 +2990,8 @@ for(k in 1:(2*hm_mod$samples)){
 pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
                  pred_hm_05=apply(pred_hm, c(1,2), quantile,0.05),
                  pred_hm_95=apply(pred_hm, c(1,2), quantile,0.95))
+
+for(i in 1:(ncol(data)-1)) AUC_h_comp_dense<-c(AUC_h_comp_dense,auc(roc(pred_hmsc$pred_hm_mean[,i],factor(data[,i]))))
 
 ```
 
@@ -2986,6 +3073,9 @@ pred_j_95 <- apply(pred_j, 1:2, quantile,0.95)
 
 pred_jsdm<-list(pred_j_mean=pred_j_mean,pred_j_05=pred_j_05,pred_j_95=pred_j_95)
 
+for(i in 1:data$J) AUC_j_comp_dense<-c(AUC_j_comp_dense,auc(roc(pred_j_mean[,i],factor(data$Y[,i]))))
+
+
 
 ```
 
@@ -3018,6 +3108,7 @@ pred_gj_95 <- apply(gjam_mod$predict, 1:2,quantile,0.95)
 
 pred_gjam<- list(pred_gj_mean=pred_gj_mean,pred_gj_05=pred_gj_05,pred_gj_95=pred_gj_95)
 
+for(i in 1:(ncol(data)-1)) AUC_g_comp_dense<-c(AUC_g_comp_dense,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
 ```
 
 
@@ -3052,6 +3143,8 @@ for(k in 1:(2*hm_mod$samples)){
 pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
                  pred_hm_05=apply(pred_hm, c(1,2), quantile,0.05),
                  pred_hm_95=apply(pred_hm, c(1,2), quantile,0.95))
+
+for(i in 1:(ncol(data)-1)) AUC_h_comp_dense<-c(AUC_h_comp_dense,auc(roc(pred_hmsc$pred_hm_mean[,i],factor(data[,i]))))
 ```
 
 
@@ -3124,6 +3217,9 @@ pred_j_95 <- apply(pred_j, 1:2, quantile,0.95)
 
 pred_jsdm<-list(pred_j_mean=pred_j_mean,pred_j_05=pred_j_05,pred_j_95=pred_j_95)
 
+AUC_j_comp_sparse<-vector()
+for(i in 1:data$J) AUC_j_comp_sparse<-c(AUC_j_comp_sparse,auc(roc(pred_j_mean[,i],factor(data$Y[,i]))))
+
 ```
 
 
@@ -3161,6 +3257,8 @@ pred_gj_95 <- apply(gjam_mod$predict, 1:2,quantile,0.95)
 
 pred_gjam<- list(pred_gj_mean=pred_gj_mean,pred_gj_05=pred_gj_05,pred_gj_95=pred_gj_95)
 
+AUC_g_comp_sparse<-vector()
+for(i in 1:(ncol(data)-1)) AUC_g_comp_sparse<-c(AUC_g_comp_sparse,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
 ```
 
 
@@ -3195,6 +3293,9 @@ for(k in 1:(2*hm_mod$samples)){
 pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
                  pred_hm_05=apply(pred_hm, c(1,2), quantile,0.05),
                  pred_hm_95=apply(pred_hm, c(1,2), quantile,0.95))
+
+AUC_h_comp_sparse<-vector()
+for(i in 1:(ncol(data)-1)) AUC_h_comp_sparse<-c(AUC_h_comp_sparse,auc(roc(pred_hmsc$pred_hm_mean[,i],factor(data[,i]))))
 
 ```
 
@@ -3270,6 +3371,9 @@ pred_j_95 <- apply(pred_j, 1:2, quantile,0.95)
 
 pred_jsdm<-list(pred_j_mean=pred_j_mean,pred_j_05=pred_j_05,pred_j_95=pred_j_95)
 
+for(i in 1:data$J) AUC_j_comp_sparse<-c(AUC_j_comp_sparse,auc(roc(pred_j_mean[,i],factor(data$Y[,i]))))
+
+
 ```
 
 
@@ -3296,6 +3400,8 @@ pred_gj_05 <- apply(gjam_mod$predict, 1:2,quantile,0.05)
 pred_gj_95 <- apply(gjam_mod$predict, 1:2,quantile,0.95)
 
 pred_gjam<- list(pred_gj_mean=pred_gj_mean,pred_gj_05=pred_gj_05,pred_gj_95=pred_gj_95)
+
+for(i in 1:(ncol(data)-1)) AUC_g_comp_sparse<-c(AUC_g_comp_sparse,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
 
 ```
 
@@ -3329,6 +3435,7 @@ pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
                  pred_hm_05=apply(pred_hm, c(1,2), quantile,0.05),
                  pred_hm_95=apply(pred_hm, c(1,2), quantile,0.95))
 
+for(i in 1:(ncol(data)-1)) AUC_h_comp_sparse<-c(AUC_h_comp_sparse,auc(roc(pred_hmsc$pred_hm_mean[,i],factor(data[,i]))))
 
 ```
 
@@ -3405,6 +3512,9 @@ pred_j_05 <- apply(pred_j, 1:2, quantile,0.05)
 
 
 pred_jsdm<-list(pred_j_mean=pred_j_mean,pred_j_05=pred_j_05,pred_j_95=pred_j_95)
+
+for(i in 1:data$J) AUC_j_comp_sparse<-c(AUC_j_comp_sparse,auc(roc(pred_j_mean[,i],factor(data$Y[,i]))))
+
 ```
 
 ### Gjam
@@ -3428,6 +3538,8 @@ pred_gj_05 <- apply(gjam_mod$predict, 1:2,quantile,0.05)
 pred_gj_95 <- apply(gjam_mod$predict, 1:2,quantile,0.95)
 
 pred_gjam<- list(pred_gj_mean=pred_gj_mean,pred_gj_05=pred_gj_05,pred_gj_95=pred_gj_95)
+
+for(i in 1:(ncol(data)-1)) AUC_g_comp_sparse<-c(AUC_g_comp_sparse,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
 ```
 
 
@@ -3463,6 +3575,7 @@ pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
                  pred_hm_05=apply(pred_hm, c(1,2), quantile,0.05),
                  pred_hm_95=apply(pred_hm, c(1,2), quantile,0.95))
 
+for(i in 1:(ncol(data)-1)) AUC_h_comp_sparse<-c(AUC_h_comp_sparse,auc(roc(pred_hmsc$pred_hm_mean[,i],factor(data[,i]))))
 ```
 
 
@@ -3535,6 +3648,10 @@ pred_j_95 <- apply(pred_j, 1:2, quantile,0.95)
 
 pred_jsdm<-list(pred_j_mean=pred_j_mean,pred_j_05=pred_j_05,pred_j_95=pred_j_95)
 
+AUC_j_comp_fac_dense<-vector()
+for(i in 1:data$J) AUC_j_comp_fac_dense<-c(AUC_j_comp_fac_dense,auc(roc(pred_j_mean[,i],factor(data$Y[,i]))))
+
+
 ```
 
 
@@ -3560,6 +3677,9 @@ pred_gj_05 <- apply(gjam_mod$predict, 1:2,quantile,0.05)
 pred_gj_95 <- apply(gjam_mod$predict, 1:2,quantile,0.95)
 
 pred_gjam<- list(pred_gj_mean=pred_gj_mean,pred_gj_05=pred_gj_05,pred_gj_95=pred_gj_95)
+
+AUC_g_comp_fac_dense<-vector()
+for(i in 1:(ncol(data)-1)) AUC_g_comp_fac_dense<-c(AUC_g_comp_fac_dense,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
 
 ```
 
@@ -3596,6 +3716,9 @@ for(k in 1:(2*hm_mod$samples)){
 pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
                  pred_hm_05=apply(pred_hm, c(1,2), quantile,0.05),
                  pred_hm_95=apply(pred_hm, c(1,2), quantile,0.95))
+
+AUC_h_comp_fac_dense<-vector()
+for(i in 1:(ncol(data)-1)) AUC_h_comp_fac_dense<-c(AUC_h_comp_fac_dense,auc(roc(pred_hmsc$pred_hm_mean[,i],factor(data[,i]))))
 
 ```
 
@@ -3672,6 +3795,9 @@ pred_j_95 <- apply(pred_j, 1:2, quantile,0.95)
 
 
 pred_jsdm<-list(pred_j_mean=pred_j_mean,pred_j_05=pred_j_05,pred_j_95=pred_j_95)
+
+for(i in 1:data$J) AUC_j_comp_fac_dense<-c(AUC_j_comp_fac_dense,auc(roc(pred_j_mean[,i],factor(data$Y[,i]))))
+
   
 ```
 
@@ -3697,6 +3823,8 @@ pred_gj_05 <- apply(gjam_mod$predict, 1:2,quantile,0.05)
 pred_gj_95 <- apply(gjam_mod$predict, 1:2,quantile,0.95)
 
 pred_gjam<- list(pred_gj_mean=pred_gj_mean,pred_gj_05=pred_gj_05,pred_gj_95=pred_gj_95)
+
+for(i in 1:(ncol(data)-1)) AUC_g_comp_fac_dense<-c(AUC_g_comp_fac_dense,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
 ```
 
 
@@ -3731,6 +3859,7 @@ pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
                  pred_hm_05=apply(pred_hm, c(1,2), quantile,0.05),
                  pred_hm_95=apply(pred_hm, c(1,2), quantile,0.95))
 
+for(i in 1:(ncol(data)-1)) AUC_h_comp_fac_dense<-c(AUC_h_comp_fac_dense,auc(roc(pred_hmsc$pred_hm_mean[,i],factor(data[,i]))))
 
 ```
 
@@ -3805,6 +3934,10 @@ pred_j_95 <- apply(pred_j, 1:2, quantile,0.95)
 
 
 pred_jsdm<-list(pred_j_mean=pred_j_mean,pred_j_05=pred_j_05,pred_j_95=pred_j_95)
+
+
+for(i in 1:data$J) AUC_j_comp_fac_dense<-c(AUC_j_comp_fac_dense,auc(roc(pred_j_mean[,i],factor(data$Y[,i]))))
+
    
 ```
 
@@ -3831,6 +3964,8 @@ pred_gj_05 <- apply(gjam_mod$predict, 1:2,quantile,0.05)
 pred_gj_95 <- apply(gjam_mod$predict, 1:2,quantile,0.95)
 
 pred_gjam<- list(pred_gj_mean=pred_gj_mean,pred_gj_05=pred_gj_05,pred_gj_95=pred_gj_95)
+
+for(i in 1:(ncol(data)-1)) AUC_g_comp_fac_dense<-c(AUC_g_comp_fac_dense,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
 
 ```
 
@@ -3866,7 +4001,7 @@ pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
                  pred_hm_05=apply(pred_hm, c(1,2), quantile,0.05),
                  pred_hm_95=apply(pred_hm, c(1,2), quantile,0.95))
 
-
+for(i in 1:(ncol(data)-1)) AUC_h_comp_fac_dense<-c(AUC_h_comp_fac_dense,auc(roc(pred_hmsc$pred_hm_mean[,i],factor(data[,i]))))
 
 ```
 
@@ -3932,6 +4067,10 @@ pred_j_05 <- apply(pred_j, 1:2, quantile,0.05)
 pred_j_95 <- apply(pred_j, 1:2, quantile,0.95)
 
 pred_jsdm<-list(pred_j_mean=pred_j_mean,pred_j_05=pred_j_05,pred_j_95=pred_j_95)
+
+AUC_j_comp_fac_sparse<-vector()
+for(i in 1:data$J) AUC_j_comp_fac_sparse<-c(AUC_j_comp_fac_sparse,auc(roc(pred_j_mean[,i],factor(data$Y[,i]))))
+
     
 ```
 
@@ -3956,6 +4095,9 @@ pred_gj_05 <- apply(gjam_mod$predict, 1:2,quantile,0.05)
 pred_gj_95 <- apply(gjam_mod$predict, 1:2,quantile,0.95)
 
 pred_gjam<- list(pred_gj_mean=pred_gj_mean,pred_gj_05=pred_gj_05,pred_gj_95=pred_gj_95)
+
+AUC_g_comp_fac_sparse<-vector()
+for(i in 1:(ncol(data)-1)) AUC_g_comp_fac_sparse<-c(AUC_g_comp_fac_sparse,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
 ```
 
 
@@ -3990,7 +4132,8 @@ pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
                  pred_hm_05=apply(pred_hm, c(1,2), quantile,0.05),
                  pred_hm_95=apply(pred_hm, c(1,2), quantile,0.95))
 
-
+AUC_h_comp_fac_sparse<-vector()
+for(i in 1:(ncol(data)-1)) AUC_h_comp_fac_sparse<-c(AUC_h_comp_fac_sparse,auc(roc(pred_hmsc$pred_hm_mean[,i],factor(data[,i]))))
 
 ```
 
@@ -4061,6 +4204,9 @@ pred_j_95 <- apply(pred_j, 1:2, quantile,0.95)
 
 pred_jsdm<-list(pred_j_mean=pred_j_mean,pred_j_05=pred_j_05,pred_j_95=pred_j_95)
 
+for(i in 1:data$J) AUC_j_comp_fac_sparse<-c(AUC_j_comp_fac_sparse,auc(roc(pred_j_mean[,i],factor(data$Y[,i]))))
+
+
 ```
 
 
@@ -4086,6 +4232,8 @@ pred_gj_05 <- apply(gjam_mod$predict, 1:2,quantile,0.05)
 pred_gj_95 <- apply(gjam_mod$predict, 1:2,quantile,0.95)
 
 pred_gjam<- list(pred_gj_mean=pred_gj_mean,pred_gj_05=pred_gj_05,pred_gj_95=pred_gj_95)
+
+for(i in 1:(ncol(data)-1)) AUC_g_comp_fac_sparse<-c(AUC_g_comp_fac_sparse,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
 ```
 
 
@@ -4120,6 +4268,7 @@ pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
                  pred_hm_05=apply(pred_hm, c(1,2), quantile,0.05),
                  pred_hm_95=apply(pred_hm, c(1,2), quantile,0.95))
 
+for(i in 1:(ncol(data)-1)) AUC_h_comp_fac_sparse<-c(AUC_h_comp_fac_sparse,auc(roc(pred_hmsc$pred_hm_mean[,i],factor(data[,i]))))
 ```
 
 
@@ -4197,6 +4346,9 @@ pred_j_05 <- apply(pred_j, 1:2, quantile,0.05)
 pred_j_95 <- apply(pred_j, 1:2, quantile,0.95)
 
 pred_jsdm<-list(pred_j_mean=pred_j_mean,pred_j_05=pred_j_05,pred_j_95=pred_j_95)
+
+for(i in 1:data$J) AUC_j_comp_fac_sparse<-c(AUC_j_comp_fac_sparse,auc(roc(pred_j_mean[,i],factor(data$Y[,i]))))
+
 ```
 
 ### Gjam
@@ -4221,6 +4373,8 @@ pred_gj_05 <- apply(gjam_mod$predict, 1:2,quantile,0.05)
 pred_gj_95 <- apply(gjam_mod$predict, 1:2,quantile,0.95)
 
 pred_gjam<- list(pred_gj_mean=pred_gj_mean,pred_gj_05=pred_gj_05,pred_gj_95=pred_gj_95)
+
+for(i in 1:(ncol(data)-1)) AUC_g_comp_fac_sparse<-c(AUC_g_comp_fac_sparse,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
 ```
 
 ### HMSC
@@ -4251,6 +4405,8 @@ for(k in 1:(2*hm_mod$samples)){
 pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
                  pred_hm_05=apply(pred_hm, c(1,2), quantile,0.05),
                  pred_hm_95=apply(pred_hm, c(1,2), quantile,0.95))
+
+for(i in 1:(ncol(data)-1)) AUC_h_comp_fac_sparse<-c(AUC_h_comp_fac_sparse,auc(roc(pred_hmsc$pred_hm_mean[,i],factor(data[,i]))))
 
 ```
 
