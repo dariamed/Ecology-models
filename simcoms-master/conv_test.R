@@ -80,7 +80,7 @@ x11()
 cumuplot(beta_mcmc)
 dev.off()
 
-<<<<<<< HEAD
+
 .expandSigmaChains(snames, sgibbs, otherpar, simIndex=simIndex,
                    sigErrGibbs, kgibbs, REDUCT)
 
@@ -97,7 +97,8 @@ for(j in 1:ng){
     sigma[,,j] <- .expandSigma(sigErrGibbs[j], ns, Z = Z, kgibbs[j,], REDUCT = T) #sigma
     invsigma[,,j] <- invWbyRcpp(sigErrGibbs[j], Z[kgibbs[j,],]) #inverse sigma
 } 
-=======
+
+
 
 
 
@@ -152,4 +153,3 @@ hist(effectiveSize(gjam_mc), main="ess(sigma)",lwd=2,col=gray(.6),breaks=100)
 hist(effectiveSize(gjam_mc_nd), main="ess(sigma) only non diagonal terms",lwd=2,col=gray(.6))
 
 
->>>>>>> 3342ec5bc2cc481c133ca99698bab6e5fd805489

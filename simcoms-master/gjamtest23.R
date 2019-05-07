@@ -9,7 +9,7 @@ treeYdata  <- gjamTrimY(y,10)$y             # at least 10 plots
 dim(treeYdata)
 #treeYdata[1:5,1:6]
 
-rl   <- list(r = 8, N = 40)
+rl   <- list(r = 8, N = 30)
 ml   <- list(ng = 2500, burnin = 500, typeNames = 'DA', reductList = rl)
 form <- as.formula( ~ temp*deficit + I(temp^2) + I(deficit^2) )
 out  <- gjam(form, xdata = xdata, ydata = treeYdata, modelList = ml)
