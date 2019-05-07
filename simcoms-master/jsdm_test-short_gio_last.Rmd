@@ -30,9 +30,9 @@ library(devtools)
 library(fitR) ###load through github
 library(reshape)
 
-#setwd("~/Documents/GitHub/Ecology-models/simcoms-master")
+setwd("~/Documents/GitHub/Ecology-models/simcoms-master")
 
-setwd("~/GitHub/Ecology-models/simcoms-master")
+#setwd("~/GitHub/Ecology-models/simcoms-master")
 
 #setwd("~/Tesi/Code/Ecology-models-master_1/simcoms-master")
 
@@ -99,8 +99,8 @@ prob_cooccur_es <- function(Y) {
 }
 
 #load("model-2019-04-09-19-02-16.rda")
-#me5 <- load_object("model-2019-04-09-19-02-16.rda")
-me5 <- load_object("model-jsdm-2019-05-06-17-42-56.rda")
+me5 <- load_object("model-2019-04-09-19-02-16.rda")
+#me5 <- load_object("model-jsdm-2019-05-06-17-42-56.rda")
 summary(me5)
 jsdm_conv<-function(mod) {
   cat(sprintf("Maximum Rhat value for Beta: %s\n", round(max(mod$R$B),4)))
@@ -1463,8 +1463,8 @@ pred_jsdm<-list(pred_j_mean=pred_j_mean,pred_j_05=pred_j_05,pred_j_95=pred_j_95)
 ```{r gjam en10,include=FALSE}
 data<-sim_data$EnvEvenSp10
 
-gjam_mod<-fit_gjam(data,3000,500,"./gjam_models/gjam10env.rda")
-#gjam_mod<-load_gjam(data,3000,500,name="./gjam_models/gjam10env.rda")
+#gjam_mod<-fit_gjam(data,3000,500,"./gjam_models/gjam10env.rda")
+gjam_mod<-load_gjam(data,3000,500,name="./gjam_models/gjam10env.rda")
 #gje10<-load_object("./gjam_models/gjam10env.rda")
 
 g_metric_e10<-metrics_gjam(gjam_mod$Rho_sign)
@@ -1600,9 +1600,9 @@ pred_jsdm<-list(pred_j_mean=pred_j_mean,pred_j_05=pred_j_05,pred_j_95=pred_j_95)
 
   data<-sim_data$EnvEvenSp20
   
-  gjam_mod<-fit_gjam(data,5000,500,"./gjam_models/gjam20env.rda")
+  #gjam_mod<-fit_gjam(data,5000,500,"./gjam_models/gjam20env.rda")
   
-  #gjam_mod<-load_gjam(data,5000,500,name="./gjam_models/gjam20env.rda")
+  gjam_mod<-load_gjam(data,5000,500,name="./gjam_models/gjam20env.rda")
   #gje20<-load_object("./gjam_models/gjam20env.rda")
   
   g_metric_e20<-metrics_gjam(gjam_mod$Rho_sign)
@@ -1823,8 +1823,8 @@ pred_jsdm<-list(pred_j_mean=pred_j_mean,pred_j_05=pred_j_05,pred_j_95=pred_j_95)
 
 ```{r gjam fd5,include=FALSE}
 data<-sim_data$FacDenseSp5
-gjam_mod<-fit_gjam(data,10000,2000,"./gjam_models/gjam5f.rda",interact=fac_inter[[4]])
-#gjam_mod<-load_gjam(data,10000,2000,name="./gjam_models/gjam5f.rda", interact=fac_inter[[4]])
+#gjam_mod<-fit_gjam(data,10000,2000,"./gjam_models/gjam5f.rda",interact=fac_inter[[4]])
+gjam_mod<-load_gjam(data,10000,2000,name="./gjam_models/gjam5f.rda", interact=fac_inter[[4]])
 #gjfd5<-load_object("./gjam_models/gjam5f.rda")
 
 g_metric_facDense5<-metrics_gjam(gjam_mod$Rho_sign,fac=fac_inter[[4]], only_env = F)
@@ -3366,10 +3366,6 @@ jsdm_conv(cmps20)
 cmps20$mcmc.info[1:7]
 
 j_metric_compSparse20<-metrics_jsdm(cmps20,comp = comp_inter[[15]],only_env = F)
-# cat("Success rate ")
-# j_metric_compSparse10$success_env
-# j_metric_compSparse10$success_comp
-# 
 cat("\n")
 cat(sprintf("Success rate for non-interacting: %s\n", round(j_metric_compSparse20$success_env,3)))
 cat(sprintf("Success rate for competition: %s\n", round(j_metric_compSparse20$success_comp,3)))
@@ -3402,6 +3398,7 @@ for(i in 1:cmps20$mcmc.info$n.samples){
 
 pred_j_mean <- apply(pred_j, 1:2, mean)
 pred_j_05 <- apply(pred_j, 1:2, quantile,0.05)
+pred_j_95 <- apply(pred_j, 1:2, quantile,0.95)
 
 
 pred_jsdm<-list(pred_j_mean=pred_j_mean,pred_j_05=pred_j_05,pred_j_95=pred_j_95)

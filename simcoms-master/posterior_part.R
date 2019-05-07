@@ -18,7 +18,7 @@ library(rlist)
 library(ggmcmc)
 library(devtools)
 library(reshape)
-
+library(mcclust.ext)
 
 setwd("~/Documents/GitHub/Ecology-models/simcoms-master")
 sim_data<-readRDS("sim_data.rds")
@@ -28,7 +28,7 @@ ydata<-data_20[,-21]
 xdata_20<-scale(poly(data_20$env, 2))
 colnames(xdata_20)<- c("env","env2")
 formula<- ~env + env2
-rl   <- list(r = 8, N = 10)
+rl   <- list(r = 3, N = 5)
 ml   <- list(ng = 2500, burnin = 500, typeNames = 'PA', reductList = rl)
 out  <- gjam(formula, xdata = xdata_20, ydata = ydata, modelList = ml)
 
@@ -80,3 +80,8 @@ psm_k=comp.psm(out$chains$kgibbs)
 k.VI=minVI(psm_k,out$chains$kgibbs[1:1000,],method=("all"))
 summary(k.VI)
 
+corrplot(psm_k, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+
+
+
+######### Library I.Grpah
