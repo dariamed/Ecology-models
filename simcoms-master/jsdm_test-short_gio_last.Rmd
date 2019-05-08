@@ -32,7 +32,7 @@ library(reshape)
 library(AUC)
 library(ggthemes)
 
-setwd("C:/Users/giaru/Desktop/Documents/GitHub/Ecology-models/simcoms-master")
+#setwd("C:/Users/giaru/Desktop/Documents/GitHub/Ecology-models/simcoms-master")
 
 #setwd("~/GitHub/Ecology-models/simcoms-master")
 
@@ -71,7 +71,7 @@ There is a  separate file, with the functions needed to fit each model and study
 
 
 ```{r draw, echo=FALSE, include=FALSE}
-#setwd("~/Documents/GitHub/Ecology-models/simcoms-master")
+setwd("~/Documents/GitHub/Ecology-models/simcoms-master")
 sim_data<-readRDS("sim_data.rds")
 
 #setwd("~/Tesi/Code/Ecology-models-master/simcoms-master/ExampleFiles")
@@ -634,8 +634,8 @@ load_gjam<-function(data,it=2500,burn=500,name="./gjam_models/temp.rda",interact
 ```{r gjam env5,include=FALSE}
 ##to setup chains parameters
 data<-sim_data$EnvEvenSp5
-mod_gjam<-fit_gjam(data,2500,500,name="./gjam_models/gjam5env.rda")
-#mod_gjam<-load_gjam(data,2500,500,name="./gjam_models/gjam5env.rda")
+#mod_gjam<-fit_gjam(data,2500,500,name="./gjam_models/gjam5env.rda")
+mod_gjam<-load_gjam(data,2500,500,name="./gjam_models/gjam5env.rda")
 
 g_metric_e5<-metrics_gjam(mod_gjam$Rho_sign)
 g_metric_e5_p<-metrics_gjam(mod_gjam$Tau_sign)
@@ -4635,6 +4635,10 @@ p
 
 ```
 
+
+## Partial correlation
+
+
 ```{r inter_partial correlations, echo=FALSE}
 
 all_part<-list("g_metric_e5"=g_metric_e5_p,"h_metric_e5"=h_metric_e5_p,
@@ -4726,8 +4730,12 @@ p<-ggplot(data=table)+geom_boxplot(aes(y=as.numeric(success),x=as.factor(fac),fi
 p
 
 ```
+
+
 ## Prediction abilities
-```{r prediction, echo=FALSE}
+
+
+```{r prediction abilities, echo=FALSE}
 
 AUCs<-list(AUC_j_env=AUC_j_env,AUC_g_env=AUC_g_env,AUC_h_env=AUC_h_env,
            AUC_j_fac_dense=AUC_j_fac_dense,AUC_g_fac_dense=AUC_g_fac_dense,AUC_h_fac_dense=AUC_h_fac_dense,
@@ -4772,6 +4780,7 @@ p<-ggplot(data=table)+geom_boxplot(aes(y=as.numeric(AUC),x=Filtering,fill=Model,
   ylim(c(0,1)) +scale_colour_manual(name = as.character(levels(as.factor(table$Density))),values = c('black','purple'))+
   theme_tufte()
 
+p
 
 ```
 
