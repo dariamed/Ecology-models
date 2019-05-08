@@ -31,10 +31,14 @@ library(fitR) ###load through github
 library(reshape)
 library(AUC)
 library(ggthemes)
+library(mcclust.ext)
+Rcpp::sourceCpp('/Users/dariabystrova/Documents/GitHub/gjamed/src/cppFns.cpp')
+source("/Users/dariabystrova/Documents/GitHub/gjamed/R/gjamHfunctions_mod.R")
+
 
 #setwd("C:/Users/giaru/Desktop/Documents/GitHub/Ecology-models/simcoms-master")
 
-#setwd("~/GitHub/Ecology-models/simcoms-master")
+setwd("/Users/dariabystrova/Documents/GitHub/Ecology-models/simcoms-master/ExampleFiles")
 
 #setwd("~/Tesi/Code/Ecology-models-master_1/simcoms-master")
 
@@ -289,6 +293,7 @@ col2 <- colorRampPalette(c("#4393C3", "#2166AC", "#053061",
                            "#FDDBC7", "#FFFFFF", "#D1E5F0", "#92C5DE",
                            "#67001F", "#B2182B", "#D6604D", "#F4A582"))
 
+gcols = colorRampPalette(c( "White", "White", "Black"))
 
 corrplot(Y_cor, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
 title("Correlation cor(Y)")
@@ -1082,161 +1087,6 @@ create_plot_response(sim_data$EnvEvenSp5, nsp=5,pred_gjam, pred_jsdm,pred_hmsc )
 
 
 
-```{r response to environnment env5, include=TRUE,echo=FALSE}
-# # to be finished
-# #fundamental niche
-# 
-# np<-500
-# nspecies<-5
-# niche_optima  = seq(2, 98, length.out=nspecies)
-# niche_breadth = 20
-# 
-# #dataframe for fundamental niches
-# table_fundamental<-data.frame()
-# 
-# for(i in 1:nspecies){
-#   tmp<-data.frame(xx=0:100,niche=dnorm(0:100,mean=niche_optima[i],sd=niche_breadth)/dnorm(niche_optima[i],mean=niche_optima[i],sd=niche_breadth),species=i)
-#   table_fundamental<-rbind(table_fundamental,tmp)
-# }
-# 
-# xx<-data$env
-# 
-# table_jsdm<-data.frame()
-#   
-# for(i in 1:nspecies) {
-#   tmp<-data.frame(xx=xx,mean=pred_j_mean[,i],q_95=pred_j_95[,i],q_05=pred_j_05[,i],type=rep("jsdm",np),species=rep(i,np))
-#   table_jsdm<-rbind(table_jsdm,tmp)
-# }
-# 
-# 
-# table_gjam<-data.frame()
-#   
-# for(i in 1:nspecies) {
-#   tmp<-data.frame(xx=xx,mean=pred_gj_mean[,i],q_95=pred_gj_95[,i],q_05=pred_gj_05[,i],type=rep("gjam",np),species=rep(i,np))
-#   table_gjam<-rbind(table_gjam,tmp)
-# }
-# 
-# 
-# table_hmsc<-data.frame()
-#   
-# for(i in 1:nspecies) {
-#   tmp<-data.frame(xx=xx,mean=pred_hm_mean[,i],q_95=pred_hm_95[,i],q_05=pred_hm_05[,i],type=rep("hmsc",np),species=rep(i,np))
-#   table_hmsc<-rbind(table_hmsc,tmp)
-# }
-#   
-# #table for predictions
-# table<-rbind(table_jsdm,table_gjam,table_hmsc)
-# 
-# #table for observations
-# Y_data = subset(data, select = -env)
-# 
-# table_obs<-data.frame()
-# 
-# for(i in 1:nspecies){
-#   tmp<-data.frame(xx=xx,obs=Y_data[,i],species=rep(i,np))
-#   table_obs<-rbind(table_obs,tmp)
-# }
-# 
-# 
-# ######## FIRST TYPE OF PLOT
-# # 1 plot for each species, so one figure with 5 plots, in total 3 figures, one for each model
-# 
-# #jsdm 
-# 
-# for(i in 1:5)
-# local({
-#   i<-i
-#   tmp<-table_jsdm[which(table_jsdm$species==i),]
-#   tmp_obs<-table_obs[which(table_obs$species==i),]
-#   tmp_fund<-table_fundamental[which(table_fundamental$species==i),]
-#   g<<-ggplot()+
-#     geom_ribbon(aes(x=tmp$xx,ymin=tmp$q_05,ymax=tmp$q_95),alpha=0.5)+
-#     geom_line(aes(x=tmp$xx,y=tmp$mean,color = "Predicted probability"),lwd=1.5)+
-#     geom_point(aes(x=tmp_obs$xx,y=tmp_obs$obs),col="#000066",size=0.5) +xlab("Environmental gradient")+ylab("Probability of presence")+
-#     geom_line(data=tmp_fund,aes(x=tmp_fund$xx,y=tmp_fund$niche,color = "Fundamental niche"),lwd=1)+
-#     labs(title=paste0("JSDM, Species ",i))+
-#     scale_color_manual(name = c("Legend"), values = c("Predicted probability" = "#FF6666","Fundamental niche"="#9999FF"))
-# 
-#     assign(paste0("p",i), g, pos =1)
-# })
-# 
-# 
-# grid.arrange(p1,p2,p3,p4,p5,nrow=ceiling(nspecies/2))
-# 
-# 
-# 
-# #gjam
-# for(i in 1:5)
-# local({
-#   i<-i
-#   tmp<-table_gjam[which(table_gjam$species==i),]
-#   tmp_obs<-table_obs[which(table_obs$species==i),]
-#   tmp_fund<-table_fundamental[which(table_fundamental$species==i),]
-#   g<<-ggplot()+
-#     geom_ribbon(aes(x=tmp$xx,ymin=tmp$q_05,ymax=tmp$q_95),alpha=0.5)+
-#     geom_line(aes(x=tmp$xx,y=tmp$mean,color = "Predicted probability"),lwd=1.5)+
-#     geom_point(aes(x=tmp_obs$xx,y=tmp_obs$obs),col="#000066",size=0.5) +xlab("Environmental gradient")+ylab("Probability of presence")+
-#     geom_line(data=tmp_fund,aes(x=tmp_fund$xx,y=tmp_fund$niche,color = "Fundamental niche"),lwd=1)+
-#     labs(title=paste0("GJAM, Species ",i))+
-#     scale_color_manual(name = c("Legend"), values = c("Predicted probability" = "#FF6666","Fundamental niche"="#9999FF"))
-# 
-#   
-#   assign(paste0("p",i), g, pos =1)
-# })
-# 
-# 
-# grid.arrange(p1,p2,p3,p4,p5,nrow=ceiling(nspecies/2))
-# 
-# 
-# #hmsc
-# for(i in 1:5)
-# local({
-#   i<-i
-#   tmp<-table[which(table_hmsc$species==i),]
-#   tmp_obs<-table_obs[which(table_obs$species==i),]
-#   tmp_fund<-table_fundamental[which(table_fundamental$species==i),]
-#   g<<-ggplot()+
-#     geom_ribbon(aes(x=tmp$xx,ymin=tmp$q_05,ymax=tmp$q_95),alpha=0.5)+
-#     geom_line(aes(x=tmp$xx,y=tmp$mean,color = "Predicted probability"),lwd=1.5)+
-#     geom_point(aes(x=tmp_obs$xx,y=tmp_obs$obs),col="#000066",size=0.5) +xlab("Environmental gradient")+ylab("Probability of presence")+
-#     geom_line(data=tmp_fund,aes(x=tmp_fund$xx,y=tmp_fund$niche,color = "Fundamental niche"),lwd=1)+
-#     labs(title=paste0("HMSC, Species ",i))+
-#     scale_color_manual(name = c("Legend"), values = c("Predicted probability" = "#FF6666","Fundamental niche"="#9999FF"))
-# 
-#   assign(paste0("p",i), g, pos =1)
-# })
-# 
-# x11()
-# grid.arrange(p1,p2,p3,p4,p5,nrow=ceiling(nspecies/2))
-# 
-# 
-# 
-# ########SECOND TYPE OF PLOT
-# for(i in 1:5)
-# local({
-#   i<-i
-#   tmp<-table[which(table$species==i),]
-#   tmp_obs<-table_obs[which(table_obs$species==i),]
-#   tmp_fund<-table_fundamental[which(table_fundamental$species==i),]
-#   g<<-ggplot()+
-#     geom_ribbon(aes(x=tmp$xx,ymin=tmp$q_05,ymax=tmp$q_95,col=as.factor(tmp$type)),alpha=0.5)+
-#     geom_line(aes(x=tmp$xx,y=tmp$mean,col=as.factor(tmp$type)),lwd=1.5)+
-#     geom_point(aes(x=tmp_obs$xx,y=tmp_obs$obs),col="#000066",size=0.5) +xlab("Environmental gradient")+ylab("Probability of presence")+
-#     geom_line(data=tmp_fund,aes(x=tmp_fund$xx,y=tmp_fund$niche,color = "Fundamental niche"),lwd=1)+
-#     labs(title=paste0("HMSC, Species ",i))+
-#     scale_color_manual(name = c("Legend"), values = c("jsdm" = "#FF6666","gjam" = "#FFFF66","hmsc" = "#FFB266","Fundamental niche"="#9999FF"))
-#   assign(paste0("p",i), g, pos =1)
-# })
-# 
-# x11()
-# grid.arrange(p1,p2,p3,p4,p5,nrow=ceiling(nspecies/2))
-# 
-# 
-
-
-```
-
-
 ## Plot coefficients
 
 
@@ -1359,7 +1209,61 @@ create_beta_plot(load_object("./gjam_models/gjam5env.rda"),me5,hmmod=load_object
 
 ```
 
+### Dimension reduction
 
+
+```{r dimred env5, include=TRUE,echo=FALSE}
+gjam_dim_red_5<-function(datab,ng=2500, burnin=500){
+  ydata<-subset(datab, select = -env)
+  xdata<-scale(poly(datab$env, 2))
+  ns<- ncol(ydata)
+  N<-ncol(ydata)-1
+  colnames(xdata)<- c("env","env2")
+  formula<- ~env + env2
+  r<-3
+  rl <-list(N=N, r=r)
+  ml  <- list(ng = ng, burnin = burnin, typeNames = 'PA',reductList=rl)
+  mod_gjam_red <- gjam(formula, xdata, ydata, modelList = ml)
+  sigma<-invsigma<-array(NA,dim=c(ns,ns,ng))
+  sgibbs<-mod_gjam_red$chains$sgibbs
+  sigErrGibbs<-mod_gjam_red$chains$sigErrGibbs
+  kgibbs<-mod_gjam_red$chains$kgibbs
+  N<-mod_gjam_red$modelList$reductList$N
+  r<-mod_gjam_red$modelList$reductList$r
+  for(j in 1:ng){
+    Z  <- matrix(sgibbs[j,],N,r)
+    sigma[,,j] <- .expandSigma(sigErrGibbs[j], ns, Z = Z, kgibbs[j,], REDUCT = T) #sigma
+    invsigma[,,j] <- invWbyRcpp(sigErrGibbs[j], Z[kgibbs[j,],]) #inverse sigma
+  } 
+  
+  sigma_mean<-apply(sigma,c(1,2),mean) 
+  sigma_q05<-apply(sigma,c(1,2),quantile,0.05) 
+  sigma_q95<-apply(sigma,c(1,2),quantile,0.95) 
+  Sigma_sign<--cov2cor(sigma_mean*(!(sigma_q95>0 & sigma_q05<0)))
+  
+  invsigma_mean<-apply(invsigma,c(1,2),mean) 
+  invsigma_q05<-apply(invsigma,c(1,2),quantile,0.05) 
+  invsigma_q95<-apply(invsigma,c(1,2),quantile,0.95) 
+  INVSigma_sign<--cov2cor(sigma_mean*(!(invsigma_q95>0 & invsigma_q05<0)))
+  gjam_mc_nd<- mcmc(mod_gjam_red$chains$sgibbs) 
+  hist(effectiveSize(gjam_mc_nd), main="ess(sigma)",lwd=2,col=gray(.6),breaks=100)
+  return(list(Rho_sign_d=Sigma_sign,Tau_sign_d=INVSigma_sign,  k=mod_gjam_red$chains$kgibbs))
+}
+
+S<- gjam_dim_red_5(sim_data$EnvEvenSp5,ng=2500, burnin=500)
+
+
+par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
+corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Correlation from dim. reduction")
+corrplot(S$Tau_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Partial Correlation from dim. reduction")
+corrplot(comp.psm(S$k), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=gcols(200),cl.lim=c(0, 1), type = "lower")
+title("Posterior clusters from dim. reduction")
+corrplot(diag(5), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("True interactions")
+
+```
 
 
 ```{r all models env5, include=TRUE}
@@ -1541,6 +1445,83 @@ for(i in 1:(ncol(data)-1)) AUC_h_env<-c(AUC_h_env,auc(roc(pred_hmsc$pred_hm_mean
 ```
 
 
+### Dimension reduction gjam 
+
+```{r dim red  env10, include=TRUE, echo=FALSE}
+
+gjam_dim_red<-function(datab,ng=2500, burnin=500,r=1){
+  ydata<-subset(datab, select = -env)
+  xdata<-scale(poly(datab$env, 2))
+  ns<- ncol(ydata)
+  N<-ncol(ydata)-1
+  colnames(xdata)<- c("env","env2")
+  formula<- ~env + env2
+  if (r==1){
+    rseq<-seq(1,N,by=2)
+    print(rseq)
+    DIC_array<-array(NA,dim=length(rseq)-2)
+    RSMPE_array<-array(NA,dim=length(rseq)-2)
+    for (j in (2:(length(rseq)-1))){
+      rl <-list(N=N, r=rseq[j])
+      ml  <- list(ng = ng, burnin = burnin, typeNames = 'PA',reductList=rl)
+      mod_gjam_c <- gjam(formula, xdata, ydata, modelList = ml)
+      DIC_array[j-1]<-mod_gjam_c$fit$DIC
+      RSMPE_array[j-1]<-mod_gjam_c$fit$rmspeAll
+    }
+    r<- rseq[which.min(RSMPE_array)+1]
+    print(DIC_array)
+  }
+  rl <-list(N=N, r=r)
+  ml  <- list(ng = ng, burnin = burnin, typeNames = 'PA',reductList=rl)
+  mod_gjam_red <- gjam(formula, xdata, ydata, modelList = ml)
+  #.expandSigmaChains(snames, sgibbs, otherpar, simIndex=simIndex, sigErrGibbs, kgibbs, REDUCT)
+  sigma<-invsigma<-array(NA,dim=c(ns,ns,ng))
+  sgibbs<-mod_gjam_red$chains$sgibbs
+  sigErrGibbs<-mod_gjam_red$chains$sigErrGibbs
+  kgibbs<-mod_gjam_red$chains$kgibbs
+  N<-mod_gjam_red$modelList$reductList$N
+  r<-mod_gjam_red$modelList$reductList$r
+  for(j in 1:ng){
+    Z  <- matrix(sgibbs[j,],N,r)
+    sigma[,,j] <- .expandSigma(sigErrGibbs[j], ns, Z = Z, kgibbs[j,], REDUCT = T) #sigma
+    invsigma[,,j] <- invWbyRcpp(sigErrGibbs[j], Z[kgibbs[j,],]) #inverse sigma
+  } 
+  
+  sigma_mean<-apply(sigma,c(1,2),mean) 
+  sigma_q05<-apply(sigma,c(1,2),quantile,0.05) 
+  sigma_q95<-apply(sigma,c(1,2),quantile,0.95) 
+  Sigma_sign<--cov2cor(sigma_mean*(!(sigma_q95>0 & sigma_q05<0)))
+  
+  invsigma_mean<-apply(invsigma,c(1,2),mean) 
+  invsigma_q05<-apply(invsigma,c(1,2),quantile,0.05) 
+  invsigma_q95<-apply(invsigma,c(1,2),quantile,0.95) 
+  INVSigma_sign<--cov2cor(sigma_mean*(!(invsigma_q95>0 & invsigma_q05<0)))
+  gjam_mc_nd<- mcmc(mod_gjam_red$chains$sgibbs) #thinned sigma non diagonal elements
+  hist(effectiveSize(gjam_mc_nd), main="ess(sigma)",lwd=2,col=gray(.6),breaks=100)
+  return(list(Rho_sign_d=Sigma_sign,Tau_sign_d=INVSigma_sign,r_opt=r, k=mod_gjam_red$chains$kgibbs ))
+}
+#r-opt=7
+S<- gjam_dim_red(sim_data$EnvEvenSp10,ng=2500, burnin=500,r=7)
+
+par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
+corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Correlation from dimension reduction")
+corrplot(S$Tau_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Partial Correlation from dimension reduction")
+corrplot(comp.psm(S$k), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=gcols(200),cl.lim=c(0, 1), type = "lower")
+title("Partial Correlation from dimension reduction")
+corrplot(diag(10), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("True interactions")
+
+
+```
+
+
+
+
+
+
+
 ```{r all models rho env10, include=TRUE}
 create_beta_plot(load_object("./gjam_models/gjam10env.rda"),me10,load_object("./HMmodels/hm10env.rda"))
 #data, nsp=5,pred_gjam, pred_jsdm,pred_hmsc 
@@ -1657,7 +1638,7 @@ for(i in 1:data$J) AUC_j_env<-c(AUC_j_env,auc(roc(pred_j_mean[,i],factor(data$Y[
 
 ### Gjam dimension reduction
 
-```{r gjam en20 dim red, include=FALSE}
+```{r gjam en20 dim red, include=TRUE, echo=FALSE}
 # 
 # data<-sim_data$EnvEvenSp20
 # 
@@ -1770,6 +1751,23 @@ for(i in 1:(ncol(data)-1)) AUC_h_env<-c(AUC_h_env,auc(roc(pred_hmsc$pred_hm_mean
 
 
 
+```{r dim red  env20, include=TRUE, echo=FALSE}
+
+#r-opt=15
+S<- gjam_dim_red(sim_data$EnvEvenSp20,ng=2500, burnin=500,r=15)
+
+par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
+corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Correlation from dimension reduction")
+corrplot(S$Tau_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Partial Correlation from dimension reduction")
+corrplot(comp.psm(S$k), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=gcols(200),cl.lim=c(0, 1), type = "lower")
+title("Partial Correlation from dimension reduction")
+corrplot(diag(20), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("True interactions")
+
+
+```
 
 ```{r all models env20, include=TRUE}
 
@@ -1936,6 +1934,24 @@ for(i in 1:(ncol(data)-1)) AUC_h_fac_dense<-c(AUC_h_fac_dense,auc(roc(pred_hmsc$
 
 
 
+```{r dimred facd5, include=TRUE,echo=FALSE}
+
+S<- gjam_dim_red_5(sim_data$FacDenseSp5,ng=5500, burnin=1000)
+
+par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
+corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Correlation from dim. reduction")
+corrplot(S$Tau_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Partial Correlation from dim. reduction")
+corrplot(comp.psm(S$k), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=gcols(200), cl.lim=c(0, 1),type = "lower")
+title("Posterior clusters from dim. reduction")
+corrplot(fac_inter[[4]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("True interactions")
+
+```
+
+
+
 ```{r all models facd5, include=TRUE}
 create_beta_plot(load_object("./gjam_models/gjam5f.rda"),mfd5,load_object("./HMmodels/hm5fd.rda" ))
 
@@ -2090,6 +2106,29 @@ pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
 for(i in 1:(ncol(data)-1)) AUC_h_fac_dense<-c(AUC_h_fac_dense,auc(roc(pred_hmsc$pred_hm_mean[,i],factor(data[,i]))))
 
 ```
+
+
+
+
+```{r dim red  facd10, include=TRUE, echo=FALSE}
+
+#r-opt=7
+S<- gjam_dim_red(sim_data$FacDenseSp10,ng=2500, burnin=500,r=7)
+pg<- comp.psm(S$k)
+
+par(mfrow=c(2,2))
+corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Correlation from dim. reduction")
+corrplot(S$Tau_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Partial Correlation from dim. reduction")
+corrplot(pg, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=gcols(300),cl.lim=c(0, 1), type = "lower")
+title("Posterior clusters from dim. reduction")
+corrplot(fac_inter[[5]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("True interactions")
+
+
+```
+
 
 
 ```{r all models facd10, include=TRUE}
@@ -2250,6 +2289,23 @@ for(i in 1:(ncol(data)-1)) AUC_h_fac_dense<-c(AUC_h_fac_dense,auc(roc(pred_hmsc$
 ```
 
 
+```{r dim red  facd20, include=TRUE, echo=FALSE}
+
+#r-opt=15
+S<- gjam_dim_red(sim_data$FacDenseSp20,ng=2500, burnin=500,r=15)
+
+par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
+corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Correlation from dimension reduction")
+corrplot(S$Tau_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Partial Correlation from dimension reduction")
+corrplot(comp.psm(S$k), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=gcols(200),cl.lim=c(0, 1), type = "lower")
+title("Partial Correlation from dimension reduction")
+corrplot(diag(20), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("True interactions")
+
+
+```
 
 ```{r all models facd20, include=TRUE}
 
@@ -2416,6 +2472,22 @@ for(i in 1:(ncol(data)-1)) AUC_h_fac_sparse<-c(AUC_h_fac_sparse,auc(roc(pred_hms
 ```
 
 
+```{r dimred fs5, include=TRUE,echo=FALSE}
+
+S<- gjam_dim_red_5(sim_data$FacSparseSp5,ng=2500, burnin=1000)
+
+par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
+corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Correlation from dim. reduction")
+corrplot(S$Tau_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Partial Correlation from dim. reduction")
+corrplot(comp.psm(S$k), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=gcols(200), type = "lower")
+title("Posterior clusters from dim. reduction")
+corrplot(fac_inter[[8]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("True interactions")
+
+```
+
 
 
 
@@ -2562,6 +2634,26 @@ for(i in 1:(ncol(data)-1)) AUC_h_fac_sparse<-c(AUC_h_fac_sparse,auc(roc(pred_hms
 ```
 
 
+
+```{r dim red  facs10, include=TRUE, echo=FALSE}
+
+#r-opt=5
+S<- gjam_dim_red(sim_data$FacSparseSp10,ng=2500, burnin=500,r=5)
+
+par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
+corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Correlation from dimension reduction")
+corrplot(S$Tau_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Partial Correlation from dimension reduction")
+corrplot(comp.psm(S$k), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=gcols(200),cl.lim=c(0, 1), type = "lower")
+title("Partial Correlation from dimension reduction")
+corrplot(fac_inter[[8]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("True interactions")
+
+
+```
+
+
 ```{r all models fs10, include=TRUE}
 create_beta_plot(load_object("./gjam_models/gjam10fs.rda"),mfs10,load_object("./HMmodels/hm10fs.rda"))
 
@@ -2703,6 +2795,24 @@ for(i in 1:(ncol(data)-1)) AUC_h_fac_sparse<-c(AUC_h_fac_sparse,auc(roc(pred_hms
 
 
 
+```{r dim red  facs20, include=TRUE, echo=FALSE}
+
+#r-opt=15
+S<- gjam_dim_red(sim_data$FacSparseSp20,ng=2500, burnin=500,r=15)
+
+par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
+corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Correlation from dimension reduction")
+corrplot(S$Tau_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Partial Correlation from dimension reduction")
+corrplot(comp.psm(S$k), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=gcols(200),cl.lim=c(0, 1), type = "lower")
+title("Partial Correlation from dimension reduction")
+corrplot(fac_inter[[9]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("True interactions")
+
+
+```
+
 
 ```{r all models fs20, include=TRUE}
 create_beta_plot(load_object("./gjam_models/gjam20fs.rda"),mfs20,load_object("./HMmodels/hm20fs.rda"))
@@ -2752,16 +2862,13 @@ data <- list(
   I = diag(ncol(data) - 1),
   df = ncol(data)
 )
-#Tau_n<-to_prec(mfd10$mean$Tau)
-#plot_cor_jsdm(mcmpd5,data$Y,comp_inter[[10]])
-
-
+####Correlation
 mod_list_Rho<-list()
 mod_list_Rho<-list(jsdm =mcmpd5$mean$Rho*(!mcmpd5$overlap0$Rho)) 
 
 mod_list_Tau<-list()
 mod_list_Tau<-list(jsdm =mcmpd5$mean$Rho*(!mcmpd5$overlap0$Rho)) 
- 
+###Prediction 
 pred_j<-array(NA,dim=c(data$n,data$J,mcmpd5$mcmc.info$n.samples))
 for(i in 1:mcmpd5$mcmc.info$n.samples){
   
@@ -2795,16 +2902,10 @@ gjam_mod<-load_gjam(data,10000,1000,name="./gjam_models/gjam5cmpd.rda", interact
 g_metric_compDense5<-metrics_gjam(gjam_mod$Rho_sign,comp=comp_inter[[10]], only_env = F)
 g_metric_compDense5_p<-metrics_gjam(gjam_mod$Tau_sign,comp=comp_inter[[10]], only_env = F)
 
-# cat("Success rate ")
-# g_metric_compDense5$success_env
-# g_metric_compDense5$success_comp
 cat("\n")
 cat(sprintf("Success rate for non-interacting: %s\n", round(g_metric_compDense5$success_env,3)))
 cat(sprintf("Success rate for facilitation: %s\n", round(g_metric_compDense5$success_comp,3)))
-
-#to check posterior density of s in Sigma 
-#gjfd5<-load_object("./gjam_models/gjam5cmpd.rda")
-#plot(density(gjfd5$chains$sgibbs[,4]))
+###Correlation
 mod_list_Rho<-list.append(mod_list_Rho, gjam=gjam_mod$Rho_sign) 
 mod_list_Tau<-list.append(mod_list_Tau, gjam=gjam_mod$Tau_sign) 
 #Prediction
@@ -2823,7 +2924,6 @@ data<-sim_data$CompDenseSp5
 
 hm_mod<-fit_hmsc(data,"Load",nsamples=3000, nchains=2,name="./HMmodels/hm5cmpd.rda" )
 #hm_mod<-fit_hmsc(data,"Fit",nsamples=3000, nchains=2 )
-
 hm_conv(hm_mod)
 hm_mod_R<-hm_inter(hm_mod, nsamples=3000, nchains=2,interact = (-1)*comp_inter[[10]])
 
@@ -2856,6 +2956,22 @@ for(i in 1:(ncol(data)-1)) AUC_h_comp_dense<-c(AUC_h_comp_dense,auc(roc(pred_hms
 
 
 
+```{r dimred compd5, include=TRUE,echo=FALSE}
+
+S<- gjam_dim_red_5(sim_data$CompDenseSp5,ng=2500, burnin=1000)
+
+par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
+corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Correlation from dim. reduction")
+corrplot(S$Tau_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Partial Correlation from dim. reduction")
+corrplot(comp.psm(S$k), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=gcols(200), type = "lower")
+title("Posterior clusters from dim. reduction")
+corrplot(comp_inter[[10]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("True interactions")
+
+```
+
 
 
 ```{r all models cmpd5, include=TRUE}
@@ -2884,9 +3000,6 @@ jsdm_conv(mcmpd10)
 mcmpd10$mcmc.info[1:7]
 
 j_metric_compDense10<-metrics_jsdm(mcmpd10,comp = comp_inter[[11]],only_env = F)
-# cat("Success rate ")
-# j_metric_compDense10$success_env
-# j_metric_compDense10$success_comp
 cat("\n")
 cat(sprintf("Success rate for non-interacting: %s\n", round(j_metric_compDense10$success_env,3)))
 cat(sprintf("Success rate for facilitation: %s\n", round(j_metric_compDense10$success_comp,3)))
@@ -2942,10 +3055,6 @@ gjam_mod<-load_gjam(data,5000,500,name="./gjam_models/gjam10cmpd.rda", interact=
 g_metric_compDense10<-metrics_gjam(gjam_mod$Rho_sign,comp=comp_inter[[11]], only_env = F)
 g_metric_compDense10_p<-metrics_gjam(gjam_mod$Tau_sign,comp=comp_inter[[11]], only_env = F)
 
-# cat("Success rate ")
-# g_metric_compDense10$success_env
-# g_metric_compDense10$success_comp
-
 cat("\n")
 cat(sprintf("Success rate for non-interacting: %s\n", round(g_metric_compDense10$success_env,3)))
 cat(sprintf("Success rate for competition: %s\n", round(g_metric_compDense10$success_comp,3)))
@@ -2996,6 +3105,25 @@ for(i in 1:(ncol(data)-1)) AUC_h_comp_dense<-c(AUC_h_comp_dense,auc(roc(pred_hms
 
 ```
 
+### Dimension reduction
+
+```{r dim red compd10,include=TRUE, echo=FALSE}
+
+#r-opt=5
+S<- gjam_dim_red(sim_data$CompDenseSp10,ng=2500, burnin=500,r=5)
+
+par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
+corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Correlation from dimension reduction")
+corrplot(S$Tau_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Partial Correlation from dimension reduction")
+corrplot(comp.psm(S$k), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=gcols(200),cl.lim=c(0, 1), type = "lower")
+title("Partial Correlation from dimension reduction")
+corrplot(comp_inter[[11]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("True interactions")
+
+
+```
 
 
 ```{r all models cmpd10, include=TRUE}
@@ -3147,6 +3275,29 @@ pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
 
 for(i in 1:(ncol(data)-1)) AUC_h_comp_dense<-c(AUC_h_comp_dense,auc(roc(pred_hmsc$pred_hm_mean[,i],factor(data[,i]))))
 ```
+
+
+### Dimension reduction
+
+
+```{r dim red compd20, include=TRUE, echo=FALSE}
+
+#r-opt=15
+S<- gjam_dim_red(sim_data$CompDenseSp20,ng=2500, burnin=500,r=15)
+
+par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
+corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Correlation from dimension reduction")
+corrplot(S$Tau_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Partial Correlation from dimension reduction")
+corrplot(comp.psm(S$k), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=gcols(200),cl.lim=c(0, 1), type = "lower")
+title("Partial Correlation from dimension reduction")
+corrplot(comp_inter[[12]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("True interactions")
+
+
+```
+
 
 
 ```{r all models cmpd20, include=TRUE}
@@ -3301,6 +3452,23 @@ for(i in 1:(ncol(data)-1)) AUC_h_comp_sparse<-c(AUC_h_comp_sparse,auc(roc(pred_h
 ```
 
 
+```{r dimred comps5, include=TRUE,echo=FALSE}
+
+S<- gjam_dim_red_5(sim_data$CompSparseSp5,ng=2500, burnin=1000)
+
+par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
+corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Correlation from dim. reduction")
+corrplot(S$Tau_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Partial Correlation from dim. reduction")
+corrplot(comp.psm(S$k), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=gcols(200), type = "lower")
+title("Posterior clusters from dim. reduction")
+corrplot(comp_inter[[13]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("True interactions")
+
+```
+
+
 
 ```{r all models cmps5, include=TRUE}
 create_beta_plot(load_object("./gjam_models/gjam5cmps.rda"),cmps5,load_object("./HMmodels/hm5cmps.rda"))
@@ -3441,6 +3609,24 @@ for(i in 1:(ncol(data)-1)) AUC_h_comp_sparse<-c(AUC_h_comp_sparse,auc(roc(pred_h
 ```
 
 
+```{r dim red comps10, include=TRUE, echo=FALSE}
+
+#r-opt=5
+S<- gjam_dim_red(sim_data$CompSparseSp10,ng=2500, burnin=500,r=5)
+
+par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
+corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Correlation from dimension reduction")
+corrplot(S$Tau_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Partial Correlation from dimension reduction")
+corrplot(comp.psm(S$k), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=gcols(200),cl.lim=c(0, 1), type = "lower")
+title("Partial Correlation from dimension reduction")
+corrplot(comp_inter[[14]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("True interactions")
+
+
+```
+
 
 
 ```{r all models cmps10, include=TRUE}
@@ -3574,6 +3760,28 @@ pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
                  pred_hm_95=apply(pred_hm, c(1,2), quantile,0.95))
 
 for(i in 1:(ncol(data)-1)) AUC_h_comp_sparse<-c(AUC_h_comp_sparse,auc(roc(pred_hmsc$pred_hm_mean[,i],factor(data[,i]))))
+```
+
+
+### Dimension reduction
+
+
+```{r dim red comps20, include=TRUE, echo=FALSE}
+
+#r-opt=13
+S<- gjam_dim_red(sim_data$CompSparseSp20,ng=2500, burnin=500,r=13)
+
+par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
+corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Correlation from dimension reduction")
+corrplot(S$Tau_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Partial Correlation from dimension reduction")
+corrplot(comp.psm(S$k), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=gcols(200),cl.lim=c(0, 1), type = "lower")
+title("Partial Correlation from dimension reduction")
+corrplot(comp_inter[[15]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("True interactions")
+
+
 ```
 
 
@@ -3721,6 +3929,27 @@ for(i in 1:(ncol(data)-1)) AUC_h_comp_fac_dense<-c(AUC_h_comp_fac_dense,auc(roc(
 ```
 
 
+
+
+```{r dimred comp_facd5, include=TRUE,echo=FALSE}
+
+S<- gjam_dim_red_5(sim_data$FacCompDenseSp5,ng=2500, burnin=1000)
+
+par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
+corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Correlation from dim. reduction")
+corrplot(S$Tau_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Partial Correlation from dim. reduction")
+corrplot(comp.psm(S$k), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=gcols(200), type = "lower")
+title("Posterior clusters from dim. reduction")
+corrplot((-1)*comp_inter[[16]]+ fac_inter[[16]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("True interactions")
+
+```
+
+
+
+
 ```{r all models cmp_facd5, include=TRUE}
 create_beta_plot(load_object("./gjam_models/gjam5cmp_facd2.rda"),cmp_fd5,load_object("./HMmodels/hmcmp_facd5.rda"))
 
@@ -3860,6 +4089,31 @@ pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
 for(i in 1:(ncol(data)-1)) AUC_h_comp_fac_dense<-c(AUC_h_comp_fac_dense,auc(roc(pred_hmsc$pred_hm_mean[,i],factor(data[,i]))))
 
 ```
+
+### Dimension reduction
+
+
+
+```{r dim red faccompd10,include=TRUE, echo=FALSE}
+
+#r-opt=5
+S<- gjam_dim_red(sim_data$FacCompDenseSp10,ng=2500, burnin=500,r=5)
+
+par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
+corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Correlation from dimension reduction")
+corrplot(S$Tau_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Partial Correlation from dimension reduction")
+corrplot(comp.psm(S$k), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=gcols(200),cl.lim=c(0, 1), type = "lower")
+title("Partial Correlation from dimension reduction")
+corrplot((-1)*comp_inter[[17]]+ fac_inter[[17]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("True interactions")
+
+
+```
+
+
+
 
 ```{r all models cmp_facd10, include=TRUE}
 create_beta_plot(load_object("./gjam_models/gjamcmp_facd10.rda"),cmp_fd10,load_object("./HMmodels/hmcmp_facd10.rda"))
@@ -4003,6 +4257,29 @@ for(i in 1:(ncol(data)-1)) AUC_h_comp_fac_dense<-c(AUC_h_comp_fac_dense,auc(roc(
 
 ```
 
+
+### Dimension reduction
+
+```{r dim red faccompd20, include=TRUE, echo=FALSE}
+
+#r-opt=5
+S<- gjam_dim_red(sim_data$FacCompDenseSp20,ng=2500, burnin=500,r=15)
+
+par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
+corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Correlation from dimension reduction")
+corrplot(S$Tau_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Partial Correlation from dimension reduction")
+corrplot(comp.psm(S$k), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=gcols(200),cl.lim=c(0, 1), type = "lower")
+title("Partial Correlation from dimension reduction")
+corrplot((-1)*comp_inter[[18]]+ fac_inter[[18]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("True interactions")
+
+
+```
+
+
+
 ```{r all models cmp_facd20, include=TRUE}
 create_beta_plot(load_object("./gjam_models/gjamcmp_facd20.rda"),cmp_fd20,load_object("./HMmodels/hmcmp_facd20.rda"))
 
@@ -4132,6 +4409,23 @@ pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
 
 AUC_h_comp_fac_sparse<-vector()
 for(i in 1:(ncol(data)-1)) AUC_h_comp_fac_sparse<-c(AUC_h_comp_fac_sparse,auc(roc(pred_hmsc$pred_hm_mean[,i],factor(data[,i]))))
+
+```
+
+
+```{r dimred compfacd5, include=TRUE,echo=FALSE}
+
+S<- gjam_dim_red_5(sim_data$FacCompSparseSp5,ng=2500, burnin=1000)
+
+par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
+corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Correlation from dim. reduction")
+corrplot(S$Tau_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Partial Correlation from dim. reduction")
+corrplot(comp.psm(S$k), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=gcols(200), type = "lower")
+title("Posterior clusters from dim. reduction")
+corrplot( (-1)*comp_inter[[19]]+ fac_inter[[19]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("True interactions")
 
 ```
 
@@ -4268,6 +4562,29 @@ pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
 
 for(i in 1:(ncol(data)-1)) AUC_h_comp_fac_sparse<-c(AUC_h_comp_fac_sparse,auc(roc(pred_hmsc$pred_hm_mean[,i],factor(data[,i]))))
 ```
+
+
+### Dimension reduction
+
+
+```{r dim red faccomps10, include=TRUE, echo=FALSE}
+
+#r-opt=5
+S<- gjam_dim_red(sim_data$FacCompSparseSp10,ng=2500, burnin=500,r=5)
+
+par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
+corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Correlation from dimension reduction")
+corrplot(S$Tau_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Partial Correlation from dimension reduction")
+corrplot(comp.psm(S$k), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=gcols(200),cl.lim=c(0, 1), type = "lower")
+title("Partial Correlation from dimension reduction")
+corrplot((-1)*comp_inter[[20]]+ fac_inter[[20]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("True interactions")
+
+
+```
+
 
 
 ```{r all models cmp_facs10, include=TRUE}
@@ -4407,6 +4724,28 @@ pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
 for(i in 1:(ncol(data)-1)) AUC_h_comp_fac_sparse<-c(AUC_h_comp_fac_sparse,auc(roc(pred_hmsc$pred_hm_mean[,i],factor(data[,i]))))
 
 ```
+
+
+
+```{r dim red  faccoms20, include=TRUE, echo=FALSE}
+
+#r-opt=15
+S<- gjam_dim_red(sim_data$FacCompSparseSp20,ng=2500, burnin=500,r=15)
+
+par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
+corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Correlation from dimension reduction")
+corrplot(S$Tau_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Partial Correlation from dimension reduction")
+corrplot(comp.psm(S$k), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=gcols(200),cl.lim=c(0, 1), type = "lower")
+title("Partial Correlation from dimension reduction")
+corrplot((-1)*comp_inter[[21]]+fac_inter[[21]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("True interactions")
+
+
+```
+
+
 
 ```{r all models cmp_facs20, include=TRUE}
 create_beta_plot(load_object("./gjam_models/gjamcmp_facs20.rda"),cmp_fds20,load_object("./HMmodels/hmcmp_facs20.rda"))
