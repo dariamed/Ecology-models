@@ -30,8 +30,9 @@ library(devtools)
 library(fitR) ###load through github
 library(reshape)
 library(AUC)
+library(ggthemes)
 
-setwd("~/Documents/GitHub/Ecology-models/simcoms-master")
+setwd("C:/Users/giaru/Desktop/Documents/GitHub/Ecology-models/simcoms-master")
 
 #setwd("~/GitHub/Ecology-models/simcoms-master")
 
@@ -4725,6 +4726,57 @@ p<-ggplot(data=table)+geom_boxplot(aes(y=as.numeric(success),x=as.factor(fac),fi
 p
 
 ```
+## Prediction abilities
+```{r prediction, echo=FALSE}
+
+AUCs<-list(AUC_j_env=AUC_j_env,AUC_g_env=AUC_g_env,AUC_h_env=AUC_h_env,
+           AUC_j_fac_dense=AUC_j_fac_dense,AUC_g_fac_dense=AUC_g_fac_dense,AUC_h_fac_dense=AUC_h_fac_dense,
+           AUC_j_fac_sparse=AUC_j_fac_sparse,AUC_g_fac_sparse=AUC_g_fac_sparse,AUC_h_fac_sparse=AUC_h_fac_sparse,
+           AUC_j_comp_dense=AUC_j_comp_dense,AUC_g_comp_dense=AUC_g_comp_dense,AUC_h_comp_dense=AUC_h_comp_dense,
+           AUC_j_comp_sparse=AUC_j_comp_sparse,AUC_g_comp_sparse=AUC_g_comp_sparse,AUC_h_comp_sparse=AUC_h_comp_sparse,
+           AUC_j_comp_fac_dense=AUC_j_comp_fac_dense,AUC_g_comp_fac_dense=AUC_g_comp_fac_dense,AUC_h_comp_fac_dense=AUC_h_comp_fac_dense,
+           AUC_j_comp_fac_sparse=AUC_j_comp_fac_sparse,AUC_g_comp_fac_sparse=AUC_g_comp_fac_sparse,AUC_h_comp_fac_sparse=AUC_h_comp_fac_sparse)
+
+table<-as.data.frame(matrix(ncol=4,dimnames = list(NULL,c("AUC","Model","Filtering","Density"))))
+for(i in 1:length(AUCs)){
+  k<-ifelse(nrow(table)==1,0,nrow(table))
+  table[(k+1):(k+length(AUCs[[i]])),"AUC"]<-AUCs[[i]]
+  if(length(grep("_j_",names(AUCs)[[i]]))>0)  table[(k+1):(k+length(AUCs[[i]])),"Model"]<-rep("JSDM",length(AUCs[[i]]))
+  
+  if(length(grep("_g_",names(AUCs)[[i]]))>0)  table[(k+1):(k+length(AUCs[[i]])),"Model"]<-rep("GJAM",length(AUCs[[i]]))
+  
+  if(length(grep("_h_",names(AUCs)[[i]]))>0)  table[(k+1):(k+length(AUCs[[i]])),"Model"]<-rep("HMSC",length(AUCs[[i]]))
+  
+  
+  if(length(grep("_comp_fac_",names(AUCs)[[i]]))>0){
+    table[(k+1):(k+length(AUCs[[i]])),"Filtering"]<-rep("C+F",length(AUCs[[i]]))
+  }else{if(length(grep("_fac_",names(AUCs)[[i]]))>0) { table[(k+1):(k+length(AUCs[[i]])),"Filtering"]<-rep("Fac",length(AUCs[[i]]))
+  }else{if(length(grep("_comp_",names(AUCs)[[i]]))>0) { table[(k+1):(k+length(AUCs[[i]])),"Filtering"]<-rep("Comp",length(AUCs[[i]])) }
+  }
+  }
+  if(length(grep("_env",names(AUCs)[[i]]))>0) table[(k+1):(k+length(AUCs[[i]])),"Filtering"]<-rep("Env",length(AUCs[[i]]))
+
+  
+ if(length(grep("_dense",names(AUCs)[[i]]))>0){
+   table[(k+1):(k+length(AUCs[[i]])),"Density"]<-rep("Dense",length(AUCs[[i]]))
+  }else{ table[(k+1):(k+length(AUCs[[i]])),"Density"]<-rep("Sparse",length(AUCs[[i]]))
+  }
+  
+}
+  
+table[nrow(table)+1,]<-c(-1,"JSDM", "Env","Dense")
+table[nrow(table)+1,]<-c(-1,"GJAM", "Env","Dense")
+table[nrow(table)+1,]<-c(-1,"HMSC", "Env","Dense")
+
+p<-ggplot(data=table)+geom_boxplot(aes(y=as.numeric(AUC),x=Filtering,fill=Model,color=Density),position = position_dodge(1,preserve = "single"))+
+  ylim(c(0,1)) +scale_colour_manual(name = as.character(levels(as.factor(table$Density))),values = c('black','purple'))+
+  theme_tufte()
+
+
+```
+
+
+
 
 ## Visualization for true interactions
 
