@@ -29,7 +29,7 @@ xdata_20<-scale(poly(data_20$env, 2))
 colnames(xdata_20)<- c("env","env2")
 formula<- ~env + env2
 rl   <- list(r = 5, N = 10)
-ml   <- list(ng = 5000, burnin = 500, typeNames = 'PA', reductList = rl)
+ml   <- list(ng = 5000, burnin = 500, typeNames = 'PA', reductList = rl, PREDICTX = F )
 out  <- gjam(formula, xdata = xdata_20, ydata = ydata, modelList = ml)
 
 k_unique_clust<- apply(out$chains$kgibbs,1,unique)
