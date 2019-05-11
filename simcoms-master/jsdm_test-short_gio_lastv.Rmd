@@ -588,7 +588,7 @@ load_gjam<-function(data,it=2500,burn=500,name="./gjam_models/temp.rda",interact
   S<-ncol(data$Y)
   gjam_bs<- mcmc.list(mcmc(gj_mod$m1$chains$bgibbsUn[-(1:burn),]),mcmc(gj_mod$m2$chains$bgibbsUn[-(1:burn),]))
   gjam_sigma<- mcmc.list(mcmc(gj_mod$m1$chains$sgibbs[-(1:burn),]),mcmc(gj_mod$m2$chains$sgibbs[-(1:burn),]))
-  
+  ###NEW plot for effective size
   n_eff_beta<- as.data.frame(effectiveSize(gjam_bs))
   colnames(n_eff_beta)<- c("value")
   n_eff_beta$parameter<- "beta"
@@ -650,31 +650,7 @@ load_gjam<-function(data,it=2500,burn=500,name="./gjam_models/temp.rda",interact
   tau_LO<-apply(tau,c(1,2),quantile,0.05)
   
   Tau_sign<-tau_mean*(!(tau_HI>0 & tau_LO<0))
-  
-  
-  # 
-  # 
-  # ind <-which(array(diag(S)[lower.tri(diag(S),diag=T)])==1)
-  # par(mfrow=c(1,3),oma = c(1, 1, 1, 1))
-  # hist(effectiveSize(gj_mod$chains$sgibbs[,-ind]), main="sigma non diagonal elements",lwd=2,col=gray(.6))
-  # hist(effectiveSize(gj_mod$chains$sgibbs[,ind]), main="sigma diagonal elements",lwd=2,col=gray(.6))
-  # hist(effectiveSize(gj_mod$chains$bgibbs), main="ess(beta)",lwd=2,col=gray(.6))
-  # 
-  # 
-  # postH<-apply(gj_mod$chains$sgibbs[burn:dim(gj_mod$chains$sgibbs)[1],], 2, quantile,0.95)
-  # postL<-apply(gj_mod$chains$sgibbs[burn:dim(gj_mod$chains$sgibbs)[1],], 2, quantile,0.05)
-  # pH<-convert_to_m(postH)
-  # pL<-convert_to_m(postL)
-  # R_sign<-cov2cor(gj_mod$parameters$sigMu)*(!(pH>0 & pL<0))
-  # 
-  # 
-  # sgibbs<-gj_mod$chains$sgibbs
-  # tau<-array(NA,dim=c(data$J,data$J,it-burn))
-  # for(j in (burn:it)){
-  #   ss <- expandSigma_rmd(sgibbs[j,], S = data$J)
-  #   si <- solve(ss)
-  #   tau[,,j-burn] <- -cov2cor(si)
-  # }
+
   x<- data$X
   #p1<-gjamPredict(mod_gjam1)
   mu<-array(NA,dim=c(data$n,data$J,it))
@@ -685,15 +661,6 @@ load_gjam<-function(data,it=2500,burn=500,name="./gjam_models/temp.rda",interact
           
     }
   }
-  
-  
-  # tau_mean<-apply(tau,c(1,2), mean)
-  # tau_HI<-apply(tau,c(1,2),quantile,0.95)
-  # tau_LO<-apply(tau,c(1,2),quantile,0.05)
-  # 
-  # Tau_sign<-tau_mean*(!(tau_HI>0 & tau_LO<0))
-  # 
-  # 
 
   par(mfrow=c(2,3),oma = c(1, 1, 1, 1))
   corrplot(cor(data$Y), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
@@ -739,7 +706,6 @@ pred_gj_95 <- apply(mod_gjam$predict, 1:2,quantile,0.95)
 AUC_g_env<-vector()
 for(i in 1:(ncol(data)-1)) AUC_g_env<-c(AUC_g_env,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
 
-
 pred_gjam<- list(pred_gj_mean=pred_gj_mean,pred_gj_05=pred_gj_05,pred_gj_95=pred_gj_95)
 
 ```
@@ -775,21 +741,37 @@ hm_mod<-load_object("./HMmodels/hm5env.rda")
 
 ```
 
-
-
 Convergence:
 
 
-
-```{r hmsc convergence, include=FALSE}
+```{r hmsc convergence, include=TRUE, echo = FALSE}
 hm_conv<-function(mod){
   codaList = convertToCodaObject(mod)
   #convergence histograms
-  hist(effectiveSize(codaList$Beta), main="ess(beta)",lwd=2,col=gray(.6))
-  hist(gelman.diag(codaList$Beta,multivariate=FALSE)$psrf,lwd=2,col=gray(.6), main="psrf(beta)")
+  ##NEW convergence histograms
+  n_eff_beta<- as.data.frame(effectiveSize(codaList$Beta))
+  colnames(n_eff_beta)<- c("value")
+  n_eff_beta$parameter<- "beta"
+  n_eff_sigma<- as.data.frame(effectiveSize(codaList$Omega[[1]]))
+  colnames(n_eff_sigma)<- c("value")
+  n_eff_sigma$parameter<- "correlation"
+  neff<- rbind(n_eff_beta,n_eff_sigma)
+  p<- ggplot(neff, aes(x=value, color=parameter,fill=parameter)) +
+     geom_histogram( alpha=0.4, position="identity",binwidth =50) + xlab("effective size") +
+    scale_color_brewer(palette="Dark2")+scale_fill_brewer(palette="Dark2")+
+   ggtitle("Effective size for the parameters beta and coefficients of correlation matrix")
+  plot(p)
   
-  hist(effectiveSize(codaList$Omega[[1]]), main="ess(omega)",lwd=2,col=gray(.6))
-  hist(gelman.diag(codaList$Omega[[1]], multivariate=FALSE)$psrf,lwd=2,col=gray(.6),      main="psrf(omega)")
+  Rhat_beta<-as.data.frame(gelman.diag(codaList$Beta,multivariate=FALSE)$psrf)
+  Rhat_beta$parameter<- "beta"
+  Rhat_sigma<- as.data.frame(gelman.diag(codaList$Omega[[1]], multivariate=FALSE)$psrf)
+  Rhat_sigma$parameter<- "correlation"
+  Rhat<- rbind(Rhat_beta,Rhat_sigma)
+  p2<- ggplot(Rhat, aes(x= Rhat$`Point est.`, color=parameter,fill=parameter)) +
+     geom_histogram( alpha=0.4, position="identity",binwidth =0.01) +
+    scale_color_brewer(palette="Dark2")+scale_fill_brewer(palette="Dark2")+ xlab("Rhat") +
+   ggtitle("Rhat for the parameters beta and the coefficients of correlation matrix")
+  plot(p2)
 }
 
 hm_conv(hm_mod)
@@ -990,7 +972,7 @@ for(i in 1:(ncol(data)-1)) AUC_h_env<-c(AUC_h_env,auc(roc(pred_hm_mean[,i],facto
 ## Plot species responses
 
 ```{r function response to environnment env5, include=TRUE,echo=FALSE}
-create_plot_response<- function(data, nsp=5,pred_gjam, pred_jsdm,pred_hmsc ){
+create_plot_response<- function(data, nsp=5,pred_gjam, pred_jsdm,pred_hmsc , gjam_dr){
   np<-nrow(data)
   nspecies<-nsp
   niche_optima  = seq(2, 98, length.out=nspecies)
@@ -1030,6 +1012,20 @@ for(i in 1:nspecies) {
   table_gjam<-rbind(table_gjam,tmp)
 }
 
+
+######## GJAM_DR
+table_gjam_dr<-data.frame()
+
+pred_gj_dr_mean<-pred_gjam_dr$pred_gj_dr_mean
+pred_gj_dr_95<-pred_gjam_dr$pred_gj_dr_95
+pred_gj_dr_05<-pred_gjam_dr$pred_gj_dr_05
+
+for(i in 1:nspecies) {
+  tmp<-data.frame(xx=xx,mean=pred_gj_dr_mean[,i],q_95=pred_gj_dr_95[,i],q_05=pred_gj_dr_05[,i],type=rep("gjam_dr",np),species=rep(i,np))
+  table_gjam_dr<-rbind(table_gjam_dr,tmp)
+}
+
+
 #HMSC
 table_hmsc<-data.frame()
 pred_hm_mean<-pred_hmsc$pred_hm_mean
@@ -1042,7 +1038,7 @@ for(i in 1:nspecies) {
 }
   
 #table for predictions
-table<-rbind(table_jsdm,table_gjam,table_hmsc)
+table<-rbind(table_jsdm,table_gjam,table_gjam_dr,table_hmsc)
 
 #table for observations
 Y_data = subset(data, select = -env)
@@ -1106,6 +1102,33 @@ if (nsp==5){
   p_2
   }
 
+#gjam_dr
+p_2_1<-list()
+for(i in 1:nsp)
+local({
+  i<-i
+  tmp<-table_gjam_dr[which(table_gjam_dr$species==i),]
+  tmp_obs<-table_obs[which(table_obs$species==i),]
+  tmp_fund<-table_fundamental[which(table_fundamental$species==i),]
+  g<<-ggplot()+
+    geom_ribbon(aes(x=tmp$xx,ymin=tmp$q_05,ymax=tmp$q_95),alpha=0.5)+
+    geom_line(aes(x=tmp$xx,y=tmp$mean,color = "Predicted probability"),lwd=1.5)+
+    geom_point(aes(x=tmp_obs$xx,y=tmp_obs$obs),col="#000066",size=0.5) +xlab("Environmental gradient")+ylab("Probability of presence")+
+    geom_line(data=tmp_fund,aes(x=tmp_fund$xx,y=tmp_fund$niche,color = "Fundamental niche"),lwd=1)+
+    labs(title=paste0("GJAM, Species ",i))+
+    scale_color_manual(name = c("Legend"), values = c("Predicted probability" = "#FF6666","Fundamental niche"="#9999FF"))
+
+  p_2_1<<-list.append(p_2_1,g)
+  assign(paste0("p",i), g, pos =1)
+})
+
+if (nsp==5){
+  grid.arrange(p1,p2,p3,p4,p5,nrow=ceiling(nspecies/2))
+}else{ 
+  p_2
+  }
+
+
 
 #hmsc
 p_3<-list()
@@ -1165,7 +1188,7 @@ if (nsp==5){
   
 }
 
-create_plot_response(sim_data$EnvEvenSp5, nsp=5,pred_gjam, pred_jsdm,pred_hmsc )
+create_plot_response(data=sim_data$EnvEvenSp5, nsp=5,pred_gjam, pred_jsdm,pred_hmsc,pred_gjam_dr)
 
 ```
 
@@ -1305,6 +1328,7 @@ gjam_dim_red_5<-function(datab,ng=2500, burnin=500){
   xdata<-scale(poly(datab$env, 2))
   ns<- ncol(ydata)
   N<-ncol(ydata)-1
+  n<-nrow(datab)
   colnames(xdata)<- c("env","env2")
   formula<- ~env + env2
   r<-3
@@ -1314,13 +1338,35 @@ gjam_dim_red_5<-function(datab,ng=2500, burnin=500){
   mod_gjam_red_2 <- gjam(formula, xdata, ydata, modelList = ml)
   gjam_bs<- mcmc.list(mcmc(mod_gjam_red_1$chains$bgibbsUn[-(1:burnin),]),mcmc(mod_gjam_red_2$chains$bgibbsUn[-(1:burnin),]))
   gjam_sigma<- mcmc.list(mcmc(mod_gjam_red_1$chains$sgibbs[-(1:burnin),]),mcmc(mod_gjam_red_2$chains$sgibbs[-(1:burnin),]))
-  hist(effectiveSize(gjam_bs), main="ess(beta)",lwd=2,col=gray(.6),breaks=20)
-  hist(gelman.diag(gjam_bs, multivariate=FALSE)$psrf,lwd=2,col=gray(.6), main="psrf(beta)")
+  
+  n_eff_beta<- as.data.frame(effectiveSize(gjam_bs))
+  colnames(n_eff_beta)<- c("value")
+  n_eff_beta$parameter<- "beta"
+  n_eff_sigma<- as.data.frame(effectiveSize(gjam_sigma))
+  colnames(n_eff_sigma)<- c("value")
+  n_eff_sigma$parameter<- "correlation"
+  neff<- rbind(n_eff_beta,n_eff_sigma)
+  p<- ggplot(neff, aes(x=value, color=parameter,fill=parameter)) +
+     geom_histogram( alpha=0.4, position="identity",binwidth = 50) + xlab("effective size") +
+    scale_color_brewer(palette="Dark2")+scale_fill_brewer(palette="Dark2")+
+   ggtitle("Effective size for the parameters beta and coefficients of correlation matrix")
+  plot(p)
+  
+  Rhat_beta<-as.data.frame(gelman.diag(gjam_bs, multivariate=FALSE)$psrf)
+  Rhat_beta$parameter<- "beta"
+  Rhat_sigma<- as.data.frame(gelman.diag(gjam_sigma, multivariate=FALSE)$psrf)
+  Rhat_sigma$parameter<- "correlation"
+  Rhat<- rbind(Rhat_beta,Rhat_sigma)
+  p2<- ggplot(Rhat, aes(x= Rhat$`Point est.`, color=parameter,fill=parameter)) +
+     geom_histogram( alpha=0.4, position="identity",binwidth =0.1) +
+    scale_color_brewer(palette="Dark2")+scale_fill_brewer(palette="Dark2")+ xlab("Rhat") +
+   ggtitle("Rhat for the parameters beta and the coefficients of correlation matrix")
+  plot(p2)
+
+
   #gelman.plot(gjam_bs)
   #xyplot(gjam_bs)
   #traceplot(gjam_sigma)
-  hist(effectiveSize(gjam_sigma), main="ess(sigma)",lwd=2,col=gray(.6),breaks = 50)
-  hist(gelman.diag(gjam_sigma,multivariate=FALSE)$psrf,lwd=2,col=gray(.6), main="psrf(sigma)",breaks = 50)
   #gelman.plot(gjam_sigma)
   #xyplot(gjam_sigma)
 
@@ -1350,13 +1396,36 @@ gjam_dim_red_5<-function(datab,ng=2500, burnin=500){
   invsigma_q05<-apply(invsigma,c(1,2),quantile,0.05) 
   invsigma_q95<-apply(invsigma,c(1,2),quantile,0.95) 
   INVSigma_sign<--cov2cor(sigma_mean*(!(invsigma_q95>0 & invsigma_q05<0)))
- # gjam_mc_nd<- mcmc(mod_gjam_red_1$chains$sgibbs) 
-  #hist(effectiveSize(gjam_mc_nd), main="ess(sigma)",lwd=2,col=gray(.6),breaks=100)
-  return(list(Rho_sign_d=Sigma_sign,Tau_sign_d=INVSigma_sign,k=kgibbs))
+  x <- cbind(1, scale(poly(datab$env, 2)))
+  J<- ncol(datab) - 1
+  mu<-array(NA,dim=c(n,J,ng))
+  for(k in 1:ng){
+      for(j in 1:J){
+    
+         mu[,j,k] <- pnorm(x%*%mod_gjam_red_1$chains$bgibbs[k,(3*(j-1)+1):(3*j)])
+          
+    }
+  }
+
+ 
+  
+  return(list(Rho_sign_d=Sigma_sign,Tau_sign_d=INVSigma_sign,k=kgibbs, predict=mu))
 }
 
 S<- gjam_dim_red_5(sim_data$EnvEvenSp5,ng=2500, burnin=500)
 
+
+##AUC
+AUC_gdr_env<-vector()
+
+##Prediction
+pred_gj_mean <-apply(S$predict, 1:2,mean)
+pred_gj_05 <- apply(S$predict, 1:2,quantile,0.05)
+pred_gj_95 <- apply(S$predict, 1:2,quantile,0.95)
+data<-sim_data$EnvEvenSp5 
+for(i in 1:(ncol(data)-1)) AUC_gdr_env<-c(AUC_gdr_env,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
+
+pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_mean,pred_gj_dr_05=pred_gj_05,pred_gj_dr_95=pred_gj_95)
 
 par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
 corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
@@ -1407,9 +1476,21 @@ ALL4(mod_list_Tau$jsdm,mod_list_Tau$gjam,mod_list_Tau$hmsc,diag(5))
 
 ```
 
+
+
+
+
 ## Environmental filtering 10 species
 
+
+
+
+
 ### JSDM
+
+
+
+
 
 ```{r load_m en10,include=FALSE}
 me10 <- load_object("model-2019-04-10-08-26-20.rda")
@@ -1490,7 +1571,7 @@ for(i in 1:data$J) AUC_j_env<-c(AUC_j_env,auc(roc(pred_j_mean[,i],factor(data$Y[
 ```{r gjam en10,include=TRUE,echo=FALSE}
 data<-sim_data$EnvEvenSp10
 #gjam_mod<-fit_gjam(data,3000,500,"./gjam_models/gjam10env.rda")
-gjam_mod<-load_gjam(data,3000,500,name="./gjam_models/gjam10env.rda")
+gjam_mod<-load_gjam(data,it=3000,500,name="./gjam_models/gjam10env.rda")
 g_metric_e10<-metrics_gjam(gjam_mod$Rho_sign)
 g_metric_e10_p<-metrics_gjam(gjam_mod$Tau_sign)
 cat("Success rate ")
@@ -1551,7 +1632,7 @@ for(i in 1:(ncol(data)-1)) AUC_h_env<-c(AUC_h_env,auc(roc(pred_hmsc$pred_hm_mean
 
 ```{r dim red  env10, include=TRUE, echo=FALSE}
 
-gjam_dim_red<-function(datab,ng=2500, burnin=500,r=1){
+gjam_dim_red<-function(datab,ng=2500, burnin=500,r=1,regime="Load",name="./gjam_models/tmp.rda"){
   ydata<-subset(datab, select = -env)
   xdata<-scale(poly(datab$env, 2))
   ns<- ncol(ydata)
@@ -1580,13 +1661,35 @@ gjam_dim_red<-function(datab,ng=2500, burnin=500,r=1){
   mod_gjam_red_2 <- gjam(formula, xdata, ydata, modelList = ml)
   gjam_bs<- mcmc.list(mcmc(mod_gjam_red_1$chains$bgibbsUn[-(1:burnin),]),mcmc(mod_gjam_red_2$chains$bgibbsUn[-(1:burnin),]))
   gjam_sigma<- mcmc.list(mcmc(mod_gjam_red_1$chains$sgibbs[-(1:burnin),]),mcmc(mod_gjam_red_2$chains$sgibbs[-(1:burnin),]))
-  hist(effectiveSize(gjam_bs), main="ess(beta)",lwd=2,col=gray(.6),breaks=20)
-  hist(gelman.diag(gjam_bs, multivariate=FALSE)$psrf,lwd=2,col=gray(.6), main="psrf(beta)")
+    n_eff_beta<- as.data.frame(effectiveSize(gjam_bs))
+  colnames(n_eff_beta)<- c("value")
+  n_eff_beta$parameter<- "beta"
+  n_eff_sigma<- as.data.frame(effectiveSize(gjam_sigma))
+  colnames(n_eff_sigma)<- c("value")
+  n_eff_sigma$parameter<- "correlation"
+  neff<- rbind(n_eff_beta,n_eff_sigma)
+  p<- ggplot(neff, aes(x=value, color=parameter,fill=parameter)) +
+     geom_histogram( alpha=0.4, position="identity",binwidth = 50) + xlab("effective size") +
+    scale_color_brewer(palette="Dark2")+scale_fill_brewer(palette="Dark2")+
+   ggtitle("Effective size for the parameters beta and coefficients of correlation matrix")
+  plot(p)
+  
+  Rhat_beta<-as.data.frame(gelman.diag(gjam_bs, multivariate=FALSE)$psrf)
+  Rhat_beta$parameter<- "beta"
+  Rhat_sigma<- as.data.frame(gelman.diag(gjam_sigma, multivariate=FALSE)$psrf)
+  Rhat_sigma$parameter<- "correlation"
+  Rhat<- rbind(Rhat_beta,Rhat_sigma)
+  p2<- ggplot(Rhat, aes(x= Rhat$`Point est.`, color=parameter,fill=parameter)) +
+     geom_histogram( alpha=0.4, position="identity",binwidth =0.1) +
+    scale_color_brewer(palette="Dark2")+scale_fill_brewer(palette="Dark2")+ xlab("Rhat") +
+   ggtitle("Rhat for the parameters beta and the coefficients of correlation matrix")
+  plot(p2)
+
   #gelman.plot(gjam_bs)
   #xyplot(gjam_bs)
   #traceplot(gjam_sigma)
-  hist(effectiveSize(gjam_sigma), main="ess(sigma)",lwd=2,col=gray(.6),breaks = 50)
-  hist(gelman.diag(gjam_sigma,multivariate=FALSE)$psrf,lwd=2,col=gray(.6), main="psrf(sigma)",breaks = 50)
+  # hist(effectiveSize(gjam_sigma), main="ess(sigma)",lwd=2,col=gray(.6),breaks = 50)
+  # hist(gelman.diag(gjam_sigma,multivariate=FALSE)$psrf,lwd=2,col=gray(.6), main="psrf(sigma)",breaks = 50)
   #gelman.plot(gjam_sigma)
   #xyplot(gjam_sigma)
   
@@ -1618,10 +1721,32 @@ gjam_dim_red<-function(datab,ng=2500, burnin=500,r=1){
   invsigma_q05<-apply(invsigma,c(1,2),quantile,0.05) 
   invsigma_q95<-apply(invsigma,c(1,2),quantile,0.95) 
   INVSigma_sign<--cov2cor(sigma_mean*(!(invsigma_q95>0 & invsigma_q05<0)))
-  return(list(Rho_sign_d=Sigma_sign,Tau_sign_d=INVSigma_sign,r_opt=r, k=kgibbs ))
+  x <- cbind(1, scale(poly(datab$env, 2)))
+  J<- ncol(datab) - 1
+  mu<-array(NA,dim=c(n,J,ng))
+  for(k in 1:ng){
+      for(j in 1:J){
+    
+         mu[,j,k] <- pnorm(x%*%mod_gjam_red_1$chains$bgibbs[k,(3*(j-1)+1):(3*j)])
+          
+    }
+  }
+
+  
+  return(list(Rho_sign_d=Sigma_sign,Tau_sign_d=INVSigma_sign,r_opt=r, k=kgibbs , predict=mu))
 }
 #r-opt=7
 S<- gjam_dim_red(sim_data$EnvEvenSp10,ng=2500, burnin=500,r=7)
+
+##Prediction
+pred_gj_mean <-apply(S$predict, 1:2,mean)
+pred_gj_05 <- apply(S$predict, 1:2,quantile,0.05)
+pred_gj_95 <- apply(S$predict, 1:2,quantile,0.95)
+data<-sim_data$EnvEvenSp5 
+for(i in 1:(ncol(data)-1)) AUC_gdr_env<-c(AUC_gdr_env,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
+
+pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_mean,pred_gj_dr_05=pred_gj_05,pred_gj_dr_95=pred_gj_95)
+
 
 par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
 corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
@@ -1642,6 +1767,10 @@ title("True interactions")
 
 
 
+### Summary plots for models
+
+
+
 ```{r all models rho env10, include=TRUE}
 create_beta_plot(load_object("./gjam_models/gjam10env.rda"),me10,load_object("./HMmodels/hm10env.rda"))
 #data, nsp=5,pred_gjam, pred_jsdm,pred_hmsc 
@@ -1652,6 +1781,12 @@ ALL3(mod_list_Rho$jsdm,mod_list_Rho$gjam,mod_list_Rho$hmsc,diag(10))
 ```
 
 
+
+### Summary plots for models
+
+
+
+
 ```{r all models tau env10, include=TRUE}
 
 
@@ -1660,7 +1795,16 @@ ALL4(mod_list_Tau$jsdm,mod_list_Tau$gjam,mod_list_Tau$hmsc,diag(10))
 ```
 
 
+
+
+
+
+
 ## Environmental filtering 20 species
+
+
+
+
 
 ### JSDM
 
@@ -1796,6 +1940,18 @@ for(i in 1:(ncol(data)-1)) AUC_h_env<-c(AUC_h_env,auc(roc(pred_hmsc$pred_hm_mean
 #r-opt=15
 S<- gjam_dim_red(sim_data$EnvEvenSp20,ng=2500, burnin=500,r=15)
 
+
+##Prediction
+pred_gj_mean <-apply(S$predict, 1:2,mean)
+pred_gj_05 <- apply(S$predict, 1:2,quantile,0.05)
+pred_gj_95 <- apply(S$predict, 1:2,quantile,0.95)
+data<-sim_data$EnvEvenSp5 
+for(i in 1:(ncol(data)-1)) AUC_gdr_env<-c(AUC_gdr_env,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
+
+pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_mean,pred_gj_dr_05=pred_gj_05,pred_gj_dr_95=pred_gj_95)
+
+
+
 par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
 corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
 title("Correlation from dimension reduction")
@@ -1830,7 +1986,14 @@ ALL4(mod_list_Tau$jsdm,mod_list_Tau$gjam,mod_list_Tau$hmsc,diag(20))
 ```
 
 
+
+
+
 ## Environmental filtering + Facilitation dense 5 species
+
+
+
+
 
 ### JSDM
 
@@ -1920,6 +2083,9 @@ pred_gjam<- list(pred_gj_mean=pred_gj_mean,pred_gj_05=pred_gj_05,pred_gj_95=pred
 
 
 ### HMSC
+
+
+
 ```{r hmsc fd5,include=FALSE}
 data<-sim_data$FacDenseSp5
 hm_mod<-fit_hmsc(data,"Load",name="./HMmodels/hm5fd.rda" )
@@ -1967,6 +2133,18 @@ for(i in 1:(ncol(data)-1)) AUC_h_fac_dense<-c(AUC_h_fac_dense,auc(roc(pred_hmsc$
 
 S<- gjam_dim_red_5(sim_data$FacDenseSp5,ng=5500, burnin=1000)
 
+AUC_gdr_fac_dense<-vector()
+
+##Prediction
+pred_gj_mean <-apply(S$predict, 1:2,mean)
+pred_gj_05 <- apply(S$predict, 1:2,quantile,0.05)
+pred_gj_95 <- apply(S$predict, 1:2,quantile,0.95)
+data<-sim_data$EnvEvenSp5 
+for(i in 1:(ncol(data)-1)) AUC_gdr_fac_dense<-c(AUC_gdr_fac_dense,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
+
+pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_mean,pred_gj_dr_05=pred_gj_05,pred_gj_dr_95=pred_gj_95)
+
+
 par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
 corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
 title("Correlation from dim. reduction")
@@ -2000,7 +2178,15 @@ ALL4(mod_list_Tau$jsdm,mod_list_Tau$gjam,mod_list_Tau$hmsc,diag(10))
 
 
 
+
+
+
 ## Environmental filtering + Facilitation dense 10 species
+
+
+
+
+
 
 ### JSDM
 
@@ -2134,6 +2320,25 @@ for(i in 1:(ncol(data)-1)) AUC_h_fac_dense<-c(AUC_h_fac_dense,auc(roc(pred_hmsc$
 S<- gjam_dim_red(sim_data$FacDenseSp10,ng=2500, burnin=500,r=7)
 pg<- comp.psm(S$k)
 
+##Prediction
+pred_gj_mean <-apply(S$predict, 1:2,mean)
+pred_gj_05 <- apply(S$predict, 1:2,quantile,0.05)
+pred_gj_95 <- apply(S$predict, 1:2,quantile,0.95)
+data<-sim_data$EnvEvenSp5 
+for(i in 1:(ncol(data)-1)) AUC_gdr_fac_dense<-c(AUC_gdr_fac_dense,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
+
+pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_mean,pred_gj_dr_05=pred_gj_05,pred_gj_dr_95=pred_gj_95)
+
+##Prediction
+pred_gj_mean <-apply(S$predict, 1:2,mean)
+pred_gj_05 <- apply(S$predict, 1:2,quantile,0.05)
+pred_gj_95 <- apply(S$predict, 1:2,quantile,0.95)
+data<-sim_data$EnvEvenSp5 
+for(i in 1:(ncol(data)-1)) AUC_gdr_env<-c(AUC_gdr_env,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
+
+pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_mean,pred_gj_dr_05=pred_gj_05,pred_gj_dr_95=pred_gj_95)
+
+
 par(mfrow=c(2,2))
 corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
 title("Correlation from dim. reduction")
@@ -2168,7 +2373,17 @@ ALL4(mod_list_Tau$jsdm,mod_list_Tau$gjam,mod_list_Tau$hmsc,fac_inter[[5]])
 ```
 
 
+
+
+
+
 ## Environmental filtering + Facilitation dense 20 species
+
+
+
+
+
+
 
 ### JSDM
 
@@ -2299,6 +2514,25 @@ for(i in 1:(ncol(data)-1)) AUC_h_fac_dense<-c(AUC_h_fac_dense,auc(roc(pred_hmsc$
 
 #r-opt=15
 S<- gjam_dim_red(sim_data$FacDenseSp20,ng=2500, burnin=500,r=15)
+##Prediction
+pred_gj_mean <-apply(S$predict, 1:2,mean)
+pred_gj_05 <- apply(S$predict, 1:2,quantile,0.05)
+pred_gj_95 <- apply(S$predict, 1:2,quantile,0.95)
+data<-sim_data$EnvEvenSp5 
+for(i in 1:(ncol(data)-1)) AUC_gdr_fac_dense<-c(AUC_gdr_fac_dense,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
+
+pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_mean,pred_gj_dr_05=pred_gj_05,pred_gj_dr_95=pred_gj_95)
+
+##Prediction
+pred_gj_mean <-apply(S$predict, 1:2,mean)
+pred_gj_05 <- apply(S$predict, 1:2,quantile,0.05)
+pred_gj_95 <- apply(S$predict, 1:2,quantile,0.95)
+data<-sim_data$EnvEvenSp5 
+for(i in 1:(ncol(data)-1)) AUC_gdr_env<-c(AUC_gdr_env,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
+
+pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_mean,pred_gj_dr_05=pred_gj_05,pred_gj_dr_95=pred_gj_95)
+
+
 
 par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
 corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
@@ -2333,7 +2567,19 @@ ALL4(mod_list_Tau$jsdm,mod_list_Tau$gjam,mod_list_Tau$hmsc,fac_inter[[6]])
 
 
 
+
+
+
+
 ## Environmental filtering + Facilitation sparse 5 species
+
+
+
+
+
+
+
+
 
 ### JSDM
 
@@ -2461,6 +2707,18 @@ for(i in 1:(ncol(data)-1)) AUC_h_fac_sparse<-c(AUC_h_fac_sparse,auc(roc(pred_hms
 ```{r dimred fs5, include=TRUE,echo=FALSE}
 S<- gjam_dim_red_5(sim_data$FacSparseSp5,ng=2500, burnin=1000)
 
+AUC_gdr_fac_sparse<-vector()
+
+##Prediction
+pred_gj_mean <-apply(S$predict, 1:2,mean)
+pred_gj_05 <- apply(S$predict, 1:2,quantile,0.05)
+pred_gj_95 <- apply(S$predict, 1:2,quantile,0.95)
+data<-sim_data$EnvEvenSp5 
+for(i in 1:(ncol(data)-1)) AUC_gdr_fac_sparse<-c(AUC_gdr_fac_sparse,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
+
+pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_mean,pred_gj_dr_05=pred_gj_05,pred_gj_dr_95=pred_gj_95)
+
+
 par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
 corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
 title("Correlation from dim. reduction")
@@ -2491,7 +2749,19 @@ ALL4(mod_list_Tau$jsdm,mod_list_Tau$gjam,mod_list_Tau$hmsc,fac_inter[[7]])
 
 ```
 
+
+
+
+
+
+
 ## Environmental filtering + Facilitation sparse 10 species
+
+
+
+
+
+
 
 ### JSDM
 
@@ -2602,6 +2872,17 @@ for(i in 1:(ncol(data)-1)) AUC_h_fac_sparse<-c(AUC_h_fac_sparse,auc(roc(pred_hms
 #r-opt=5
 S<- gjam_dim_red(sim_data$FacSparseSp10,ng=2500, burnin=500,r=5)
 
+##Prediction
+pred_gj_mean <-apply(S$predict, 1:2,mean)
+pred_gj_05 <- apply(S$predict, 1:2,quantile,0.05)
+pred_gj_95 <- apply(S$predict, 1:2,quantile,0.95)
+data<-sim_data$EnvEvenSp5 
+for(i in 1:(ncol(data)-1)) AUC_gdr_fac_sparse<-c(AUC_gdr_fac_sparse,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
+
+pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_mean,pred_gj_dr_05=pred_gj_05,pred_gj_dr_95=pred_gj_95)
+
+
+
 par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
 corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
 title("Correlation from dimension reduction")
@@ -2627,7 +2908,17 @@ ALL4(mod_list_Tau$jsdm,mod_list_Tau$gjam,mod_list_Tau$hmsc,fac_inter[[8]])
 ```
 
 
+
+
+
+
 ## Environmental filtering + Facilitation sparse 20 species
+
+
+
+
+
+
 
 ### JSDM
 
@@ -2747,6 +3038,16 @@ for(i in 1:(ncol(data)-1)) AUC_h_fac_sparse<-c(AUC_h_fac_sparse,auc(roc(pred_hms
 #r-opt=15
 S<- gjam_dim_red(sim_data$FacSparseSp20,ng=2500, burnin=500,r=15)
 
+##Prediction
+pred_gj_mean <-apply(S$predict, 1:2,mean)
+pred_gj_05 <- apply(S$predict, 1:2,quantile,0.05)
+pred_gj_95 <- apply(S$predict, 1:2,quantile,0.95)
+data<-sim_data$EnvEvenSp5 
+for(i in 1:(ncol(data)-1)) AUC_gdr_fac_sparse<-c(AUC_gdr_fac_sparse,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
+
+pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_mean,pred_gj_dr_05=pred_gj_05,pred_gj_dr_95=pred_gj_95)
+
+
 par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
 corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
 title("Correlation from dimension reduction")
@@ -2774,7 +3075,16 @@ ALL4(mod_list_Tau$jsdm,mod_list_Tau$gjam,mod_list_Tau$hmsc,fac_inter[[9]])
 ```
 
 
+
+
+
+
 ## Environmental filtering + Competition dense 5 species
+
+
+
+
+
 
 ### JSDM
 
@@ -2903,6 +3213,17 @@ for(i in 1:(ncol(data)-1)) AUC_h_comp_dense<-c(AUC_h_comp_dense,auc(roc(pred_hms
 
 S<- gjam_dim_red_5(sim_data$CompDenseSp5,ng=2500, burnin=1000)
 
+AUC_gdr_comp_dense<-vector()
+
+##Prediction
+pred_gj_mean <-apply(S$predict, 1:2,mean)
+pred_gj_05 <- apply(S$predict, 1:2,quantile,0.05)
+pred_gj_95 <- apply(S$predict, 1:2,quantile,0.95)
+data<-sim_data$EnvEvenSp5 
+for(i in 1:(ncol(data)-1)) AUC_gdr_comp_dense<-c(AUC_gdr_comp_dense,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
+
+pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_mean,pred_gj_dr_05=pred_gj_05,pred_gj_dr_95=pred_gj_95)
+
 par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
 corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
 title("Correlation from dim. reduction")
@@ -2930,7 +3251,20 @@ ALL3(mod_list_Rho$jsdm,mod_list_Rho$gjam,mod_list_Rho$hmsc,(-1)*comp_inter[[10]]
 ALL4(mod_list_Tau$jsdm,mod_list_Tau$gjam,mod_list_Tau$hmsc,(-1)*comp_inter[[10]])
 ```
 
+
+
+
+
+
 ## Environmental filtering + Competition dense 10 species
+
+
+
+
+###JSDM
+
+
+
 
 ```{r model jsdm cmpd10, echo=FALSE,include=FALSE}
 #load("model-2019-04-10-15-13-15.rda")
@@ -3051,6 +3385,16 @@ for(i in 1:(ncol(data)-1)) AUC_h_comp_dense<-c(AUC_h_comp_dense,auc(roc(pred_hms
 #r-opt=5
 S<- gjam_dim_red(sim_data$CompDenseSp10,ng=2500, burnin=500,r=5)
 
+##Prediction
+pred_gj_mean <-apply(S$predict, 1:2,mean)
+pred_gj_05 <- apply(S$predict, 1:2,quantile,0.05)
+pred_gj_95 <- apply(S$predict, 1:2,quantile,0.95)
+data<-sim_data$EnvEvenSp5 
+for(i in 1:(ncol(data)-1)) AUC_gdr_comp_dense<-c(AUC_gdr_comp_dense,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
+
+pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_mean,pred_gj_dr_05=pred_gj_05,pred_gj_dr_95=pred_gj_95)
+
+
 par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
 corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
 title("Correlation from dimension reduction")
@@ -3084,7 +3428,15 @@ ALL4(mod_list_Tau$jsdm,mod_list_Tau$gjam,mod_list_Tau$hmsc,(-1)*comp_inter[[11]]
 ```
 
 
+
+
+
 ## Environmental filtering + Competition dense 20 species
+
+
+
+
+
 
 ```{r model jsdm cmpd20, echo=FALSE,include=FALSE}
 #load("model-2019-04-10-15-13-15.rda")
@@ -3218,6 +3570,16 @@ for(i in 1:(ncol(data)-1)) AUC_h_comp_dense<-c(AUC_h_comp_dense,auc(roc(pred_hms
 #r-opt=15
 S<- gjam_dim_red(sim_data$CompDenseSp20,ng=2500, burnin=500,r=15)
 
+##Prediction
+pred_gj_mean <-apply(S$predict, 1:2,mean)
+pred_gj_05 <- apply(S$predict, 1:2,quantile,0.05)
+pred_gj_95 <- apply(S$predict, 1:2,quantile,0.95)
+data<-sim_data$EnvEvenSp5 
+for(i in 1:(ncol(data)-1)) AUC_gdr_comp_dense<-c(AUC_gdr_comp_dense,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
+
+pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_mean,pred_gj_dr_05=pred_gj_05,pred_gj_dr_95=pred_gj_95)
+
+
 par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
 corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
 title("Correlation from dimension reduction")
@@ -3253,7 +3615,18 @@ ALL4(mod_list_Tau$jsdm,mod_list_Tau$gjam,mod_list_Tau$hmsc,(-1)*comp_inter[[12]]
 
 
 
+
+
+
 ## Environmental filtering + Competition sparse 5 species
+
+
+
+
+
+
+
+
 
 ```{r model jsdm cmps5, echo=FALSE,include=FALSE}
 #load("model-2019-04-17-14-30-01.rda")
@@ -3379,6 +3752,19 @@ for(i in 1:(ncol(data)-1)) AUC_h_comp_sparse<-c(AUC_h_comp_sparse,auc(roc(pred_h
 
 S<- gjam_dim_red_5(sim_data$CompSparseSp5,ng=2500, burnin=1000)
 
+
+AUC_gdr_comp_sparse<-vector()
+
+##Prediction
+pred_gj_mean <-apply(S$predict, 1:2,mean)
+pred_gj_05 <- apply(S$predict, 1:2,quantile,0.05)
+pred_gj_95 <- apply(S$predict, 1:2,quantile,0.95)
+data<-sim_data$EnvEvenSp5 
+for(i in 1:(ncol(data)-1)) AUC_gdr_comp_sparse<-c(AUC_gdr_comp_sparse,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
+
+pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_mean,pred_gj_dr_05=pred_gj_05,pred_gj_dr_95=pred_gj_95)
+
+
 par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
 corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
 title("Correlation from dim. reduction")
@@ -3408,7 +3794,18 @@ ALL4(mod_list_Tau$jsdm,mod_list_Tau$gjam,mod_list_Tau$hmsc,(-1)*comp_inter[[13]]
 ```
 
 
+
+
+
+
+
 ## Environmental filtering + Competition sparse 10 species
+
+
+
+
+
+
 
 
 ### JSDM
@@ -3537,6 +3934,18 @@ for(i in 1:(ncol(data)-1)) AUC_h_comp_sparse<-c(AUC_h_comp_sparse,auc(roc(pred_h
 #r-opt=5
 S<- gjam_dim_red(sim_data$CompSparseSp10,ng=2500, burnin=500,r=5)
 
+##Prediction
+pred_gj_mean <-apply(S$predict, 1:2,mean)
+pred_gj_05 <- apply(S$predict, 1:2,quantile,0.05)
+pred_gj_95 <- apply(S$predict, 1:2,quantile,0.95)
+data<-sim_data$EnvEvenSp5 
+for(i in 1:(ncol(data)-1)) AUC_gdr_comp_sparse<-c(AUC_gdr_comp_sparse,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
+
+pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_mean,pred_gj_dr_05=pred_gj_05,pred_gj_dr_95=pred_gj_95)
+
+
+
+
 par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
 corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
 title("Correlation from dimension reduction")
@@ -3570,7 +3979,19 @@ ALL4(mod_list_Tau$jsdm,mod_list_Tau$gjam,mod_list_Tau$hmsc,(-1)*comp_inter[[14]]
 ```
 
 
+
+
+
+
+
 ## Environmental filtering + Competition sparse 20 species
+
+
+
+
+
+
+
 
 ### JSDM 
 
@@ -3694,6 +4115,17 @@ for(i in 1:(ncol(data)-1)) AUC_h_comp_sparse<-c(AUC_h_comp_sparse,auc(roc(pred_h
 #r-opt=13
 S<- gjam_dim_red(sim_data$CompSparseSp20,ng=2500, burnin=500,r=13)
 
+
+##Prediction
+pred_gj_mean <-apply(S$predict, 1:2,mean)
+pred_gj_05 <- apply(S$predict, 1:2,quantile,0.05)
+pred_gj_95 <- apply(S$predict, 1:2,quantile,0.95)
+data<-sim_data$EnvEvenSp5 
+for(i in 1:(ncol(data)-1)) AUC_gdr_comp_sparse<-c(AUC_gdr_comp_sparse,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
+
+pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_mean,pred_gj_dr_05=pred_gj_05,pred_gj_dr_95=pred_gj_95)
+
+
 par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
 corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
 title("Correlation from dimension reduction")
@@ -3728,7 +4160,17 @@ ALL4(mod_list_Tau$jsdm,mod_list_Tau$gjam,mod_list_Tau$hmsc,(-1)*comp_inter[[15]]
 
 
 
+
+
+
 ## Environmental filtering + Competition +Facilitation 5 dense species
+
+
+
+
+
+
+
 
 ### JSDM 
 
@@ -3859,6 +4301,19 @@ for(i in 1:(ncol(data)-1)) AUC_h_comp_fac_dense<-c(AUC_h_comp_fac_dense,auc(roc(
 
 S<- gjam_dim_red_5(sim_data$FacCompDenseSp5,ng=2500, burnin=1000)
 
+AUC_gdr_comp_fac_dense<-vector()
+
+##Prediction
+pred_gj_mean <-apply(S$predict, 1:2,mean)
+pred_gj_05 <- apply(S$predict, 1:2,quantile,0.05)
+pred_gj_95 <- apply(S$predict, 1:2,quantile,0.95)
+data<-sim_data$EnvEvenSp5 
+for(i in 1:(ncol(data)-1)) AUC_gdr_comp_fac_dense<-c(AUC_gdr_comp_fac_dense,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
+
+pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_mean,pred_gj_dr_05=pred_gj_05,pred_gj_dr_95=pred_gj_95)
+
+
+
 par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
 corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
 title("Correlation from dim. reduction")
@@ -3892,7 +4347,19 @@ ALL4(mod_list_Tau$jsdm,mod_list_Tau$gjam,mod_list_Tau$hmsc, (-1)*comp_inter[[16]
 
 
 
+
+
+
+
 ## Environmental filtering + Competition +Facilitation 10 dense species
+
+
+
+
+
+
+
+
 
 ### JSDM 
 
@@ -4023,6 +4490,16 @@ for(i in 1:(ncol(data)-1)) AUC_h_comp_fac_dense<-c(AUC_h_comp_fac_dense,auc(roc(
 #r-opt=5
 S<- gjam_dim_red(sim_data$FacCompDenseSp10,ng=2500, burnin=500,r=5)
 
+##Prediction
+pred_gj_mean <-apply(S$predict, 1:2,mean)
+pred_gj_05 <- apply(S$predict, 1:2,quantile,0.05)
+pred_gj_95 <- apply(S$predict, 1:2,quantile,0.95)
+data<-sim_data$EnvEvenSp5 
+for(i in 1:(ncol(data)-1)) AUC_gdr_comp_fac_dense<-c(AUC_gdr_comp_fac_dense,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
+
+pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_mean,pred_gj_dr_05=pred_gj_05,pred_gj_dr_95=pred_gj_95)
+
+
 par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
 corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
 title("Correlation from dimension reduction")
@@ -4058,7 +4535,17 @@ ALL4(mod_list_Tau$jsdm,mod_list_Tau$gjam,mod_list_Tau$hmsc, (-1)*comp_inter[[17]
 
 
 
+
+
+
 ## Environmental filtering + Competition +Facilitation 20 dense species
+
+
+
+
+
+
+
 
 ### JSDM 
 
@@ -4189,6 +4676,16 @@ for(i in 1:(ncol(data)-1)) AUC_h_comp_fac_dense<-c(AUC_h_comp_fac_dense,auc(roc(
 #r-opt=5
 S<- gjam_dim_red(sim_data$FacCompDenseSp20,ng=2500, burnin=500,r=15)
 
+##Prediction
+pred_gj_mean <-apply(S$predict, 1:2,mean)
+pred_gj_05 <- apply(S$predict, 1:2,quantile,0.05)
+pred_gj_95 <- apply(S$predict, 1:2,quantile,0.95)
+data<-sim_data$EnvEvenSp5 
+for(i in 1:(ncol(data)-1)) AUC_gdr_comp_fac_dense<-c(AUC_gdr_comp_fac_dense,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
+
+pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_mean,pred_gj_dr_05=pred_gj_05,pred_gj_dr_95=pred_gj_95)
+
+
 par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
 corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
 title("Correlation from dimension reduction")
@@ -4220,7 +4717,19 @@ ALL4(mod_list_Tau$jsdm,mod_list_Tau$gjam,mod_list_Tau$hmsc, (-1)*comp_inter[[18]
 
 
 
+
+
+
+
+
 ## Environmental filtering + Competition +Facilitation 5 sparse species
+
+
+
+
+
+
+
 
 ### JSDM 
 
@@ -4337,9 +4846,30 @@ for(i in 1:(ncol(data)-1)) AUC_h_comp_fac_sparse<-c(AUC_h_comp_fac_sparse,auc(ro
 ```
 
 
+
+### Dimension reduction
+
+
+
+
+
+
 ```{r dimred compfacd5, include=TRUE,echo=FALSE}
 
 S<- gjam_dim_red_5(sim_data$FacCompSparseSp5,ng=2500, burnin=1000)
+
+AUC_gdr_comp_fac_sparse<-vector()
+
+##Prediction
+pred_gj_mean <-apply(S$predict, 1:2,mean)
+pred_gj_05 <- apply(S$predict, 1:2,quantile,0.05)
+pred_gj_95 <- apply(S$predict, 1:2,quantile,0.95)
+data<-sim_data$EnvEvenSp5 
+for(i in 1:(ncol(data)-1)) AUC_gdr_comp_fac_sparse<-c(AUC_gdr_comp_fac_sparse,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
+
+pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_mean,pred_gj_dr_05=pred_gj_05,pred_gj_dr_95=pred_gj_95)
+
+
 
 par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
 corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
@@ -4371,9 +4901,24 @@ ALL4(mod_list_Tau$jsdm,mod_list_Tau$gjam,mod_list_Tau$hmsc, (-1)*comp_inter[[19]
 
 
 
+
+
+
+
+
+
 ## Environmental filtering + Competition +Facilitation 10 sparse species
 
+
+
+
+
+
 ### JSDM 
+
+
+
+
 
 ```{r model jsdm cmp_facs10, echo=FALSE,include=FALSE}
 cmp_fds10 <- load_object("model-2019-04-21-22-58-58.rda")
@@ -4426,7 +4971,15 @@ for(i in 1:data$J) AUC_j_comp_fac_sparse<-c(AUC_j_comp_fac_sparse,auc(roc(pred_j
 ```
 
 
+
+
+
 ### Gjam
+
+
+
+
+
 
 ```{r gjam cmp_facs10,include=TRUE,echo=FALSE}
 data<-sim_data$FacCompSparseSp10
@@ -4453,7 +5006,13 @@ for(i in 1:(ncol(data)-1)) AUC_g_comp_fac_sparse<-c(AUC_g_comp_fac_sparse,auc(ro
 ```
 
 
+
+
 ### HMSC
+
+
+
+
 
 ```{r hmsc cmp_facs10,include=FALSE}
 data<-sim_data$FacCompSparseSp10
@@ -4488,13 +5047,29 @@ for(i in 1:(ncol(data)-1)) AUC_h_comp_fac_sparse<-c(AUC_h_comp_fac_sparse,auc(ro
 ```
 
 
+
+
 ### Dimension reduction
+
+
+
 
 
 ```{r dim red faccomps10, include=TRUE, echo=FALSE}
 
 #r-opt=5
 S<- gjam_dim_red(sim_data$FacCompSparseSp10,ng=2500, burnin=500,r=5)
+
+##Prediction
+pred_gj_mean <-apply(S$predict, 1:2,mean)
+pred_gj_05 <- apply(S$predict, 1:2,quantile,0.05)
+pred_gj_95 <- apply(S$predict, 1:2,quantile,0.95)
+data<-sim_data$EnvEvenSp5 
+for(i in 1:(ncol(data)-1)) AUC_gdr_comp_fac_sparse<-c(AUC_gdr_comp_fac_sparse,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
+
+pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_mean,pred_gj_dr_05=pred_gj_05,pred_gj_dr_95=pred_gj_95)
+
+
 
 par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
 corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
@@ -4508,6 +5083,13 @@ title("True interactions")
 
 
 ```
+
+
+
+
+### Summary plots
+
+
 
 
 
@@ -4530,9 +5112,24 @@ ALL4(mod_list_Tau$jsdm,mod_list_Tau$gjam,mod_list_Tau$hmsc, (-1)*comp_inter[[20]
 
 
 
+
+
+
+
+
 ## Environmental filtering + Competition +Facilitation 20 sparse species
 
+
+
+
+
+
+
 ### JSDM 
+
+
+
+
 
 ```{r model jsdm cmp_facs20, echo=FALSE,include=FALSE}
 cmp_fds20 <- load_object("model-2019-04-23-09-42-18.rda")
@@ -4590,7 +5187,14 @@ for(i in 1:data$J) AUC_j_comp_fac_sparse<-c(AUC_j_comp_fac_sparse,auc(roc(pred_j
 
 ```
 
+
+
+
 ### Gjam
+
+
+
+
 
 ```{r gjam cmp_facs20,results=FALSE, include=TRUE}
 data<-sim_data$FacCompSparseSp20
@@ -4616,7 +5220,13 @@ pred_gjam<- list(pred_gj_mean=pred_gj_mean,pred_gj_05=pred_gj_05,pred_gj_95=pred
 for(i in 1:(ncol(data)-1)) AUC_g_comp_fac_sparse<-c(AUC_g_comp_fac_sparse,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
 ```
 
+
+
+
 ### HMSC
+
+
+
 
 ```{r hmsc cmp_facs20,results=FALSE, include=FALSE}
 data<-sim_data$FacCompSparseSp20
@@ -4651,10 +5261,26 @@ for(i in 1:(ncol(data)-1)) AUC_h_comp_fac_sparse<-c(AUC_h_comp_fac_sparse,auc(ro
 
 
 
+
+
+### Dimension reduction
+
+
+
 ```{r dim red  faccoms20, include=TRUE, echo=FALSE}
 
 #r-opt=15
 S<- gjam_dim_red(sim_data$FacCompSparseSp20,ng=2500, burnin=500,r=15)
+
+##Prediction
+pred_gj_mean <-apply(S$predict, 1:2,mean)
+pred_gj_05 <- apply(S$predict, 1:2,quantile,0.05)
+pred_gj_95 <- apply(S$predict, 1:2,quantile,0.95)
+data<-sim_data$EnvEvenSp5 
+for(i in 1:(ncol(data)-1)) AUC_gdr_comp_fac_sparse<-c(AUC_gdr_comp_fac_sparse,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
+
+pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_mean,pred_gj_dr_05=pred_gj_05,pred_gj_dr_95=pred_gj_95)
+
 
 par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
 corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
@@ -4671,6 +5297,12 @@ title("True interactions")
 
 
 
+
+### Summary plots
+
+
+
+
 ```{r all models cmp_facs20, include=TRUE}
 create_beta_plot(load_object("./gjam_models/gjamcmp_facs20.rda"),cmp_fds20,load_object("./HMmodels/hmcmp_facs20.rda"))
 
@@ -4683,6 +5315,10 @@ ALL3(mod_list_Rho$jsdm,mod_list_Rho$gjam,mod_list_Rho$hmsc, (-1)*comp_inter[[21]
 
 
 
+
+
+
+
 ```{r all models tau cmp_facs20, include=TRUE}
 
 
@@ -4691,11 +5327,20 @@ ALL4(mod_list_Tau$jsdm,mod_list_Tau$gjam,mod_list_Tau$hmsc, (-1)*comp_inter[[21]
 ```
 
 
-## Graph from paper
+
+
+
+
+## Average interactions 
+
+
+
+
+
 
 ```{r combined models, echo=FALSE, warning=FALSE,include=TRUE}
 
- models<-list(EnvEvenSp5=me5,EnvEvenSp10=me10, EnvEvenSp20=me20,FacDenseSp5 =mfd5, FacDenseSp10=mfd10, FacDenseSp20=mfd20,
+models<-list(EnvEvenSp5=me5,EnvEvenSp10=me10, EnvEvenSp20=me20,FacDenseSp5 =mfd5, FacDenseSp10=mfd10, FacDenseSp20=mfd20,
               FacSparseSp5 =mfs5, FacSparseSp10=mfs10, FacSparseSp20=mfs20, CompDenseSp5=mcmpd5,CompDenseSp10=mcmpd10,CompDenseSp20=mcmpd20,
               CompSparseSp5=cmps5,      CompSparseSp10 =cmps10,   CompSparseSp20 =cmps20,   FacCompDenseSp5=cmp_fd5,FacCompDenseSp10=cmp_fd10,       
               FacCompDenseSp20 =cmp_fd20,FacCompSparseSp5=cmp_fds5,  FacCompSparseSp10=cmp_fds10, FacCompSparseSp20=cmp_fds20)
@@ -4899,7 +5544,16 @@ p
 ```
 
 
+
+
+
+
 ## Partial correlation
+
+
+
+
+
 
 
 ```{r inter_partial correlations, echo=FALSE}
@@ -4995,18 +5649,24 @@ p
 ```
 
 
+
+
+
 ## Prediction abilities
+
+
+
 
 
 ```{r prediction abilities, echo=FALSE}
 
-AUCs<-list(AUC_j_env=AUC_j_env,AUC_g_env=AUC_g_env,AUC_h_env=AUC_h_env,
-           AUC_j_fac_dense=AUC_j_fac_dense,AUC_g_fac_dense=AUC_g_fac_dense,AUC_h_fac_dense=AUC_h_fac_dense,
-           AUC_j_fac_sparse=AUC_j_fac_sparse,AUC_g_fac_sparse=AUC_g_fac_sparse,AUC_h_fac_sparse=AUC_h_fac_sparse,
-           AUC_j_comp_dense=AUC_j_comp_dense,AUC_g_comp_dense=AUC_g_comp_dense,AUC_h_comp_dense=AUC_h_comp_dense,
-           AUC_j_comp_sparse=AUC_j_comp_sparse,AUC_g_comp_sparse=AUC_g_comp_sparse,AUC_h_comp_sparse=AUC_h_comp_sparse,
-           AUC_j_comp_fac_dense=AUC_j_comp_fac_dense,AUC_g_comp_fac_dense=AUC_g_comp_fac_dense,AUC_h_comp_fac_dense=AUC_h_comp_fac_dense,
-           AUC_j_comp_fac_sparse=AUC_j_comp_fac_sparse,AUC_g_comp_fac_sparse=AUC_g_comp_fac_sparse,AUC_h_comp_fac_sparse=AUC_h_comp_fac_sparse)
+AUCs<-list(AUC_j_env=AUC_j_env,AUC_g_env=AUC_g_env,AUC_gdr_env=AUC_gdr_env,AUC_h_env=AUC_h_env,
+           AUC_j_fac_dense=AUC_j_fac_dense,AUC_g_fac_dense=AUC_g_fac_dense,AUC_gdr_fac_dense=AUC_gdr_fac_dense,AUC_h_fac_dense=AUC_h_fac_dense,
+           AUC_j_fac_sparse=AUC_j_fac_sparse,AUC_g_fac_sparse=AUC_g_fac_sparse,AUC_gdr_fac_sparse=AUC_gdr_fac_sparse,AUC_h_fac_sparse=AUC_h_fac_sparse,
+           AUC_j_comp_dense=AUC_j_comp_dense,AUC_g_comp_dense=AUC_g_comp_dense,AUC_gdr_comp_dense=AUC_gdr_comp_dense,AUC_h_comp_dense=AUC_h_comp_dense,
+           AUC_j_comp_sparse=AUC_j_comp_sparse,AUC_g_comp_sparse=AUC_g_comp_sparse,AUC_gdr_comp_sparse=AUC_gdr_comp_sparse,AUC_h_comp_sparse=AUC_h_comp_sparse,
+           AUC_j_comp_fac_dense=AUC_j_comp_fac_dense,AUC_g_comp_fac_dense=AUC_g_comp_fac_dense,AUC_gdr_comp_fac_dense=AUC_gdr_comp_fac_dense,AUC_h_comp_fac_dense=AUC_h_comp_fac_dense,
+           AUC_j_comp_fac_sparse=AUC_j_comp_fac_sparse,AUC_g_comp_fac_sparse=AUC_g_comp_fac_sparse,AUC_gdr_comp_fac_sparse=AUC_gdr_comp_fac_sparse,AUC_h_comp_fac_sparse=AUC_h_comp_fac_sparse)
 
 table<-as.data.frame(matrix(ncol=4,dimnames = list(NULL,c("AUC","Model","Filtering","Density"))))
 for(i in 1:length(AUCs)){
@@ -5015,6 +5675,7 @@ for(i in 1:length(AUCs)){
   if(length(grep("_j_",names(AUCs)[[i]]))>0)  table[(k+1):(k+length(AUCs[[i]])),"Model"]<-rep("JSDM",length(AUCs[[i]]))
   
   if(length(grep("_g_",names(AUCs)[[i]]))>0)  table[(k+1):(k+length(AUCs[[i]])),"Model"]<-rep("GJAM",length(AUCs[[i]]))
+  if(length(grep("_gdr_",names(AUCs)[[i]]))>0)  table[(k+1):(k+length(AUCs[[i]])),"Model"]<-rep("GJAM_DR",length(AUCs[[i]]))
   
   if(length(grep("_h_",names(AUCs)[[i]]))>0)  table[(k+1):(k+length(AUCs[[i]])),"Model"]<-rep("HMSC",length(AUCs[[i]]))
   
@@ -5037,6 +5698,7 @@ for(i in 1:length(AUCs)){
   
 table[nrow(table)+1,]<-c(-1,"JSDM", "Env","Dense")
 table[nrow(table)+1,]<-c(-1,"GJAM", "Env","Dense")
+table[nrow(table)+1,]<-c(-1,"GJAM_DR", "Env","Dense")
 table[nrow(table)+1,]<-c(-1,"HMSC", "Env","Dense")
 
 p<-ggplot(data=table)+geom_boxplot(aes(y=as.numeric(AUC),x=Filtering,fill=Model,color=Density),position = position_dodge(1,preserve = "single"))+
@@ -5050,9 +5712,18 @@ p
 
 
 
+
+
+
 ## Visualization for true interactions
 
+
+
+
 ### Facilitation
+
+
+
 
 ```{r inter_patter_fac, echo=FALSE}
 par(mfrow=c(1,3))
@@ -5074,7 +5745,11 @@ title("FacSparseSp20")
 mtext("Facilitation Sparse", outer = TRUE, cex = 1.5,side=1,line=-1)
 ```
 
+
+
 ### Competition Dense
+
+
 
 ```{r inter_pattern_comp dense, echo=FALSE}
 par(mfrow=c(1,3))
@@ -5088,7 +5763,11 @@ title("CompDenseSp20")
 
 ```
 
+
+
 ### Competition Dense
+
+
 
 ```{r inter_pattern_comp sparse, echo=FALSE}
 
@@ -5105,7 +5784,12 @@ title("CompSparseSp20")
 ```
 
 
+
+
 ### Competition + Facilitation Dense
+
+
+
 
 ```{r inter_pattern_both dense, echo=FALSE}
 par(mfrow=c(2,3))
@@ -5126,7 +5810,13 @@ title("CompDenseSp20")
 
 ```
 
+
+
+
 ### Competition + Facilitation Sparse
+
+
+
 
 ```{r inter_pattern_both sparse, echo=FALSE}
 par(mfrow=c(2,3))
@@ -5143,65 +5833,6 @@ corrplot((-1)*comp_inter[[20]], diag = FALSE, order = "original",tl.pos = "ld", 
 title("CompSparseSp10")
 corrplot((-1)*comp_inter[[21]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color" ,col=cols(200), type = "lower")
 title("CompSparseSp20")
-```
-
-
-
-
-```{r prediction, echo=FALSE}
-
-predict_y_jsdm <- function(x, ns = 1000) {
-  data   <- if(x$parallel) x$model[[1]]$data() else x$model$data()
-  n      <- data$n
-  nsp    <- data$J
-  n.samples  <- x$mcmc.info$n.samples
-  B <- x$sims.list$B
-  X <- data$X
-  Y <- data$Y
-  inprod_mat <- cppFunction(
-    "NumericMatrix inprod_mat(NumericMatrix X, NumericMatrix B) {
-    
-    int nX = X.nrow();
-    int nB = B.nrow();
-    int nK = X.ncol();
-    
-    NumericMatrix theta(nX, nB);
-    
-    for (int i = 0; i < nX; i++) {
-    for (int j = 0; j < nB; j++) {
-    theta(i, j) = 0;
-    for (int k = 0; k < nK; k++) {
-    theta(i, j) += X(i, k) * B(j, k);
-    }
-    }
-    }
-    
-    return(theta);
-    
-}"
-  )
-  vapply(
-    floor(seq(1, n.samples, length.out = ns)),
-    function(x) inprod_mat(X, B[x, ,]),
-    matrix(NA_real_, n, nsp)
-  )
-  }
-
-
-#me5_pred<-predict_y_jsdm(me5)
-
-predictions <- sapply(models, predict_y_jsdm)
-
-prediction_means <- sapply(predictions, apply, 1:2, mean)
-
-prediction_q05 <- sapply(predictions, apply, 1:2, quantile,0.05)
-prediction_q95 <- sapply(predictions, apply, 1:2, quantile,0.05)
-
-prediction_sds <- sapply(predictions, apply, 1:2, sd)
-
-
-
-
 ```
 
 
