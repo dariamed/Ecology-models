@@ -717,7 +717,6 @@ pred_gjam<- list(pred_gj_mean=pred_gj_mean,pred_gj_05=pred_gj_05,pred_gj_95=pred
 
 
 ```{r hmsc, include=FALSE, results=FALSE,}
-#setwd("~/Tesi/Code/Ecology-models-master/simcoms-master/ExampleFiles")
 fit_hmsc<-function(data,label="Fit",nsamples = 1000,nchains=2,name="./HMmodels/hmtemp.rda" ){
   if (label=="Fit"){
     Y_data = subset(data, select = -env)
@@ -942,16 +941,6 @@ mod_list_Rho<-list.append(mod_list_Rho,hmsc=hm_mod_R$Rho_sign)
 mod_list_Tau<-list.append(mod_list_Tau,hmsc=hm_mod_R$Tau_sign)
 
 
-# #prediction
-# X<-scale(poly(data$env[1:500], 2))
-# XData=as.data.frame(X)
-# new<-XData[floor(seq(1, 500, length.out = 100)),]
-# colnames(XData)<-c("env","env2")
-# 
-# pred_hm<-simplify2array(predict(hm_mod,expected=F))
-# 
-# pred_hm<-simplify2array(predict(hm_mod,XData=XData,expected=T))
-
 #prediction
 #pred_hm<-simplify2array(predict(hm_mod,expected=F))
 x = cbind(1, scale(poly(data$env, 2)))
@@ -991,19 +980,20 @@ gjam_dim_red_5<-function(datab,ng=2500, burnin=500,name="./gjam_models/tmpdr.rda
   colnames(xdata)<- c("env","env2")
   formula<- ~env + env2
   r<-3
+  
   rl <-list(N=N, r=r)
   ml  <- list(ng = ng, burnin = burnin, typeNames = 'PA',reductList=rl,PREDICTX = F )
   if(regime=="L"){
     gjam_dr_mods<-load_object(name)
-    mod_gjam_red_1<-gjam_dr_mods$mod_gjam1
-    mod_gjam_red_2<-gjam_dr_mods$mod_gjam2
+    mod_gjam_red_1<-gjam_dr_mods$m1
+    mod_gjam_red_2<-gjam_dr_mods$m2
   }else{
       mod_gjam_red_1 <- gjam(formula, xdata, ydata, modelList = ml)
       mod_gjam_red_2 <- gjam(formula, xdata, ydata, modelList = ml)
-      gjam_dr_mods<- list(m1=mod_gjam1,m2=mod_gjam2)
+      gjam_dr_mods<- list(m1=mod_gjam_red_1,m2=mod_gjam_red_2)
       save(gjam_dr_mods, file = name)
   }
-  gjam_bs<- mcmc.list(mcmc(mod_gjam_red_1$chains$bgibbsUn[-(1:burnin),]),mcmc(mod_gjam_red_2$chains$bgibbsUn[-(1:burnin),]))
+  gjam_bs<- mcmc.list(mcmc(mod_gjam_red_1$chains$bgibbs[-(1:burnin),]),mcmc(mod_gjam_red_2$chains$bgibbsUn[-(1:burnin),]))
   gjam_sigma<- mcmc.list(mcmc(mod_gjam_red_1$chains$sgibbs[-(1:burnin),]),mcmc(mod_gjam_red_2$chains$sgibbs[-(1:burnin),]))
   n_eff_beta<- as.data.frame(effectiveSize(gjam_bs))
   colnames(n_eff_beta)<- c("value")
@@ -1016,6 +1006,7 @@ gjam_dim_red_5<-function(datab,ng=2500, burnin=500,name="./gjam_models/tmpdr.rda
      geom_histogram( alpha=0.4, position="identity",binwidth = 100) + xlab("effective size") +
     scale_color_brewer(palette="Dark2")+scale_fill_brewer(palette="Dark2")+
    ggtitle("Effective size for the parameters beta and coefficients of correlation matrix")
+  
   plot(p)
   
   Rhat_beta<-as.data.frame(gelman.diag(gjam_bs, multivariate=FALSE)$psrf)
@@ -1040,6 +1031,7 @@ gjam_dim_red_5<-function(datab,ng=2500, burnin=500,name="./gjam_models/tmpdr.rda
   sigErrGibbs<-abind(mod_gjam_red_1$chains$sigErrGibbs[-(1:burnin)],mod_gjam_red_2$chains$sigErrGibbs[-(1:burnin)],along=1)
   kgibbs<-abind(mod_gjam_red_1$chains$kgibbs[-(1:burnin),],mod_gjam_red_2$chains$kgibbs[-(1:burnin),],along=1)
   sigma<-invsigma<-array(NA,dim=c(ns,ns,2*(ng-burnin)))
+  
   
   #sgibbs<-mod_gjam_red$chains$sgibbs
   #sigErrGibbs<-mod_gjam_red$chains$sigErrGibbs
@@ -1080,8 +1072,7 @@ gjam_dim_red_5<-function(datab,ng=2500, burnin=500,name="./gjam_models/tmpdr.rda
   return(list(Rho_sign_d=Sigma_sign,Tau_sign_d=INVSigma_sign,k=kgibbs, predict=mu, bchain=bgibbspr))
 }
 
-S<- gjam_dim_red_5(sim_data$EnvEvenSp5,ng=10000, burnin=1000, name="./gjam_models/gjamDR5env.rda", regime="F")
-
+S<- gjam_dim_red_5(datab=sim_data$EnvEvenSp5,ng=10000, burnin=1000, name="./gjam_models/gjamDR5env.rda", regime="L")
 
 ##AUC
 AUC_gdr_env<-vector()
@@ -1299,7 +1290,7 @@ if (nsp==5){
   grid.arrange(p1,p2,p3,p4,p5,nrow=ceiling(nspecies/2))
 }else{ 
   p_3
-  }
+}
 
 
 
@@ -1676,6 +1667,7 @@ gjam_dim_red<-function(datab,ng=2500, burnin=500,r=1, name="./gjam_models/gjamDR
   ydata<-subset(datab, select = -env)
   xdata<-scale(poly(datab$env, 2))
   ns<- ncol(ydata)
+  n<-nrow(datab)
   N<-ncol(ydata)-1
   colnames(xdata)<- c("env","env2")
   formula<- ~env + env2
@@ -1699,12 +1691,12 @@ gjam_dim_red<-function(datab,ng=2500, burnin=500,r=1, name="./gjam_models/gjamDR
   ml  <- list(ng = ng, burnin = burnin, typeNames = 'PA',reductList=rl)
   if(regime=="L"){
     gjam_dr_mods<-load_object(name)
-    mod_gjam_red_1<-gjam_dr_mods$mod_gjam1
-    mod_gjam_red_2<-gjam_dr_mods$mod_gjam2
+    mod_gjam_red_1<-gjam_dr_mods$m1
+    mod_gjam_red_2<-gjam_dr_mods$m2
   }else{
       mod_gjam_red_1 <- gjam(formula, xdata, ydata, modelList = ml)
       mod_gjam_red_2 <- gjam(formula, xdata, ydata, modelList = ml)
-      gjam_dr_mods<- list(m1=mod_gjam1,m2=mod_gjam2)
+      gjam_dr_mods<- list(m1=mod_gjam_red_1,m2=mod_gjam_red_2)
       save(gjam_dr_mods, file = name)
   }
   gjam_bs<- mcmc.list(mcmc(mod_gjam_red_1$chains$bgibbsUn[-(1:burnin),]),mcmc(mod_gjam_red_2$chains$bgibbsUn[-(1:burnin),]))
@@ -1784,7 +1776,7 @@ gjam_dim_red<-function(datab,ng=2500, burnin=500,r=1, name="./gjam_models/gjamDR
 }
 #r-opt=7
 #when you want to find opt r set r==1 , when want specific r set r==k
-S<- gjam_dim_red(sim_data$EnvEvenSp10,ng=2500, burnin=500,r=7, name="./gjam_models/gjamDR10env.rda", regime="L")
+S<- gjam_dim_red(sim_data$EnvEvenSp10,ng=10000, burnin=1000,r=7, name="./gjam_models/gjamDR10env.rda", regime="L")
 
 
 ##Prediction
@@ -1971,18 +1963,11 @@ for(k in 1:(2*hm_mod$samples)){
 
 }
 
-# pred_hm_mean <- apply(pred_hm, c(1,2), mean)
-# pred_hm_05 <- apply(pred_hm, c(1,2), quantile,0.05)
-# pred_hm_95 <- apply(pred_hm, c(1,2), quantile,0.95)
-# 
-
 pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
                  pred_hm_05=apply(pred_hm, c(1,2), quantile,0.05),
                  pred_hm_95=apply(pred_hm, c(1,2), quantile,0.95))
 
 for(i in 1:(ncol(data)-1)) AUC_h_env<-c(AUC_h_env,auc(roc(pred_hmsc$pred_hm_mean[,i],factor(data[,i]))))
-
-
 ```
 
 
@@ -1990,17 +1975,17 @@ for(i in 1:(ncol(data)-1)) AUC_h_env<-c(AUC_h_env,auc(roc(pred_hmsc$pred_hm_mean
 ```{r dim red  env20, include=TRUE, echo=FALSE}
 
 #r-opt=15
-S<- gjam_dim_red(sim_data$EnvEvenSp20,ng=2500, burnin=500,r=15, name="./gjam_models/gjamDR20env.rda", regime="F")
+S<- gjam_dim_red(sim_data$EnvEvenSp20,ng=10000, burnin=1000,r=15, name="./gjam_models/gjamDR20env.rda", regime="L")
 
 
 ##Prediction
-pred_gj_mean <-apply(S$predict, 1:2,mean)
-pred_gj_05 <- apply(S$predict, 1:2,quantile,0.05)
-pred_gj_95 <- apply(S$predict, 1:2,quantile,0.95)
-data<-sim_data$EnvEvenSp5 
-for(i in 1:(ncol(data)-1)) AUC_gdr_env<-c(AUC_gdr_env,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
+pred_gj_dr_mean <-apply(S$predict, 1:2,mean)
+pred_gj_dr_05 <- apply(S$predict, 1:2,quantile,0.05)
+pred_gj_dr_95 <- apply(S$predict, 1:2,quantile,0.95)
+data<-sim_data$EnvEvenSp20
+for(i in 1:(ncol(data)-1)) AUC_gdr_env<-c(AUC_gdr_env,auc(roc(pred_gj_dr_mean[,i],factor(data[,i]))))
 
-pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_mean,pred_gj_dr_05=pred_gj_05,pred_gj_dr_95=pred_gj_95)
+pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_dr_mean,pred_gj_dr_05=pred_gj_dr_05,pred_gj_dr_95=pred_gj_dr_95)
 
 
 
@@ -2017,11 +2002,20 @@ title("True interactions")
 
 ```
 
+
+
+
+###Summary plots
+
+
+
+
+
 ```{r all models env20, include=TRUE}
 
-create_beta_plot(load_object("./gjam_models/gjam20env.rda"),me20,load_object("./HMmodels/hm20env.rda"))
+create_beta_plot(load_object("./gjam_models/gjam20env.rda"),me20,load_object("./HMmodels/hm20env.rda"),S$bchain)
 
-create_plot_response(sim_data$EnvEvenSp20, nsp=20,pred_gjam, pred_jsdm,pred_hmsc )
+create_plot_response(sim_data$EnvEvenSp20, nsp=20,pred_gjam, pred_jsdm,pred_hmsc ,pred_gjam_dr)
 
 
 ALL3(mod_list_Rho$jsdm,mod_list_Rho$gjam,mod_list_Rho$hmsc,diag(20))
@@ -2105,7 +2099,13 @@ for(i in 1:data$J) AUC_j_fac_dense<-c(AUC_j_fac_dense,auc(roc(pred_j_mean[,i],fa
 
 ```
 
+
+
+
 ### Gjam
+
+
+
 
 ```{r gjam fd5,include=TRUE,echo=FALSE}
 data<-sim_data$FacDenseSp5
@@ -2134,7 +2134,12 @@ pred_gjam<- list(pred_gj_mean=pred_gj_mean,pred_gj_05=pred_gj_05,pred_gj_95=pred
 
 
 
+
+
 ### HMSC
+
+
+
 
 
 
@@ -2163,12 +2168,6 @@ for(k in 1:(2*hm_mod$samples)){
     }else {pred_hm[,,k] <- pnorm(x%*%hm_mod$postList[[2]][[k-hm_mod$samples]]$Beta)}
 
 }
-
-# pred_hm_mean <- apply(pred_hm, c(1,2), mean)
-# pred_hm_05 <- apply(pred_hm, c(1,2), quantile,0.05)
-# pred_hm_95 <- apply(pred_hm, c(1,2), quantile,0.95)
-# 
-
 pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
                  pred_hm_05=apply(pred_hm, c(1,2), quantile,0.05),
                  pred_hm_95=apply(pred_hm, c(1,2), quantile,0.95))
@@ -2181,20 +2180,25 @@ for(i in 1:(ncol(data)-1)) AUC_h_fac_dense<-c(AUC_h_fac_dense,auc(roc(pred_hmsc$
 
 
 
+
+
+### Dimension reduction gjam
+
+
+
+
 ```{r dimred facd5, include=TRUE,echo=FALSE}
 
-S<- gjam_dim_red_5(sim_data$FacDenseSp5,ng=5500, burnin=1000, name="./gjam_models/gjamDR5facd.rda", regime="L")
+S<- gjam_dim_red_5(sim_data$FacDenseSp5,ng=10000, burnin=1000, name="./gjam_models/gjamDR5facd.rda", regime="L")
 
 AUC_gdr_fac_dense<-vector()
-
 ##Prediction
-pred_gj_mean <-apply(S$predict, 1:2,mean)
-pred_gj_05 <- apply(S$predict, 1:2,quantile,0.05)
-pred_gj_95 <- apply(S$predict, 1:2,quantile,0.95)
-data<-sim_data$EnvEvenSp5 
-for(i in 1:(ncol(data)-1)) AUC_gdr_fac_dense<-c(AUC_gdr_fac_dense,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
-
-pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_mean,pred_gj_dr_05=pred_gj_05,pred_gj_dr_95=pred_gj_95)
+pred_gj_dr_mean <-apply(S$predict, 1:2,mean)
+pred_gj_dr_05 <- apply(S$predict, 1:2,quantile,0.05)
+pred_gj_dr_95 <- apply(S$predict, 1:2,quantile,0.95)
+data<-sim_data$FacDenseSp5
+for(i in 1:(ncol(data)-1)) AUC_gdr_fac_dense<-c(AUC_gdr_fac_dense,auc(roc(pred_gj_dr_mean[,i],factor(data[,i]))))
+pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_dr_mean,pred_gj_dr_05=pred_gj_dr_05,pred_gj_dr_95=pred_gj_dr_95)
 
 
 par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
@@ -2211,18 +2215,27 @@ title("True interactions")
 
 
 
-```{r all models facd5, include=TRUE}
-create_beta_plot(load_object("./gjam_models/gjam5f.rda"),mfd5,load_object("./HMmodels/hm5fd.rda" ))
+###Summary plots
 
-create_plot_response(sim_data$FacDenseSp5, nsp=5,pred_gjam, pred_jsdm,pred_hmsc )
+
+
+
+```{r all models facd5, include=TRUE}
+
+
+create_beta_plot(load_object("./gjam_models/gjam5f.rda"),mfd5,load_object("./HMmodels/hm5fd.rda" ),S$bchain)
+
+create_plot_response(sim_data$FacDenseSp5, nsp=5,pred_gjam, pred_jsdm,pred_hmsc, pred_gjam_dr)
 
 
 ALL3(mod_list_Rho$jsdm,mod_list_Rho$gjam,mod_list_Rho$hmsc,fac_inter[[4]])
 
 ```
 
-```{r all models tau facd5, include=TRUE}
 
+
+
+```{r all models tau facd5, include=TRUE}
 
 ALL4(mod_list_Tau$jsdm,mod_list_Tau$gjam,mod_list_Tau$hmsc,diag(10))
 
@@ -2364,31 +2377,22 @@ for(i in 1:(ncol(data)-1)) AUC_h_fac_dense<-c(AUC_h_fac_dense,auc(roc(pred_hmsc$
 ```
 
 
-
-
 ```{r dim red  facd10, include=TRUE, echo=FALSE}
 
 #r-opt=7
-S<- gjam_dim_red(sim_data$FacDenseSp10,ng=2500, burnin=500,r=7, name="./gjam_models/gjamDR10facd.rda", regime="L")
+#try r=3
+S<- gjam_dim_red(sim_data$FacDenseSp10,ng=10000, burnin=1000,r=3, name="./gjam_models/gjamDR10facd.rda", regime="L")
 pg<- comp.psm(S$k)
 
 ##Prediction
-pred_gj_mean <-apply(S$predict, 1:2,mean)
-pred_gj_05 <- apply(S$predict, 1:2,quantile,0.05)
-pred_gj_95 <- apply(S$predict, 1:2,quantile,0.95)
-data<-sim_data$EnvEvenSp5 
-for(i in 1:(ncol(data)-1)) AUC_gdr_fac_dense<-c(AUC_gdr_fac_dense,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
+pred_gj_dr_mean <-apply(S$predict, 1:2,mean)
+pred_gj_dr_05 <- apply(S$predict, 1:2,quantile,0.05)
+pred_gj_dr_95 <- apply(S$predict, 1:2,quantile,0.95)
+data<-sim_data$FacDenseSp10
+for(i in 1:(ncol(data)-1)) AUC_gdr_fac_dense<-c(AUC_gdr_fac_dense,auc(roc(pred_gj_dr_mean[,i],factor(data[,i]))))
+pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_dr_mean,pred_gj_dr_05=pred_gj_dr_05,pred_gj_dr_95=pred_gj_dr_95)
 
-pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_mean,pred_gj_dr_05=pred_gj_05,pred_gj_dr_95=pred_gj_95)
 
-##Prediction
-pred_gj_mean <-apply(S$predict, 1:2,mean)
-pred_gj_05 <- apply(S$predict, 1:2,quantile,0.05)
-pred_gj_95 <- apply(S$predict, 1:2,quantile,0.95)
-data<-sim_data$EnvEvenSp5 
-for(i in 1:(ncol(data)-1)) AUC_gdr_env<-c(AUC_gdr_env,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
-
-pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_mean,pred_gj_dr_05=pred_gj_05,pred_gj_dr_95=pred_gj_95)
 
 
 par(mfrow=c(2,2))
@@ -2407,9 +2411,9 @@ title("True interactions")
 
 
 ```{r all models facd10, include=TRUE}
-create_beta_plot(load_object("./gjam_models/gjam10fd.rda"),mfd10,load_object("./HMmodels/hm10fd.rda"))
+create_beta_plot(load_object("./gjam_models/gjam10fd.rda"),mfd10,load_object("./HMmodels/hm10fd.rda"),S$bchain)
 
-create_plot_response(sim_data$FacDenseSp10, nsp=10,pred_gjam, pred_jsdm,pred_hmsc )
+create_plot_response(sim_data$FacDenseSp10, nsp=10,pred_gjam, pred_jsdm,pred_hmsc,pred_gjam_dr)
 
 
 ALL3(mod_list_Rho$jsdm,mod_list_Rho$gjam,mod_list_Rho$hmsc,fac_inter[[5]])
@@ -2565,25 +2569,14 @@ for(i in 1:(ncol(data)-1)) AUC_h_fac_dense<-c(AUC_h_fac_dense,auc(roc(pred_hmsc$
 ```{r dim red  facd20, include=TRUE, echo=FALSE}
 
 #r-opt=15
-S<- gjam_dim_red(sim_data$FacDenseSp20,ng=2500, burnin=500,r=15, name="./gjam_models/gjamDR20facd.rda", regime="L")
+S<- gjam_dim_red(sim_data$FacDenseSp20,ng=10000, burnin=1000,r=3, name="./gjam_models/gjamDR20facd.rda", regime="L")
 ##Prediction
-pred_gj_mean <-apply(S$predict, 1:2,mean)
-pred_gj_05 <- apply(S$predict, 1:2,quantile,0.05)
-pred_gj_95 <- apply(S$predict, 1:2,quantile,0.95)
-data<-sim_data$EnvEvenSp5 
-for(i in 1:(ncol(data)-1)) AUC_gdr_fac_dense<-c(AUC_gdr_fac_dense,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
-
-pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_mean,pred_gj_dr_05=pred_gj_05,pred_gj_dr_95=pred_gj_95)
-
-##Prediction
-pred_gj_mean <-apply(S$predict, 1:2,mean)
-pred_gj_05 <- apply(S$predict, 1:2,quantile,0.05)
-pred_gj_95 <- apply(S$predict, 1:2,quantile,0.95)
-data<-sim_data$EnvEvenSp5 
-for(i in 1:(ncol(data)-1)) AUC_gdr_env<-c(AUC_gdr_env,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
-
-pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_mean,pred_gj_dr_05=pred_gj_05,pred_gj_dr_95=pred_gj_95)
-
+pred_gj_dr_mean <-apply(S$predict, 1:2,mean)
+pred_gj_dr_05 <- apply(S$predict, 1:2,quantile,0.05)
+pred_gj_dr_95 <- apply(S$predict, 1:2,quantile,0.95)
+data<-sim_data$FacDenseSp20
+for(i in 1:(ncol(data)-1)) AUC_gdr_fac_dense<-c(AUC_gdr_fac_dense,auc(roc(pred_gj_dr_mean[,i],factor(data[,i]))))
+pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_dr_mean,pred_gj_dr_05=pred_gj_dr_05,pred_gj_dr_95=pred_gj_dr_95)
 
 
 par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
@@ -2601,9 +2594,9 @@ title("True interactions")
 
 ```{r all models facd20, include=TRUE}
 
-create_beta_plot(load_object("./gjam_models/gjam20fd.rda"),mfd20,load_object("./HMmodels/hm20fd.rda"))
+create_beta_plot(load_object("./gjam_models/gjam20fd.rda"),mfd20,load_object("./HMmodels/hm20fd.rda"),S$bchain)
 
-create_plot_response(sim_data$FacDenseSp20, nsp=20,pred_gjam, pred_jsdm,pred_hmsc )
+create_plot_response(sim_data$FacDenseSp20, nsp=20,pred_gjam, pred_jsdm,pred_hmsc ,pred_gjam_dr)
 
 ALL3(mod_list_Rho$jsdm,mod_list_Rho$gjam,mod_list_Rho$hmsc,fac_inter[[6]])
 
@@ -2756,20 +2749,26 @@ for(i in 1:(ncol(data)-1)) AUC_h_fac_sparse<-c(AUC_h_fac_sparse,auc(roc(pred_hms
 ```
 
 
+
+
+### Dimension reduction gjam
+
+
+
+
+
 ```{r dimred fs5, include=TRUE,echo=FALSE}
-S<- gjam_dim_red_5(sim_data$FacSparseSp5,ng=2500, burnin=1000, name="./gjam_models/gjamDR5facs.rda", regime="L")
+S<- gjam_dim_red_5(sim_data$FacSparseSp5,ng=10000, burnin=1000, name="./gjam_models/gjamDR5facs.rda", regime="L")
 
 AUC_gdr_fac_sparse<-vector()
 
 ##Prediction
-pred_gj_mean <-apply(S$predict, 1:2,mean)
-pred_gj_05 <- apply(S$predict, 1:2,quantile,0.05)
-pred_gj_95 <- apply(S$predict, 1:2,quantile,0.95)
-data<-sim_data$EnvEvenSp5 
-for(i in 1:(ncol(data)-1)) AUC_gdr_fac_sparse<-c(AUC_gdr_fac_sparse,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
-
-pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_mean,pred_gj_dr_05=pred_gj_05,pred_gj_dr_95=pred_gj_95)
-
+pred_gj_dr_mean <-apply(S$predict, 1:2,mean)
+pred_gj_dr_05 <- apply(S$predict, 1:2,quantile,0.05)
+pred_gj_dr_95 <- apply(S$predict, 1:2,quantile,0.95)
+data<-sim_data$FacSparseSp5
+for(i in 1:(ncol(data)-1)) AUC_gdr_fac_sparse<-c(AUC_gdr_fac_sparse,auc(roc(pred_gj_dr_mean[,i],factor(data[,i]))))
+pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_dr_mean,pred_gj_dr_05=pred_gj_dr_05,pred_gj_dr_95=pred_gj_dr_95)
 
 par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
 corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
@@ -2787,9 +2786,9 @@ title("True interactions")
 
 
 ```{r all models fs5, include=TRUE}
-create_beta_plot(load_object("./gjam_models/gjam5fs.rda"),mfs5,load_object("./HMmodels/hm5fs.rda"))
+create_beta_plot(load_object("./gjam_models/gjam5fs.rda"),mfs5,load_object("./HMmodels/hm5fs.rda"),S$bchain)
 
-create_plot_response(sim_data$FacSparseSp5, nsp=5,pred_gjam, pred_jsdm,pred_hmsc )
+create_plot_response(sim_data$FacSparseSp5, nsp=5,pred_gjam, pred_jsdm,pred_hmsc,pred_gjam_dr )
 
 ALL3(mod_list_Rho$jsdm,mod_list_Rho$gjam,mod_list_Rho$hmsc,fac_inter[[7]])
 
@@ -2816,6 +2815,9 @@ ALL4(mod_list_Tau$jsdm,mod_list_Tau$gjam,mod_list_Tau$hmsc,fac_inter[[7]])
 
 
 ### JSDM
+
+
+
 
 ```{r model jsdm fs10, echo=FALSE,include=FALSE}
 mfs10 <- load_object("model-2019-04-14-05-17-58.rda")
@@ -2866,6 +2868,15 @@ pred_jsdm<-list(pred_j_mean=pred_j_mean,pred_j_05=pred_j_05,pred_j_95=pred_j_95)
 for(i in 1:data$J) AUC_j_fac_sparse<-c(AUC_j_fac_sparse,auc(roc(pred_j_mean[,i],factor(data$Y[,i]))))
 ```
 
+
+
+
+###GJAM
+
+
+
+
+
 ```{r gjam fs10,include=TRUE,echo=FALSE}
 data<-sim_data$FacSparseSp10
 #gjam_mod<-fit_gjam(data,4000,1000,"./gjam_models/gjam10fs.rda",interact=fac_inter[[8]])
@@ -2887,7 +2898,16 @@ for(i in 1:(ncol(data)-1)) AUC_g_fac_sparse<-c(AUC_g_fac_sparse,auc(roc(pred_gj_
 pred_gjam<- list(pred_gj_mean=pred_gj_mean,pred_gj_05=pred_gj_05,pred_gj_95=pred_gj_95)
 ```
 
+
+
+
+
 ### HMSC
+
+
+
+
+
 ```{r hmsc fs10,include=FALSE}
 data<-sim_data$FacSparseSp10
 
@@ -2920,19 +2940,21 @@ for(i in 1:(ncol(data)-1)) AUC_h_fac_sparse<-c(AUC_h_fac_sparse,auc(roc(pred_hms
 
 
 
+### Dimension reduction gjam
+
+
+
 ```{r dim red  facs10, include=TRUE, echo=FALSE}
 #r-opt=5
-S<- gjam_dim_red(sim_data$FacSparseSp10,ng=2500, burnin=500,r=5, name="./gjam_models/gjamDR10facs.rda", regime="L")
+S<- gjam_dim_red(sim_data$FacSparseSp10,ng=10000, burnin=1000,r=5, name="./gjam_models/gjamDR10facs.rda", regime="L")
 
 ##Prediction
-pred_gj_mean <-apply(S$predict, 1:2,mean)
-pred_gj_05 <- apply(S$predict, 1:2,quantile,0.05)
-pred_gj_95 <- apply(S$predict, 1:2,quantile,0.95)
-data<-sim_data$EnvEvenSp5 
-for(i in 1:(ncol(data)-1)) AUC_gdr_fac_sparse<-c(AUC_gdr_fac_sparse,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
-
-pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_mean,pred_gj_dr_05=pred_gj_05,pred_gj_dr_95=pred_gj_95)
-
+pred_gj_dr_mean <-apply(S$predict, 1:2,mean)
+pred_gj_dr_05 <- apply(S$predict, 1:2,quantile,0.05)
+pred_gj_dr_95 <- apply(S$predict, 1:2,quantile,0.95)
+data<-sim_data$FacSparseSp10
+for(i in 1:(ncol(data)-1)) AUC_gdr_fac_sparse<-c(AUC_gdr_fac_sparse,auc(roc(pred_gj_dr_mean[,i],factor(data[,i]))))
+pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_dr_mean,pred_gj_dr_05=pred_gj_dr_05,pred_gj_dr_95=pred_gj_dr_95)
 
 
 par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
@@ -2944,19 +2966,34 @@ corrplot(comp.psm(S$k), diag = FALSE, order = "original",tl.pos = "ld", tl.cex =
 title("Partial Correlation from dimension reduction")
 corrplot(fac_inter[[8]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
 title("True interactions")
+
 ```
 
 
+
+###Summary plots
+
+
+
+
+
 ```{r all models fs10, include=TRUE}
-create_beta_plot(load_object("./gjam_models/gjam10fs.rda"),mfs10,load_object("./HMmodels/hm10fs.rda"))
-create_plot_response(sim_data$FacSparseSp10, nsp=10,pred_gjam, pred_jsdm,pred_hmsc )
+
+create_beta_plot(load_object("./gjam_models/gjam10fs.rda"),mfs10,load_object("./HMmodels/hm10fs.rda"),S$bchain)
+
+create_plot_response(sim_data$FacSparseSp10, nsp=10,pred_gjam, pred_jsdm,pred_hmsc,pred_gjam_dr)
+
 ALL3(mod_list_Rho$jsdm,mod_list_Rho$gjam,mod_list_Rho$hmsc,fac_inter[[8]])
 ```
 
 
 
 ```{r all models tau fs10, include=TRUE}
+
+
 ALL4(mod_list_Tau$jsdm,mod_list_Tau$gjam,mod_list_Tau$hmsc,fac_inter[[8]])
+
+
 ```
 
 
@@ -2973,6 +3010,11 @@ ALL4(mod_list_Tau$jsdm,mod_list_Tau$gjam,mod_list_Tau$hmsc,fac_inter[[8]])
 
 
 ### JSDM
+
+
+
+
+
 
 
 ```{r model jsdm fs20, echo=FALSE,include=FALSE}
@@ -3024,7 +3066,15 @@ for(i in 1:data$J) AUC_j_fac_sparse<-c(AUC_j_fac_sparse,auc(roc(pred_j_mean[,i],
 ```
 
 
+
+
+
+
 ### Gjam
+
+
+
+
 
 ```{r gjam fs20,include=TRUE,echo=FALSE}
 data<-sim_data$FacSparseSp20
@@ -3052,7 +3102,17 @@ for(i in 1:(ncol(data)-1)) AUC_g_fac_sparse<-c(AUC_g_fac_sparse,auc(roc(pred_gj_
 
 ```
 
+
+
+
+
+
 ### HMSC
+
+
+
+
+
 ```{r hmsc fs20,include=FALSE}
 data<-sim_data$FacSparseSp20
 hm_mod<-fit_hmsc(data,nsamples=3000, nchains=2,"Load",name="./HMmodels/hm20fs.rda" )
@@ -3081,24 +3141,27 @@ pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
                  pred_hm_95=apply(pred_hm, c(1,2), quantile,0.95))
 
 for(i in 1:(ncol(data)-1)) AUC_h_fac_sparse<-c(AUC_h_fac_sparse,auc(roc(pred_hmsc$pred_hm_mean[,i],factor(data[,i]))))
+
 ```
+
+
+
+### Dimension reduction
 
 
 
 ```{r dim red  facs20, include=TRUE, echo=FALSE}
 
 #r-opt=15
-S<- gjam_dim_red(sim_data$FacSparseSp20,ng=2500, burnin=500,r=15, name="./gjam_models/gjamDR20facs.rda", regime="L")
+S<- gjam_dim_red(sim_data$FacSparseSp20,ng=10000, burnin=1000,r=10, name="./gjam_models/gjamDR20facs.rda", regime="L")
 
 ##Prediction
-pred_gj_mean <-apply(S$predict, 1:2,mean)
-pred_gj_05 <- apply(S$predict, 1:2,quantile,0.05)
-pred_gj_95 <- apply(S$predict, 1:2,quantile,0.95)
-data<-sim_data$EnvEvenSp5 
-for(i in 1:(ncol(data)-1)) AUC_gdr_fac_sparse<-c(AUC_gdr_fac_sparse,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
-
-pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_mean,pred_gj_dr_05=pred_gj_05,pred_gj_dr_95=pred_gj_95)
-
+pred_gj_dr_mean <-apply(S$predict, 1:2,mean)
+pred_gj_dr_05 <- apply(S$predict, 1:2,quantile,0.05)
+pred_gj_dr_95 <- apply(S$predict, 1:2,quantile,0.95)
+data<-sim_data$FacSparseSp20
+for(i in 1:(ncol(data)-1)) AUC_gdr_fac_sparse<-c(AUC_gdr_fac_sparse,auc(roc(pred_gj_dr_mean[,i],factor(data[,i]))))
+pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_dr_mean,pred_gj_dr_05=pred_gj_dr_05,pred_gj_dr_95=pred_gj_dr_95)
 
 par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
 corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
@@ -3114,12 +3177,26 @@ title("True interactions")
 ```
 
 
+
+
+
+### Summary plots
+
+
+
+
 ```{r all models fs20, include=TRUE}
-create_beta_plot(load_object("./gjam_models/gjam20fs.rda"),mfs20,load_object("./HMmodels/hm20fs.rda"))
-create_plot_response(sim_data$FacSparseSp20, nsp=20,pred_gjam, pred_jsdm,pred_hmsc )
+
+
+create_beta_plot(load_object("./gjam_models/gjam20fs.rda"),mfs20,load_object("./HMmodels/hm20fs.rda"),S$bchain)
+create_plot_response(sim_data$FacSparseSp20, nsp=20,pred_gjam, pred_jsdm,pred_hmsc , pred_gjam_dr)
 ALL3(mod_list_Rho$jsdm,mod_list_Rho$gjam,mod_list_Rho$hmsc,fac_inter[[9]])
 
+
+
 ```
+
+
 
 
 ```{r all models tau fs20, include=TRUE}
@@ -3139,6 +3216,8 @@ ALL4(mod_list_Tau$jsdm,mod_list_Tau$gjam,mod_list_Tau$hmsc,fac_inter[[9]])
 
 
 ### JSDM
+
+
 
 
 ```{r model jsdm cmpd5, echo=FALSE,include=FALSE}
@@ -3198,7 +3277,14 @@ for(i in 1:data$J) AUC_j_comp_dense<-c(AUC_j_comp_dense,auc(roc(pred_j_mean[,i],
 
 ```
 
+
+
+
+
 ### Gjam
+
+
+
 
 ```{r gjam cmpd5,include=TRUE,echo=FALSE}
 data<-sim_data$CompDenseSp5
@@ -3222,6 +3308,11 @@ pred_gjam<- list(pred_gj_mean=pred_gj_mean,pred_gj_05=pred_gj_05,pred_gj_95=pred
 AUC_g_comp_dense<-vector()
 for(i in 1:(ncol(data)-1)) AUC_g_comp_dense<-c(AUC_g_comp_dense,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
 ```
+
+
+
+### HMSC
+
 
 
 ```{r hmsc cmpd5,include=FALSE}
@@ -3261,20 +3352,24 @@ for(i in 1:(ncol(data)-1)) AUC_h_comp_dense<-c(AUC_h_comp_dense,auc(roc(pred_hms
 
 
 
+
+### Dimension reduction
+
+
+
 ```{r dimred compd5, include=TRUE,echo=FALSE}
 
-S<- gjam_dim_red_5(sim_data$CompDenseSp5,ng=2500, burnin=1000, name="./gjam_models/gjamDR10env.rda", regime="L")
+S<- gjam_dim_red_5(sim_data$CompDenseSp5,ng=10000, burnin=1000, name="./gjam_models/gjamDR5compd.rda", regime="L")
 
 AUC_gdr_comp_dense<-vector()
 
 ##Prediction
-pred_gj_mean <-apply(S$predict, 1:2,mean)
-pred_gj_05 <- apply(S$predict, 1:2,quantile,0.05)
-pred_gj_95 <- apply(S$predict, 1:2,quantile,0.95)
-data<-sim_data$EnvEvenSp5 
-for(i in 1:(ncol(data)-1)) AUC_gdr_comp_dense<-c(AUC_gdr_comp_dense,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
-
-pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_mean,pred_gj_dr_05=pred_gj_05,pred_gj_dr_95=pred_gj_95)
+pred_gj_dr_mean <-apply(S$predict, 1:2,mean)
+pred_gj_dr_05 <- apply(S$predict, 1:2,quantile,0.05)
+pred_gj_dr_95 <- apply(S$predict, 1:2,quantile,0.95)
+data<-sim_data$CompDenseSp5
+for(i in 1:(ncol(data)-1)) AUC_gdr_comp_dense<-c(AUC_gdr_comp_dense,auc(roc(pred_gj_dr_mean[,i],factor(data[,i]))))
+pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_dr_mean,pred_gj_dr_05=pred_gj_dr_05,pred_gj_dr_95=pred_gj_dr_95)
 
 par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
 corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
@@ -3290,12 +3385,20 @@ title("True interactions")
 
 
 
+###Summary plots
+
+
+
 ```{r all models cmpd5, include=TRUE}
-create_beta_plot(load_object("./gjam_models/gjam5cmpd.rda"),mcmpd5,load_object("./HMmodels/hm5cmpd.rda"))
-create_plot_response(sim_data$CompDenseSp5, nsp=5,pred_gjam, pred_jsdm,pred_hmsc )
+create_beta_plot(load_object("./gjam_models/gjam5cmpd.rda"),mcmpd5,load_object("./HMmodels/hm5cmpd.rda"),S$bchain)
+create_plot_response(sim_data$CompDenseSp5, nsp=5,pred_gjam, pred_jsdm,pred_hmsc,pred_gjam_dr )
 ALL3(mod_list_Rho$jsdm,mod_list_Rho$gjam,mod_list_Rho$hmsc,(-1)*comp_inter[[10]])
 
 ```
+
+
+
+
 
 
 
@@ -3372,7 +3475,16 @@ for(i in 1:data$J) AUC_j_comp_dense<-c(AUC_j_comp_dense,auc(roc(pred_j_mean[,i],
 
 
 
+
+
+
+
 ### Gjam
+
+
+
+
+
 
 ```{r gjam cmpd10,include=TRUE,echo=FALSE}
 data<-sim_data$CompDenseSp10
@@ -3397,7 +3509,18 @@ for(i in 1:(ncol(data)-1)) AUC_g_comp_dense<-c(AUC_g_comp_dense,auc(roc(pred_gj_
 ```
 
 
+
+
+
+
+
+
 ### HMSC
+
+
+
+
+
 
 ```{r hmsc cmpd10,include=FALSE}
 data<-sim_data$CompDenseSp10
@@ -3430,21 +3553,30 @@ for(i in 1:(ncol(data)-1)) AUC_h_comp_dense<-c(AUC_h_comp_dense,auc(roc(pred_hms
 
 ```
 
+
+
+
+
+
+
 ### Dimension reduction
+
+
+
+
 
 ```{r dim red compd10,include=TRUE, echo=FALSE}
 
 #r-opt=5
-S<- gjam_dim_red(sim_data$CompDenseSp10,ng=2500, burnin=500,r=5)
+S<- gjam_dim_red(sim_data$CompDenseSp10,ng=10000, burnin=1000,r=5, name="./gjam_models/gjamDR10compd.rda", regime="L")
 
 ##Prediction
-pred_gj_mean <-apply(S$predict, 1:2,mean)
-pred_gj_05 <- apply(S$predict, 1:2,quantile,0.05)
-pred_gj_95 <- apply(S$predict, 1:2,quantile,0.95)
-data<-sim_data$EnvEvenSp5 
-for(i in 1:(ncol(data)-1)) AUC_gdr_comp_dense<-c(AUC_gdr_comp_dense,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
-
-pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_mean,pred_gj_dr_05=pred_gj_05,pred_gj_dr_95=pred_gj_95)
+pred_gj_dr_mean <-apply(S$predict, 1:2,mean)
+pred_gj_dr_05 <- apply(S$predict, 1:2,quantile,0.05)
+pred_gj_dr_95 <- apply(S$predict, 1:2,quantile,0.95)
+data<-sim_data$CompDenseSp10
+for(i in 1:(ncol(data)-1)) AUC_gdr_comp_dense<-c(AUC_gdr_comp_dense,auc(roc(pred_gj_dr_mean[,i],factor(data[,i]))))
+pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_dr_mean,pred_gj_dr_05=pred_gj_dr_05,pred_gj_dr_95=pred_gj_dr_95)
 
 
 par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
@@ -3461,10 +3593,14 @@ title("True interactions")
 ```
 
 
-```{r all models cmpd10, include=TRUE}
-create_beta_plot(load_object("./gjam_models/gjam10cmpd.rda"),mcmpd10,load_object("./HMmodels/hm10cmpd.rda"))
+###Summary plots 
 
-create_plot_response(sim_data$CompDenseSp10, nsp=10,pred_gjam, pred_jsdm,pred_hmsc )
+
+
+```{r all models cmpd10, include=TRUE}
+create_beta_plot(load_object("./gjam_models/gjam10cmpd.rda"),mcmpd10,load_object("./HMmodels/hm10cmpd.rda"),S$bchain)
+
+create_plot_response(sim_data$CompDenseSp10, nsp=10,pred_gjam, pred_jsdm,pred_hmsc,pred_gjam_dr )
 
 
 ALL3(mod_list_Rho$jsdm,mod_list_Rho$gjam,mod_list_Rho$hmsc,(-1)*comp_inter[[11]])
@@ -3473,7 +3609,6 @@ ALL3(mod_list_Rho$jsdm,mod_list_Rho$gjam,mod_list_Rho$hmsc,(-1)*comp_inter[[11]]
 
 
 ```{r all models tau cmpd10, include=TRUE}
-
 
 ALL4(mod_list_Tau$jsdm,mod_list_Tau$gjam,mod_list_Tau$hmsc,(-1)*comp_inter[[11]])
 
@@ -3547,13 +3682,15 @@ pred_jsdm<-list(pred_j_mean=pred_j_mean,pred_j_05=pred_j_05,pred_j_95=pred_j_95)
 
 for(i in 1:data$J) AUC_j_comp_dense<-c(AUC_j_comp_dense,auc(roc(pred_j_mean[,i],factor(data$Y[,i]))))
 
-
-
 ```
 
 
 
 ### Gjam
+
+
+
+
 
 ```{r gjam cmpd20,include=TRUE,echo=FALSE}
 data<-sim_data$CompDenseSp20
@@ -3578,14 +3715,21 @@ for(i in 1:(ncol(data)-1)) AUC_g_comp_dense<-c(AUC_g_comp_dense,auc(roc(pred_gj_
 ```
 
 
+
+
+
+
 ### HMSC
+
+
+
+
 
 ```{r hmsc cmpd20,include=FALSE}
 data<-sim_data$CompDenseSp20
-
 hm_mod<-fit_hmsc(data,"Load",nsamples=5000, nchains=2,name="./HMmodels/hm20cmpd.rda" )
 hm_conv(hm_mod)
-hm_mod_R<-hm_inter(hm_mod, nsamples=5000, nchains=2,interact =  (-1)*comp_inter[[12]])
+hm_mod_R<-hm_inter(hm_mod, nsamples=5000, nchains=2,interact =(-1)*comp_inter[[12]])
 
 h_metric_compDense20<-metrics_hmsc(hm_mod_R$Rho_sign,comp=comp_inter[[12]],only_env = F)
 h_metric_compDense20_p<-metrics_hmsc(hm_mod_R$Tau_sign,comp=comp_inter[[12]],only_env = F)
@@ -3614,23 +3758,25 @@ for(i in 1:(ncol(data)-1)) AUC_h_comp_dense<-c(AUC_h_comp_dense,auc(roc(pred_hms
 ```
 
 
+
+
 ### Dimension reduction
+
+
 
 
 ```{r dim red compd20, include=TRUE, echo=FALSE}
 
 #r-opt=15
-S<- gjam_dim_red(sim_data$CompDenseSp20,ng=2500, burnin=500,r=15)
+S<- gjam_dim_red(sim_data$CompDenseSp20,ng=10000, burnin=1000,r=3, name="./gjam_models/gjamDR20compd.rda", regime="L")
 
 ##Prediction
-pred_gj_mean <-apply(S$predict, 1:2,mean)
-pred_gj_05 <- apply(S$predict, 1:2,quantile,0.05)
-pred_gj_95 <- apply(S$predict, 1:2,quantile,0.95)
-data<-sim_data$EnvEvenSp5 
-for(i in 1:(ncol(data)-1)) AUC_gdr_comp_dense<-c(AUC_gdr_comp_dense,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
-
-pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_mean,pred_gj_dr_05=pred_gj_05,pred_gj_dr_95=pred_gj_95)
-
+pred_gj_dr_mean <-apply(S$predict, 1:2,mean)
+pred_gj_dr_05 <- apply(S$predict, 1:2,quantile,0.05)
+pred_gj_dr_95 <- apply(S$predict, 1:2,quantile,0.95)
+data<-sim_data$CompDenseSp20
+for(i in 1:(ncol(data)-1)) AUC_gdr_comp_dense<-c(AUC_gdr_comp_dense,auc(roc(pred_gj_dr_mean[,i],factor(data[,i]))))
+pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_dr_mean,pred_gj_dr_05=pred_gj_dr_05,pred_gj_dr_95=pred_gj_dr_95)
 
 par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
 corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
@@ -3647,14 +3793,23 @@ title("True interactions")
 
 
 
-```{r all models cmpd20, include=TRUE}
-create_beta_plot(load_object("./gjam_models/gjam20cmpd.rda"),mcmpd20,load_object("./HMmodels/hm20cmpd.rda" ))
 
-create_plot_response(sim_data$CompDenseSp20, nsp=20,pred_gjam, pred_jsdm,pred_hmsc )
+### Summary plots
+
+
+
+
+
+```{r all models cmpd20, include=TRUE}
+create_beta_plot(load_object("./gjam_models/gjam20cmpd.rda"),mcmpd20,load_object("./HMmodels/hm20cmpd.rda" ),S$bchain)
+
+create_plot_response(sim_data$CompDenseSp20, nsp=20,pred_gjam, pred_jsdm,pred_hmsc,  pred_gjam_dr)
 
 ALL3(mod_list_Rho$jsdm,mod_list_Rho$gjam,mod_list_Rho$hmsc,(-1)*comp_inter[[12]])
 
 ```
+
+
 
 
 
@@ -3762,7 +3917,15 @@ for(i in 1:(ncol(data)-1)) AUC_g_comp_sparse<-c(AUC_g_comp_sparse,auc(roc(pred_g
 ```
 
 
+
+
+
+
 ### HMSC
+
+
+
+
 
 ```{r hmsc cmps5,include=FALSE}
 data<-sim_data$CompSparseSp5
@@ -3800,21 +3963,26 @@ for(i in 1:(ncol(data)-1)) AUC_h_comp_sparse<-c(AUC_h_comp_sparse,auc(roc(pred_h
 ```
 
 
+
+
+### Dimension reduction
+
+
+
+
 ```{r dimred comps5, include=TRUE,echo=FALSE}
 
-S<- gjam_dim_red_5(sim_data$CompSparseSp5,ng=2500, burnin=1000)
-
+S<- gjam_dim_red_5(sim_data$CompSparseSp5,ng=10000, burnin=1000, name="./gjam_models/gjamDR5comps.rda", regime="L")
 
 AUC_gdr_comp_sparse<-vector()
-
 ##Prediction
-pred_gj_mean <-apply(S$predict, 1:2,mean)
-pred_gj_05 <- apply(S$predict, 1:2,quantile,0.05)
-pred_gj_95 <- apply(S$predict, 1:2,quantile,0.95)
-data<-sim_data$EnvEvenSp5 
-for(i in 1:(ncol(data)-1)) AUC_gdr_comp_sparse<-c(AUC_gdr_comp_sparse,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
+pred_gj_dr_mean <-apply(S$predict, 1:2,mean)
+pred_gj_dr_05 <- apply(S$predict, 1:2,quantile,0.05)
+pred_gj_dr_95 <- apply(S$predict, 1:2,quantile,0.95)
+data<-sim_data$CompSparseSp5
+for(i in 1:(ncol(data)-1)) AUC_gdr_comp_sparse<-c(AUC_gdr_comp_sparse,auc(roc(pred_gj_dr_mean[,i],factor(data[,i]))))
+pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_dr_mean,pred_gj_dr_05=pred_gj_dr_05,pred_gj_dr_95=pred_gj_dr_95)
 
-pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_mean,pred_gj_dr_05=pred_gj_05,pred_gj_dr_95=pred_gj_95)
 
 
 par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
@@ -3831,10 +3999,18 @@ title("True interactions")
 
 
 
-```{r all models cmps5, include=TRUE}
-create_beta_plot(load_object("./gjam_models/gjam5cmps.rda"),cmps5,load_object("./HMmodels/hm5cmps.rda"))
 
-create_plot_response(sim_data$CompSparseSp5, nsp=5,pred_gjam, pred_jsdm,pred_hmsc )
+
+
+### Summary plots
+
+
+
+
+```{r all models cmps5, include=TRUE}
+create_beta_plot(load_object("./gjam_models/gjam5cmps.rda"),cmps5,load_object("./HMmodels/hm5cmps.rda"),S$bchain)
+
+create_plot_response(sim_data$CompSparseSp5, nsp=5,pred_gjam, pred_jsdm,pred_hmsc,pred_gjam_dr)
 ALL3(mod_list_Rho$jsdm,mod_list_Rho$gjam,mod_list_Rho$hmsc,(-1)*comp_inter[[13]])
 
 ```
@@ -3984,16 +4160,14 @@ for(i in 1:(ncol(data)-1)) AUC_h_comp_sparse<-c(AUC_h_comp_sparse,auc(roc(pred_h
 ```{r dim red comps10, include=TRUE, echo=FALSE}
 
 #r-opt=5
-S<- gjam_dim_red(sim_data$CompSparseSp10,ng=2500, burnin=500,r=5)
-
+S<- gjam_dim_red(sim_data$CompSparseSp10,ng=10000, burnin=1000,r=3,name="./gjam_models/gjamDR10comps.rda", regime="L")
 ##Prediction
-pred_gj_mean <-apply(S$predict, 1:2,mean)
-pred_gj_05 <- apply(S$predict, 1:2,quantile,0.05)
-pred_gj_95 <- apply(S$predict, 1:2,quantile,0.95)
-data<-sim_data$EnvEvenSp5 
-for(i in 1:(ncol(data)-1)) AUC_gdr_comp_sparse<-c(AUC_gdr_comp_sparse,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
-
-pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_mean,pred_gj_dr_05=pred_gj_05,pred_gj_dr_95=pred_gj_95)
+pred_gj_dr_mean <-apply(S$predict, 1:2,mean)
+pred_gj_dr_05 <- apply(S$predict, 1:2,quantile,0.05)
+pred_gj_dr_95 <- apply(S$predict, 1:2,quantile,0.95)
+data<-sim_data$CompSparseSp10
+for(i in 1:(ncol(data)-1)) AUC_gdr_comp_sparse<-c(AUC_gdr_comp_sparse,auc(roc(pred_gj_dr_mean[,i],factor(data[,i]))))
+pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_dr_mean,pred_gj_dr_05=pred_gj_dr_05,pred_gj_dr_95=pred_gj_dr_95)
 
 
 
@@ -4014,9 +4188,9 @@ title("True interactions")
 
 
 ```{r all models cmps10, include=TRUE}
-create_beta_plot(load_object("./gjam_models/gjam10cmps.rda"),cmps10,load_object("./HMmodels/hm10cmps.rda"))
+create_beta_plot(load_object("./gjam_models/gjam10cmps.rda"),cmps10,load_object("./HMmodels/hm10cmps.rda"),S$bchain)
 
-create_plot_response(sim_data$CompSparseSp10, nsp=10,pred_gjam, pred_jsdm,pred_hmsc )
+create_plot_response(sim_data$CompSparseSp10, nsp=10,pred_gjam, pred_jsdm,pred_hmsc ,pred_gjam_dr)
 ALL3(mod_list_Rho$jsdm,mod_list_Rho$gjam,mod_list_Rho$hmsc,(-1)*comp_inter[[14]])
 
 ```
@@ -4165,7 +4339,16 @@ for(i in 1:(ncol(data)-1)) AUC_h_comp_sparse<-c(AUC_h_comp_sparse,auc(roc(pred_h
 ```{r dim red comps20, include=TRUE, echo=FALSE}
 
 #r-opt=13
-S<- gjam_dim_red(sim_data$CompSparseSp20,ng=2500, burnin=500,r=13)
+S<- gjam_dim_red(sim_data$CompSparseSp20,ng=10000, burnin=1000,r=13,name="./gjam_models/gjamDR20comps.rda", regime="L")
+
+##Prediction
+pred_gj_dr_mean <-apply(S$predict, 1:2,mean)
+pred_gj_dr_05 <- apply(S$predict, 1:2,quantile,0.05)
+pred_gj_dr_95 <- apply(S$predict, 1:2,quantile,0.95)
+data<-sim_data$CompSparseSp20
+for(i in 1:(ncol(data)-1)) AUC_gdr_comp_sparse<-c(AUC_gdr_comp_sparse,auc(roc(pred_gj_dr_mean[,i],factor(data[,i]))))
+pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_dr_mean,pred_gj_dr_05=pred_gj_dr_05,pred_gj_dr_95=pred_gj_dr_95)
+
 
 
 ##Prediction
@@ -4193,9 +4376,9 @@ title("True interactions")
 
 
 ```{r all models cmps20, include=TRUE}
-create_beta_plot(load_object("./gjam_models/gjam20cmps.rda"),cmps20,load_object("./HMmodels/hm20cmps.rda"))
+create_beta_plot(load_object("./gjam_models/gjam20cmps.rda"),cmps20,load_object("./HMmodels/hm20cmps.rda"),S$bchain)
 
-create_plot_response(sim_data$CompSparseSp20, nsp=20,pred_gjam, pred_jsdm,pred_hmsc )
+create_plot_response(sim_data$CompSparseSp20, nsp=20,pred_gjam, pred_jsdm,pred_hmsc , pred_gjam_dr)
 
 
 ALL3(mod_list_Rho$jsdm,mod_list_Rho$gjam,mod_list_Rho$hmsc,(-1)*comp_inter[[15]])
@@ -4351,18 +4534,18 @@ for(i in 1:(ncol(data)-1)) AUC_h_comp_fac_dense<-c(AUC_h_comp_fac_dense,auc(roc(
 
 ```{r dimred comp_facd5, include=TRUE,echo=FALSE}
 
-S<- gjam_dim_red_5(sim_data$FacCompDenseSp5,ng=2500, burnin=1000)
+S<- gjam_dim_red_5(sim_data$FacCompDenseSp5,ng=10000, burnin=1000,name="./gjam_models/gjamDR5compfacd.rda", regime="L")
 
 AUC_gdr_comp_fac_dense<-vector()
 
 ##Prediction
-pred_gj_mean <-apply(S$predict, 1:2,mean)
-pred_gj_05 <- apply(S$predict, 1:2,quantile,0.05)
-pred_gj_95 <- apply(S$predict, 1:2,quantile,0.95)
-data<-sim_data$EnvEvenSp5 
-for(i in 1:(ncol(data)-1)) AUC_gdr_comp_fac_dense<-c(AUC_gdr_comp_fac_dense,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
+pred_gj_dr_mean <-apply(S$predict, 1:2,mean)
+pred_gj_dr_05 <- apply(S$predict, 1:2,quantile,0.05)
+pred_gj_dr_95 <- apply(S$predict, 1:2,quantile,0.95)
+data<-sim_data$FacCompDenseSp5
+for(i in 1:(ncol(data)-1)) AUC_gdr_comp_fac_dense<-c(AUC_gdr_comp_fac_dense,auc(roc(pred_gj_dr_mean[,i],factor(data[,i]))))
+pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_dr_mean,pred_gj_dr_05=pred_gj_dr_05,pred_gj_dr_95=pred_gj_dr_95)
 
-pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_mean,pred_gj_dr_05=pred_gj_05,pred_gj_dr_95=pred_gj_95)
 
 
 
@@ -4382,9 +4565,10 @@ title("True interactions")
 
 
 ```{r all models cmp_facd5, include=TRUE}
-create_beta_plot(load_object("./gjam_models/gjam5cmp_facd2.rda"),cmp_fd5,load_object("./HMmodels/hmcmp_facd5.rda"))
+create_beta_plot(load_object("./gjam_models/gjam5cmp_facd2.rda"),cmp_fd5,load_object("./HMmodels/hmcmp_facd5.rda"), S$bchain)
 
-create_plot_response(sim_data$FacCompDenseSp5, nsp=5,pred_gjam, pred_jsdm,pred_hmsc )
+create_plot_response(sim_data$FacCompDenseSp5, nsp=5,pred_gjam, pred_jsdm,pred_hmsc , pred_gjam_dr)
+
 
 ALL3(mod_list_Rho$jsdm,mod_list_Rho$gjam,mod_list_Rho$hmsc, (-1)*comp_inter[[16]]+ fac_inter[[16]])
 
@@ -4540,7 +4724,16 @@ for(i in 1:(ncol(data)-1)) AUC_h_comp_fac_dense<-c(AUC_h_comp_fac_dense,auc(roc(
 ```{r dim red faccompd10,include=TRUE, echo=FALSE}
 
 #r-opt=5
-S<- gjam_dim_red(sim_data$FacCompDenseSp10,ng=2500, burnin=500,r=5)
+S<- gjam_dim_red(sim_data$FacCompDenseSp10,ng=10000, burnin=1000,r=5,name="./gjam_models/gjamDR10compfacd.rda", regime="L")
+
+##Prediction
+pred_gj_dr_mean <-apply(S$predict, 1:2,mean)
+pred_gj_dr_05 <- apply(S$predict, 1:2,quantile,0.05)
+pred_gj_dr_95 <- apply(S$predict, 1:2,quantile,0.95)
+data<-sim_data$FacCompDenseSp10
+for(i in 1:(ncol(data)-1)) AUC_gdr_comp_fac_dense<-c(AUC_gdr_comp_fac_dense,auc(roc(pred_gj_dr_mean[,i],factor(data[,i]))))
+pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_dr_mean,pred_gj_dr_05=pred_gj_dr_05,pred_gj_dr_95=pred_gj_dr_95)
+
 
 ##Prediction
 pred_gj_mean <-apply(S$predict, 1:2,mean)
@@ -4569,9 +4762,9 @@ title("True interactions")
 
 
 ```{r all models cmp_facd10, include=TRUE}
-create_beta_plot(load_object("./gjam_models/gjamcmp_facd10.rda"),cmp_fd10,load_object("./HMmodels/hmcmp_facd10.rda"))
+create_beta_plot(load_object("./gjam_models/gjamcmp_facd10.rda"),cmp_fd10,load_object("./HMmodels/hmcmp_facd10.rda"),S$bchain)
 
-create_plot_response(sim_data$FacCompDenseSp10, nsp=10,pred_gjam, pred_jsdm,pred_hmsc )
+create_plot_response(sim_data$FacCompDenseSp10, nsp=10,pred_gjam, pred_jsdm,pred_hmsc,pred_gjam_dr )
 
 ALL3(mod_list_Rho$jsdm,mod_list_Rho$gjam,mod_list_Rho$hmsc, (-1)*comp_inter[[17]]+ fac_inter[[17]])
 
@@ -4600,6 +4793,10 @@ ALL4(mod_list_Tau$jsdm,mod_list_Tau$gjam,mod_list_Tau$hmsc, (-1)*comp_inter[[17]
 
 
 ### JSDM 
+
+
+
+
 
 ```{r model jsdm cmp_facd20, echo=FALSE,include=FALSE}
 
@@ -4657,7 +4854,11 @@ for(i in 1:data$J) AUC_j_comp_fac_dense<-c(AUC_j_comp_fac_dense,auc(roc(pred_j_m
 ```
 
 
+
+
 ### Gjam
+
+
 
 ```{r gjam cmp_facd20,include=TRUE,echo=FALSE}
 data<-sim_data$FacCompDenseSp20
@@ -4726,16 +4927,16 @@ for(i in 1:(ncol(data)-1)) AUC_h_comp_fac_dense<-c(AUC_h_comp_fac_dense,auc(roc(
 ```{r dim red faccompd20, include=TRUE, echo=FALSE}
 
 #r-opt=5
-S<- gjam_dim_red(sim_data$FacCompDenseSp20,ng=2500, burnin=500,r=15)
+S<- gjam_dim_red(sim_data$FacCompDenseSp20,ng=10000, burnin=1000,r=3,name="./gjam_models/gjamDR20compfacd.rda", regime="L")
 
 ##Prediction
-pred_gj_mean <-apply(S$predict, 1:2,mean)
-pred_gj_05 <- apply(S$predict, 1:2,quantile,0.05)
-pred_gj_95 <- apply(S$predict, 1:2,quantile,0.95)
-data<-sim_data$EnvEvenSp5 
-for(i in 1:(ncol(data)-1)) AUC_gdr_comp_fac_dense<-c(AUC_gdr_comp_fac_dense,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
+pred_gj_dr_mean <-apply(S$predict, 1:2,mean)
+pred_gj_dr_05 <- apply(S$predict, 1:2,quantile,0.05)
+pred_gj_dr_95 <- apply(S$predict, 1:2,quantile,0.95)
+data<-sim_data$FacCompDenseSp20
+for(i in 1:(ncol(data)-1)) AUC_gdr_comp_fac_dense<-c(AUC_gdr_comp_fac_dense,auc(roc(pred_gj_dr_mean[,i],factor(data[,i]))))
+pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_dr_mean,pred_gj_dr_05=pred_gj_dr_05,pred_gj_dr_95=pred_gj_dr_95)
 
-pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_mean,pred_gj_dr_05=pred_gj_05,pred_gj_dr_95=pred_gj_95)
 
 
 par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
@@ -4754,9 +4955,9 @@ title("True interactions")
 
 
 ```{r all models cmp_facd20, include=TRUE}
-create_beta_plot(load_object("./gjam_models/gjamcmp_facd20.rda"),cmp_fd20,load_object("./HMmodels/hmcmp_facd20.rda"))
+create_beta_plot(load_object("./gjam_models/gjamcmp_facd20.rda"),cmp_fd20,load_object("./HMmodels/hmcmp_facd20.rda"),S$bchain)
 
-create_plot_response(sim_data$FacCompDenseSp20, nsp=20,pred_gjam, pred_jsdm,pred_hmsc )
+create_plot_response(sim_data$FacCompDenseSp20, nsp=20,pred_gjam, pred_jsdm,pred_hmsc,pred_gjam_dr )
 
 ALL3(mod_list_Rho$jsdm,mod_list_Rho$gjam,mod_list_Rho$hmsc, (-1)*comp_inter[[18]]+ fac_inter[[18]])
 
@@ -4906,20 +5107,19 @@ for(i in 1:(ncol(data)-1)) AUC_h_comp_fac_sparse<-c(AUC_h_comp_fac_sparse,auc(ro
 
 
 
-```{r dimred compfacd5, include=TRUE,echo=FALSE}
+```{r dimred compfacs5, include=TRUE,echo=FALSE}
 
-S<- gjam_dim_red_5(sim_data$FacCompSparseSp5,ng=2500, burnin=1000)
-
+S<- gjam_dim_red_5(sim_data$FacCompSparseSp5,ng=10000, burnin=1000,name="./gjam_models/gjamDR5compfacs.rda", regime="L")
 AUC_gdr_comp_fac_sparse<-vector()
 
 ##Prediction
-pred_gj_mean <-apply(S$predict, 1:2,mean)
-pred_gj_05 <- apply(S$predict, 1:2,quantile,0.05)
-pred_gj_95 <- apply(S$predict, 1:2,quantile,0.95)
-data<-sim_data$EnvEvenSp5 
-for(i in 1:(ncol(data)-1)) AUC_gdr_comp_fac_sparse<-c(AUC_gdr_comp_fac_sparse,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
+pred_gj_dr_mean <-apply(S$predict, 1:2,mean)
+pred_gj_dr_05 <- apply(S$predict, 1:2,quantile,0.05)
+pred_gj_dr_95 <- apply(S$predict, 1:2,quantile,0.95)
+data<-sim_data$FacCompSparseSp5
+for(i in 1:(ncol(data)-1)) AUC_gdr_comp_fac_sparse<-c(AUC_gdr_comp_fac_sparse,auc(roc(pred_gj_dr_mean[,i],factor(data[,i]))))
+pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_dr_mean,pred_gj_dr_05=pred_gj_dr_05,pred_gj_dr_95=pred_gj_dr_95)
 
-pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_mean,pred_gj_dr_05=pred_gj_05,pred_gj_dr_95=pred_gj_95)
 
 
 
@@ -4937,9 +5137,9 @@ title("True interactions")
 
 
 ```{r all models cmp_facs5, include=TRUE}
-create_beta_plot(load_object("./gjam_models/gjamcmp_facs5.rda"),cmp_fds5,load_object("./HMmodels/hmcmp_facs5.rda" ))
+create_beta_plot(load_object("./gjam_models/gjamcmp_facs5.rda"),cmp_fds5,load_object("./HMmodels/hmcmp_facs5.rda" ),S$bchain)
 
-create_plot_response(sim_data$FacCompSparseSp5, nsp=5,pred_gjam, pred_jsdm,pred_hmsc )
+create_plot_response(sim_data$FacCompSparseSp5, nsp=5,pred_gjam, pred_jsdm,pred_hmsc ,pred_gjam_dr)
 
 ALL3(mod_list_Rho$jsdm,mod_list_Rho$gjam,mod_list_Rho$hmsc, (-1)*comp_inter[[19]]+ fac_inter[[19]])
 
@@ -5110,16 +5310,15 @@ for(i in 1:(ncol(data)-1)) AUC_h_comp_fac_sparse<-c(AUC_h_comp_fac_sparse,auc(ro
 ```{r dim red faccomps10, include=TRUE, echo=FALSE}
 
 #r-opt=5
-S<- gjam_dim_red(sim_data$FacCompSparseSp10,ng=2500, burnin=500,r=5)
+S<- gjam_dim_red(sim_data$FacCompSparseSp10,ng=10000, burnin=1000,r=5,name="./gjam_models/gjamDR10compfacs.rda", regime="L")
 
 ##Prediction
-pred_gj_mean <-apply(S$predict, 1:2,mean)
-pred_gj_05 <- apply(S$predict, 1:2,quantile,0.05)
-pred_gj_95 <- apply(S$predict, 1:2,quantile,0.95)
-data<-sim_data$EnvEvenSp5 
-for(i in 1:(ncol(data)-1)) AUC_gdr_comp_fac_sparse<-c(AUC_gdr_comp_fac_sparse,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
-
-pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_mean,pred_gj_dr_05=pred_gj_05,pred_gj_dr_95=pred_gj_95)
+pred_gj_dr_mean <-apply(S$predict, 1:2,mean)
+pred_gj_dr_05 <- apply(S$predict, 1:2,quantile,0.05)
+pred_gj_dr_95 <- apply(S$predict, 1:2,quantile,0.95)
+data<-sim_data$FacCompSparseSp10
+for(i in 1:(ncol(data)-1)) AUC_gdr_comp_fac_sparse<-c(AUC_gdr_comp_fac_sparse,auc(roc(pred_gj_dr_mean[,i],factor(data[,i]))))
+pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_dr_mean,pred_gj_dr_05=pred_gj_dr_05,pred_gj_dr_95=pred_gj_dr_95)
 
 
 
@@ -5146,9 +5345,9 @@ title("True interactions")
 
 
 ```{r all models cmp_facs10, include=TRUE}
-create_beta_plot(load_object("./gjam_models/gjamcmp_facs10.rda"),cmp_fds10,load_object("./HMmodels/hmcmp_facs10.rda"))
+create_beta_plot(load_object("./gjam_models/gjamcmp_facs10.rda"),cmp_fds10,load_object("./HMmodels/hmcmp_facs10.rda"),S$bchain)
 
-create_plot_response(sim_data$FacCompSparseSp10, nsp=10,pred_gjam, pred_jsdm,pred_hmsc )
+create_plot_response(sim_data$FacCompSparseSp10, nsp=10,pred_gjam, pred_jsdm,pred_hmsc ,pred_gjam_dr)
 
 ALL3(mod_list_Rho$jsdm,mod_list_Rho$gjam,mod_list_Rho$hmsc, (-1)*comp_inter[[20]]+ fac_inter[[20]])
 
@@ -5250,7 +5449,7 @@ for(i in 1:data$J) AUC_j_comp_fac_sparse<-c(AUC_j_comp_fac_sparse,auc(roc(pred_j
 
 ```{r gjam cmp_facs20,results=FALSE, include=TRUE}
 data<-sim_data$FacCompSparseSp20
-gjam_mod<-fit_gjam(data,4000,1000,"./gjam_models/gjamcmp_facs20.rda",interact= (-1)*comp_inter[[21]]+fac_inter[[21]])
+#gjam_mod<-fit_gjam(data,4000,1000,"./gjam_models/gjamcmp_facs20.rda",interact= (-1)*comp_inter[[21]]+fac_inter[[21]])
 gjam_mod<-load_gjam(data,4000,1000,name="./gjam_models/gjamcmp_facs20.rda", interact= (-1)*comp_inter[[21]]+fac_inter[[21]])
 g_metric_FacCompSparse20<-metrics_gjam(gjam_mod$Rho_sign,comp=comp_inter[[21]], fac=fac_inter[[21]],only_env = F)
 g_metric_FacCompSparse20_p<-metrics_gjam(gjam_mod$Tau_sign,comp=comp_inter[[21]], fac=fac_inter[[21]],only_env = F)
@@ -5322,7 +5521,16 @@ for(i in 1:(ncol(data)-1)) AUC_h_comp_fac_sparse<-c(AUC_h_comp_fac_sparse,auc(ro
 ```{r dim red  faccoms20, include=TRUE, echo=FALSE}
 
 #r-opt=15
-S<- gjam_dim_red(sim_data$FacCompSparseSp20,ng=2500, burnin=500,r=15)
+S<- gjam_dim_red(sim_data$FacCompSparseSp20,ng=10000, burnin=1000,r=3,name="./gjam_models/gjamDR20compfacs.rda", regime="L")
+
+##Prediction
+pred_gj_dr_mean <-apply(S$predict, 1:2,mean)
+pred_gj_dr_05 <- apply(S$predict, 1:2,quantile,0.05)
+pred_gj_dr_95 <- apply(S$predict, 1:2,quantile,0.95)
+data<-sim_data$FacCompSparseSp10
+for(i in 1:(ncol(data)-1)) AUC_gdr_comp_fac_sparse<-c(AUC_gdr_comp_fac_sparse,auc(roc(pred_gj_dr_mean[,i],factor(data[,i]))))
+pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_dr_mean,pred_gj_dr_05=pred_gj_dr_05,pred_gj_dr_95=pred_gj_dr_95)
+
 
 ##Prediction
 pred_gj_mean <-apply(S$predict, 1:2,mean)
@@ -5356,9 +5564,9 @@ title("True interactions")
 
 
 ```{r all models cmp_facs20, include=TRUE}
-create_beta_plot(load_object("./gjam_models/gjamcmp_facs20.rda"),cmp_fds20,load_object("./HMmodels/hmcmp_facs20.rda"))
+create_beta_plot(load_object("./gjam_models/gjamcmp_facs20.rda"),cmp_fds20,load_object("./HMmodels/hmcmp_facs20.rda"), S$bchain)
 
-create_plot_response(sim_data$FacCompSparseSp20, nsp=20,pred_gjam, pred_jsdm,pred_hmsc )
+create_plot_response(sim_data$FacCompSparseSp20, nsp=20,pred_gjam, pred_jsdm,pred_hmsc,pred_gjam_dr )
 
 
 ALL3(mod_list_Rho$jsdm,mod_list_Rho$gjam,mod_list_Rho$hmsc, (-1)*comp_inter[[21]]+ fac_inter[[21]])
