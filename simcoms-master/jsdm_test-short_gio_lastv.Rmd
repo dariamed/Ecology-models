@@ -1659,7 +1659,12 @@ for(i in 1:(ncol(data)-1)) AUC_h_env<-c(AUC_h_env,auc(roc(pred_hmsc$pred_hm_mean
 ```
 
 
+
+
 ### Dimension reduction gjam 
+
+
+
 
 ```{r dim red  env10, include=TRUE, echo=FALSE}
 
@@ -2255,7 +2260,7 @@ ALL4(mod_list_Tau$jsdm,mod_list_Tau$gjam,mod_list_Tau$hmsc,diag(10))
 
 ### JSDM
 
-```{r model jsdm fd10, echo=FALSE,include=FALSE}
+```{r model jsdm facdd10, echo=FALSE,include=FALSE}
 #load("model-2019-04-10-15-13-15.rda")
 mfd10 <- load_object("model-2019-04-12-06-59-42.rda")
 
@@ -2827,7 +2832,7 @@ summary(mfs10)
 jsdm_conv(mfs10)
 mfs10$mcmc.info[1:7]
 
-j_metric_facSparse10<-metrics_jsdm(mfd10,fac = fac_inter[[8]],only_env = F)
+j_metric_facSparse10<-metrics_jsdm(mfs10,fac = fac_inter[[8]],only_env = F)
 cat("\n")
 cat(sprintf("Success rate for non-interacting: %s\n", round(j_metric_facSparse10$success_env,3)))
 cat(sprintf("Success rate for facilitation: %s\n", round(j_metric_facSparse10$success_fac,3)))
@@ -3154,7 +3159,6 @@ for(i in 1:(ncol(data)-1)) AUC_h_fac_sparse<-c(AUC_h_fac_sparse,auc(roc(pred_hms
 
 #r-opt=15
 S<- gjam_dim_red(sim_data$FacSparseSp20,ng=10000, burnin=1000,r=10, name="./gjam_models/gjamDR20facs.rda", regime="L")
-
 ##Prediction
 pred_gj_dr_mean <-apply(S$predict, 1:2,mean)
 pred_gj_dr_05 <- apply(S$predict, 1:2,quantile,0.05)
@@ -4735,15 +4739,6 @@ for(i in 1:(ncol(data)-1)) AUC_gdr_comp_fac_dense<-c(AUC_gdr_comp_fac_dense,auc(
 pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_dr_mean,pred_gj_dr_05=pred_gj_dr_05,pred_gj_dr_95=pred_gj_dr_95)
 
 
-##Prediction
-pred_gj_mean <-apply(S$predict, 1:2,mean)
-pred_gj_05 <- apply(S$predict, 1:2,quantile,0.05)
-pred_gj_95 <- apply(S$predict, 1:2,quantile,0.95)
-data<-sim_data$EnvEvenSp5 
-for(i in 1:(ncol(data)-1)) AUC_gdr_comp_fac_dense<-c(AUC_gdr_comp_fac_dense,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
-
-pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_mean,pred_gj_dr_05=pred_gj_05,pred_gj_dr_95=pred_gj_95)
-
 
 par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
 corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
@@ -5527,19 +5522,9 @@ S<- gjam_dim_red(sim_data$FacCompSparseSp20,ng=10000, burnin=1000,r=3,name="./gj
 pred_gj_dr_mean <-apply(S$predict, 1:2,mean)
 pred_gj_dr_05 <- apply(S$predict, 1:2,quantile,0.05)
 pred_gj_dr_95 <- apply(S$predict, 1:2,quantile,0.95)
-data<-sim_data$FacCompSparseSp10
+data<-sim_data$FacCompSparseSp20
 for(i in 1:(ncol(data)-1)) AUC_gdr_comp_fac_sparse<-c(AUC_gdr_comp_fac_sparse,auc(roc(pred_gj_dr_mean[,i],factor(data[,i]))))
 pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_dr_mean,pred_gj_dr_05=pred_gj_dr_05,pred_gj_dr_95=pred_gj_dr_95)
-
-
-##Prediction
-pred_gj_mean <-apply(S$predict, 1:2,mean)
-pred_gj_05 <- apply(S$predict, 1:2,quantile,0.05)
-pred_gj_95 <- apply(S$predict, 1:2,quantile,0.95)
-data<-sim_data$EnvEvenSp5 
-for(i in 1:(ncol(data)-1)) AUC_gdr_comp_fac_sparse<-c(AUC_gdr_comp_fac_sparse,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
-
-pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_mean,pred_gj_dr_05=pred_gj_05,pred_gj_dr_95=pred_gj_95)
 
 
 par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
@@ -5676,42 +5661,22 @@ models<-list(EnvEvenSp5=me5,EnvEvenSp10=me10, EnvEvenSp20=me20,FacDenseSp5 =mfd5
 
  #' Plot correlation parameter means
  #+ plot-correlations
- ggplot(mean_correlations) +
+m<- ggplot(mean_correlations) +
    aes(factor(nsp), rho, fill = interaction) +
    geom_hline(yintercept = 0) +
    geom_boxplot(
      outlier.size = .2, size = .1, position = position_dodge(preserve = "single")
    ) +
    scale_fill_manual(values = c("grey", "blue", "red")) +
-   facet_grid(type ~ rho_type + density, switch = "y") +
+   facet_grid(rho_type ~ type + density) +
    xlab("Number of species") +
    ylab("Correlation") +
    theme_bw() +
    theme(legend.position = "top")
-
-
- mean_correlations <- mean_cor(models)
- x <- subset(mean_correlations, type != "Environmental\nFiltering Only")
- acc <- by(x, x$model, function(x) sum(x$status == "TP" | x$status == "TN") / nrow(x))
-
- mean_correlations2<- subset(mean_correlations, interaction != "None")
- #' Plot correlation parameter means
- #+ plot-correlations
- ggplot(mean_correlations2) +
-   aes(factor(nsp), rho, fill = interaction) +
-   geom_hline(yintercept = 0) +
-   geom_boxplot(
-     outlier.size = .2, size = .1, position = position_dodge(preserve = "single")
-   ) +
-   scale_fill_manual(values = c( "blue", "red")) +
-   facet_grid(type ~ rho_type + density, switch = "y") +
-   xlab("Number of species") +
-   ylab("Correlation") +
-   theme_bw() +
-   theme(legend.position = "top")
+m
 
  
- 
+
 all<-list("j_metric_e5"=j_metric_e5,"g_metric_e5"=g_metric_e5,"h_metric_e5"=h_metric_e5,
           "j_metric_e10"=j_metric_e10,"g_metric_e10"=g_metric_e10,"h_metric_e10"=h_metric_e10,
           "j_metric_e20"=j_metric_e20,"g_metric_e20"=g_metric_e20,"h_metric_e20"=h_metric_e20,
@@ -5816,7 +5781,7 @@ p
 
 
 
-```{r inter_partial correlations, echo=FALSE}
+```{r inter_partial correlations, echo=FALSE, warning=FALSE}
 
 all_part<-list("g_metric_e5"=g_metric_e5_p,"h_metric_e5"=h_metric_e5_p,
           "g_metric_e10"=g_metric_e10_p,"h_metric_e10"=h_metric_e10_p,
@@ -5935,7 +5900,7 @@ for(i in 1:length(AUCs)){
   if(length(grep("_j_",names(AUCs)[[i]]))>0)  table[(k+1):(k+length(AUCs[[i]])),"Model"]<-rep("JSDM",length(AUCs[[i]]))
   
   if(length(grep("_g_",names(AUCs)[[i]]))>0)  table[(k+1):(k+length(AUCs[[i]])),"Model"]<-rep("GJAM",length(AUCs[[i]]))
-  if(length(grep("_gdr_",names(AUCs)[[i]]))>0)  table[(k+1):(k+length(AUCs[[i]])),"Model"]<-rep("GJAM_DR",length(AUCs[[i]]))
+  if(length(grep("_gdr_",names(AUCs)[[i]]))>0)  table[(k+1):(k+length(AUCs[[i]])),"Model"]<-rep("DR_GJAM",length(AUCs[[i]]))
   
   if(length(grep("_h_",names(AUCs)[[i]]))>0)  table[(k+1):(k+length(AUCs[[i]])),"Model"]<-rep("HMSC",length(AUCs[[i]]))
   
@@ -5958,14 +5923,16 @@ for(i in 1:length(AUCs)){
   
 table[nrow(table)+1,]<-c(-1,"JSDM", "Env","Dense")
 table[nrow(table)+1,]<-c(-1,"GJAM", "Env","Dense")
-table[nrow(table)+1,]<-c(-1,"GJAM_DR", "Env","Dense")
+table[nrow(table)+1,]<-c(-1,"DR_GJAM", "Env","Dense")
 table[nrow(table)+1,]<-c(-1,"HMSC", "Env","Dense")
 
-p<-ggplot(data=table)+geom_boxplot(aes(y=as.numeric(AUC),x=Filtering,fill=Model,color=Density),position = position_dodge(1,preserve = "single"))+
-  ylim(c(0,1)) +scale_colour_manual(name = as.character(levels(as.factor(table$Density))),values = c('black','purple'))+
-  theme_tufte()
-
+table$Filtering<-factor(table$Filtering, levels=c("Env","Fac","Comp","C+F"))
+p<-ggplot(data=table)+geom_boxplot(aes(y=as.numeric(AUC),x=Filtering,fill=Model),position = position_dodge(1,preserve = "single"))+
+  ylim(c(0,1)) +facet_grid(Density~.,scales = "free")+ theme(axis.text.x = element_text(angle = 45, hjust = 1,size = 10),strip.text = element_text(size = 15),legend.position = "top")+ylab("AUC")+ scale_x_discrete(name="Filtering", breaks=c("Env","Fac","Comp","C+F"),
+                   labels=c("Environmental","Facilitation","Competition","Comp.+Fac."))+
+ggtitle("Accuracy of model predictions averaged across communities") +theme_bw()
 p
+
 
 ```
 
