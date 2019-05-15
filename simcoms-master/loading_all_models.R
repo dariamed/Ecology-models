@@ -155,7 +155,7 @@ hm_conv<-function(mod){
   #   scale_color_brewer(palette="Dark2")+scale_fill_brewer(palette="Dark2")+ xlab("Rhat") +
   #   ggtitle("Rhat for the parameters beta and the coefficients of correlation matrix")
   # plot(p2)
-  return(list(neff=neff_mod,Rhat=Rhat))
+  return(list(neff=neff,Rhat=Rhat))
 }
 
 ###########################################HMSC functions#######################################################################
@@ -176,8 +176,8 @@ hmsc_conv_dataset<- data.frame()
 
 for(j in 1:length(hmsc_list)){
   tmp1<- as.data.frame(hmsc_convergence_par[[j]][1])
-  colnames(tmp1)<-c("parameter", "effective_size", "value")
-  tmp1<-tmp1[,-2]
+  colnames(tmp1)<-c("value","parameter")
+  #tmp1<-tmp1[,-2]
   tmp1$type<-"Effective Size"
   tmp1$Filtering<-sim_names[[j]]
   tmp2<- as.data.frame(hmsc_convergence_par[[j]][2])
@@ -210,6 +210,7 @@ dev.off()
 
 gj_conv<-function(name){
   gj_mod<-load_object(name)
+  burn<-gj$m1$modelList$burnin
   gjam_bs<- mcmc.list(mcmc(gj_mod$m1$chains$bgibbsUn[-(1:burn),]),mcmc(gj_mod$m2$chains$bgibbsUn[-(1:burn),]))
   gjam_sigma<- mcmc.list(mcmc(gj_mod$m1$chains$sgibbs[-(1:burn),]),mcmc(gj_mod$m2$chains$sgibbs[-(1:burn),]))
   ###NEW plot for effective size
@@ -220,8 +221,6 @@ gj_conv<-function(name){
   colnames(n_eff_sigma)<- c("value")
   n_eff_sigma$parameter<- "correlation"
   neff<- rbind(n_eff_beta,n_eff_sigma)
-  
-  
   Rhat_beta<-as.data.frame(gelman.diag(gjam_bs, multivariate=FALSE)$psrf)
   Rhat_beta$parameter<- "beta"
   Rhat_sigma<- as.data.frame(gelman.diag(gjam_sigma, multivariate=FALSE)$psrf)
@@ -368,9 +367,9 @@ mean_cor<-function(mod){
     lapply(
       seq_along(mod),
       function(i) {
-        x <- models[[i]]
+        x <- mod[[i]]
         nm <- strsplit(
-          names(models)[[i]], "(?<=[a-z])(?=[A-Z])", perl = TRUE
+          names(mod)[[i]], "(?<=[a-z])(?=[A-Z])", perl = TRUE
         )[[1]]
         nsp <- ncol(x$mean$Rho)
         ut <- upper.tri(x$mean$Rho)
@@ -459,7 +458,7 @@ mean_cor_other<-function(mod,lab){
       function(i) {
         x <- mod[[i]]
         nm <- strsplit(
-          names(models)[[i]], "(?<=[a-z])(?=[A-Z])", perl = TRUE
+          names(mod)[[i]], "(?<=[a-z])(?=[A-Z])", perl = TRUE
         )[[1]]
         nsp <- ncol(x$Rho_mean)
         ut <- upper.tri(x$Rho_mean)
@@ -550,7 +549,7 @@ hm_inter<-function(mod){
 }
 
 R_list<-lapply(hmsc_list,hm_inter)
-Tau_list<-lapply(R_list, function(x) list(Rho_mean=x$Tau,Rho_sign=Tau_sign))
+Tau_list<-lapply(R_list, function(x) list(Rho_mean=x$Tau,Rho_sign=x$Tau_sign))
 
 
 hmsc_cor<-mean_cor_other(R_list,lab="HMSC")
@@ -559,6 +558,18 @@ hmsc_pcor<-mean_cor_other(Tau_list,lab="HMSC")
 
 
 #####GJAM#########################################################################################################
+
+
+expandSigma_rmd <- function(sigma, S){
+  
+  ss <- diag(S)
+  ss[lower.tri(ss,diag=T)] <- sigma
+  ss[upper.tri(ss)] <- t(ss)[upper.tri(ss)]
+  ss
+}
+
+
+
 convert_to_m<-function(ar){
   d <-floor((sqrt(length(ar)*8+1)-1)/2)
   C <- matrix(0,d,d)
@@ -604,7 +615,7 @@ gjam_Rho<-function(name){
 
 gjam_list_R<- lapply(gjam_files_list,gjam_Rho)
 names(gjam_list_R)<- sim_names
-Tau_list_gjam<-lapply(gjam_list_R, function(x) list(Rho_mean=x$Tau,Rho_sign=Tau_sign))
+Tau_list_gjam<-lapply(gjam_list_R, function(x) list(Rho_mean=x$Tau,Rho_sign=x$Tau_sign))
 gjam_mean_cor<-mean_cor_other(gjam_list_R,lab="GJAM")
 gjam_mean_cor_p<-mean_cor_other(Tau_list_gjam,lab="GJAM")
 
@@ -648,7 +659,7 @@ gjam_dr_Rho<-function(name){
 
 gjam_dr_list_R<- lapply(gjam_dr_files_list,gjam_dr_Rho)
 names(gjam_dr_list_R)<- sim_names
-Tau_list_gj_dr<-lapply(gjam_dr_list_R, function(x) list(Rho_mean=x$Tau,Rho_sign=Tau_sign))
+Tau_list_gj_dr<-lapply(gjam_dr_list_R, function(x) list(Rho_mean=x$Tau,Rho_sign=x$Tau_sign))
 
 gjam_dr_mean_cor<-mean_cor_other(gjam_dr_list_R,lab="DR-GJAM")
 # 
@@ -698,7 +709,6 @@ dev.off()
 ### Posterior predictive check
 ### Conditiobal Predictive Ordinate (CPO)
 
-
-
+cor_relation[abs(cor_relation) < 0.6] <- NA
 
 
