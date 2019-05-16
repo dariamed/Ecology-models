@@ -34,6 +34,7 @@ load("params.rds")
 load("sim_names.rds")
 load("comp_inter.rds")
 load("fac_inter.rds")
+
 #sim_data<-readRDS("sim_data.rds")
 
 load_object <- function(file) {
@@ -78,6 +79,115 @@ jsdm_conv<-function(mod) {
 
 ############Functions JSDM###################################################################################################
 
+metrics_jsdm<-function(model,fac=NULL,comp=NULL,only_env=T){
+  
+  if(is.null(dim(fac))&is.null(dim(comp))){
+    only_env=T;
+    fac=NULL
+    comp=NULL
+  }else{
+    if(is.null(dim(fac))){
+      only_env=F
+      fac=NULL
+    }else{
+      
+      only_env=F
+      comp=NULL
+    }
+    
+    
+  }
+  Rho<-(!model$overlap0$Rho)*model$mean$Rho
+  #{
+  if(!is.null(comp) & !is.null(fac)){
+    fac_comp <- fac-comp
+    TP_comp <- FN_comp <-TP_fac <- FN_fac <- FP <- TN <- wrong <- 0
+    for(i in 1:(nrow(Rho)-1)){
+      for(j in (i+1):ncol(Rho)){
+        if(fac_comp[i,j]>0 & Rho[i,j] >0)
+          TP_fac=TP_fac+1
+        if(fac_comp[i,j]>0 & Rho[i,j] == 0)
+          FN_fac=FN_fac+1
+        if(fac_comp[i,j]==0 & Rho[i,j] == 0)
+          TN=TN+1
+        if(fac_comp[i,j]==0 & Rho[i,j] != 0)
+          FP=FP+1
+        if(fac_comp[i,j]< 0 & Rho[i,j] < 0)
+          TP_comp=TP_comp+1
+        if(fac_comp[i,j]<0 & Rho[i,j] == 0)
+          FN_comp=FN_comp+1
+        if((fac_comp[i,j]<0 & Rho[i,j] > 0) | (fac_comp[i,j]>0 & Rho[i,j] < 0))
+          wrong=wrong+1
+      }
+    }
+    
+  }else{
+    if(!is.null(comp)){
+      
+      TP_comp <- FN_comp <- FP <- TN <- wrong <- 0
+      TP_fac <- FN_fac<-NULL
+      for(i in 1:(nrow(Rho)-1)){
+        for(j in (i+1):ncol(Rho)){
+          if(comp[i,j]>0 & Rho[i,j] <0)
+            TP_comp=TP_comp+1
+          if(comp[i,j]>0 & Rho[i,j] >0)
+            wrong=wrong+1
+          if(comp[i,j]>0 & Rho[i,j] == 0)
+            FN_comp=FN_comp+1
+          if(comp[i,j]==0 & Rho[i,j] == 0)
+            TN=TN+1
+          if(comp[i,j]==0 & Rho[i,j] != 0)
+            FP=FP+1
+          
+        }
+        #    }
+        #    }
+      }
+    }
+    if(!is.null(fac)){
+      
+      TP_fac <- FN_fac <- FP <- TN <- wrong <- 0
+      TP_comp <- FN_comp<-NULL
+      for(i in 1:(nrow(Rho)-1)){
+        for(j in (i+1):ncol(Rho)){
+          if(fac[i,j]>0 & Rho[i,j] >0)
+            TP_fac=TP_fac+1
+          if(fac[i,j]>0 & Rho[i,j] <0)
+            wrong = wrong+1
+          if(fac[i,j]>0 & Rho[i,j] == 0)
+            FN_fac=FN_fac+1
+          if(fac[i,j]==0 & Rho[i,j] == 0)
+            TN=TN+1
+          if(fac[i,j]==0 & Rho[i,j] != 0)
+            FP=FP+1
+        }
+      }
+    }
+  }
+  if(only_env){
+    
+    FP <- TN <- 0
+    TP_fac <- FN_fac<-TP_comp <- FN_comp<-wrong<-NULL
+    for(i in 1:(nrow(Rho)-1)){
+      for(j in (i+1):nrow(Rho)){
+        if(Rho[i,j] != 0)
+          FP=FP+1
+        if(Rho[i,j] == 0)
+          TN=TN+1
+      }
+    }
+    
+  }
+  success_env<-TN/(TN+FP)
+  
+  if(!is.null(TP_comp)){success_comp <- TP_comp/(TP_comp+FN_comp)}else{ success_comp = NULL}
+  
+  if(!is.null(TP_fac)) {success_fac <- TP_fac/(TP_fac+FN_fac)}else{ success_fac = NULL}
+  
+  list("FP"=FP,"TN"=TN,"TP_comp"=TP_comp,"FN_comp"=FN_comp,"TP_fac"=TP_fac,"FN_fac"=FN_fac,
+       "wrong"=wrong,"success_env"=success_env,"success_comp"=success_comp,"success_fac"=success_fac)
+}
+
 
 
 ##SET UP ##########################################################################################################
@@ -91,7 +201,12 @@ jsdm_files_list<-list(EnvEvenSp5="model-2019-04-09-19-02-16.rda",EnvEvenSp10="mo
                       , FacCompSparseSp5="model-2019-04-21-11-39-52.rda",FacCompSparseSp10="model-2019-04-21-22-58-58.rda",FacCompSparseSp20="model-2019-04-23-09-42-18.rda")
 
 jsdm_list<- lapply(jsdm_files_list, load_object)
-k<-load_object("model-2019-04-11-19-06-02.rda")
+
+
+jsdm_metrics<-mapply(metrics_jsdm,jsdm_list,fac_inter,comp_inter,SIMPLIFY = FALSE)
+
+
+identical(class(res), "list")
 
 jsdm_convergence_par<- lapply(jsdm_list, jsdm_conv)
 
@@ -156,6 +271,111 @@ hm_conv<-function(mod){
   #   ggtitle("Rhat for the parameters beta and the coefficients of correlation matrix")
   # plot(p2)
   return(list(neff=neff,Rhat=Rhat))
+}
+
+
+metrics_hmsc<-function(Rho, comp=NULL,fac=NULL,only_env=T){
+  #{
+  
+  if(is.null(dim(fac))&is.null(dim(comp))){
+    only_env=T;
+    fac=NULL
+    comp=NULL
+  }else{
+    if(is.null(dim(fac))){
+      only_env=F
+      fac=NULL
+    }else{
+      only_env=F
+      comp=NULL
+    }
+  }  
+  if(!is.null(comp) & !is.null(fac)){
+    fac_comp <- fac-comp
+    TP_comp <- FN_comp <-TP_fac <- FN_fac <- FP <- TN <- wrong <- 0
+    for(i in 1:(nrow(Rho)-1)){
+      for(j in (i+1):ncol(Rho)){
+        if(fac_comp[i,j]>0 & Rho[i,j] >0)
+          TP_fac=TP_fac+1
+        if(fac_comp[i,j]>0 & Rho[i,j] == 0)
+          FN_fac=FN_fac+1
+        if(fac_comp[i,j]==0 & Rho[i,j] == 0)
+          TN=TN+1
+        if(fac_comp[i,j]==0 & Rho[i,j] != 0)
+          FP=FP+1
+        if(fac_comp[i,j]< 0 & Rho[i,j] < 0)
+          TP_comp=TP_comp+1
+        if(fac_comp[i,j]<0 & Rho[i,j] == 0)
+          FN_comp=FN_comp+1
+        if((fac_comp[i,j]<0 & Rho[i,j] > 0) | (fac_comp[i,j]>0 & Rho[i,j] < 0))
+          wrong=wrong+1
+      }
+    }
+    
+  }else{
+    if(!is.null(comp)){
+      TP_comp <- FN_comp <- FP <- TN <- wrong <- 0
+      TP_fac <- FN_fac<-NULL
+      for(i in 1:(nrow(Rho)-1)){
+        for(j in (i+1):ncol(Rho)){
+          if(comp[i,j]>0 & Rho[i,j] <0)
+            TP_comp=TP_comp+1
+          if(comp[i,j]>0 & Rho[i,j] >0)
+            wrong=wrong+1
+          if(comp[i,j]>0 & Rho[i,j] == 0)
+            FN_comp=FN_comp+1
+          if(comp[i,j]==0 & Rho[i,j] == 0)
+            TN=TN+1
+          if(comp[i,j]==0 & Rho[i,j] != 0)
+            FP=FP+1
+        }
+      }
+      #  }
+      #  }
+    }
+    if(!is.null(fac)){
+      
+      TP_fac <- FN_fac <- FP <- TN <- wrong <- 0
+      TP_comp <- FN_comp<-NULL
+      for(i in 1:(nrow(Rho)-1)){
+        for(j in (i+1):ncol(Rho)){
+          if(fac[i,j]>0 & Rho[i,j] >0)
+            TP_fac=TP_fac+1
+          if(fac[i,j]>0 & Rho[i,j] <0)
+            wrong = wrong+1
+          if(fac[i,j]>0 & Rho[i,j] == 0)
+            FN_fac=FN_fac+1
+          if(fac[i,j]==0 & Rho[i,j] == 0)
+            TN=TN+1
+          if(fac[i,j]==0 & Rho[i,j] != 0)
+            FP=FP+1
+        }
+      }
+    }
+  }  
+  
+  if(only_env){
+    
+    FP <- TN <- 0
+    TP_fac <- FN_fac<-TP_comp <- FN_comp<-wrong<-NULL
+    for(i in 1:(nrow(Rho)-1)){
+      for(j in (i+1):nrow(Rho)){
+        if(Rho[i,j] != 0)
+          FP=FP+1
+        if(Rho[i,j] == 0)
+          TN=TN+1
+      }
+    }
+    
+  }
+  success_env<-TN/(TN+FP)
+  
+  if(!is.null(TP_comp)){success_comp <- TP_comp/(TP_comp+FN_comp)}else{ success_comp = NULL}
+  
+  if(!is.null(TP_fac)) {success_fac <- TP_fac/(TP_fac+FN_fac)}else{ success_fac = NULL}
+  
+  list("FP"=FP,"TN"=TN,"TP_comp"=TP_comp,"FN_comp"=FN_comp,"TP_fac"=TP_fac,"FN_fac"=FN_fac,
+       "wrong"=wrong,"success_env"=success_env,"success_comp"=success_comp,"success_fac"=success_fac)
 }
 
 ###########################################HMSC functions#######################################################################
@@ -230,6 +450,94 @@ gj_conv<-function(name){
   return(list(neff=neff,Rhat=Rhat ))
 }
 
+
+
+metrics_gjam<-function(Rho, comp=NULL,fac=NULL,only_env=T){
+  if(!is.null(comp) & !is.null(fac)){
+    fac_comp <- fac-comp
+    TP_comp <- FN_comp <-TP_fac <- FN_fac <- FP <- TN <- wrong <- 0
+    for(i in 1:(nrow(Rho)-1)){
+      for(j in (i+1):ncol(Rho)){
+        if(fac_comp[i,j]>0 & Rho[i,j] >0)
+          TP_fac=TP_fac+1
+        if(fac_comp[i,j]>0 & Rho[i,j] == 0)
+          FN_fac=FN_fac+1
+        if(fac_comp[i,j]==0 & Rho[i,j] == 0)
+          TN=TN+1
+        if(fac_comp[i,j]==0 & Rho[i,j] != 0)
+          FP=FP+1
+        if(fac_comp[i,j]< 0 & Rho[i,j] < 0)
+          TP_comp=TP_comp+1
+        if(fac_comp[i,j]<0 & Rho[i,j] == 0)
+          FN_comp=FN_comp+1
+        if((fac_comp[i,j]<0 & Rho[i,j] > 0) | (fac_comp[i,j]>0 & Rho[i,j] < 0))
+          wrong=wrong+1
+      }
+    }
+    
+  }else{
+    if(!is.null(comp)){
+      TP_comp <- FN_comp <- FP <- TN <- wrong <- 0
+      TP_fac <- FN_fac<-NULL
+      for(i in 1:(nrow(Rho)-1)){
+        for(j in (i+1):ncol(Rho)){
+          if(comp[i,j]>0 & Rho[i,j] <0)
+            TP_comp=TP_comp+1
+          if(comp[i,j]>0 & Rho[i,j] >0)
+            wrong=wrong+1
+          if(comp[i,j]>0 & Rho[i,j] == 0)
+            FN_comp=FN_comp+1
+          if(comp[i,j]==0 & Rho[i,j] == 0)
+            TN=TN+1
+          if(comp[i,j]==0 & Rho[i,j] != 0)
+            FP=FP+1
+          
+        }
+      }
+    }
+    if(!is.null(fac)){
+      
+      TP_fac <- FN_fac <- FP <- TN <- wrong <- 0
+      TP_comp <- FN_comp<-NULL
+      for(i in 1:(nrow(Rho)-1)){
+        for(j in (i+1):ncol(Rho)){
+          if(fac[i,j]>0 & Rho[i,j] >0)
+            TP_fac=TP_fac+1
+          if(fac[i,j]>0 & Rho[i,j] <0)
+            wrong = wrong+1
+          if(fac[i,j]>0 & Rho[i,j] == 0)
+            FN_fac=FN_fac+1
+          if(fac[i,j]==0 & Rho[i,j] == 0)
+            TN=TN+1
+          if(fac[i,j]==0 & Rho[i,j] != 0)
+            FP=FP+1
+        }
+      }
+    }
+  }
+  if(only_env){
+    
+    FP <- TN <- 0
+    TP_fac <- FN_fac<-TP_comp <- FN_comp<-wrong<-NULL
+    for(i in 1:(nrow(Rho)-1)){
+      for(j in (i+1):nrow(Rho)){
+        if(Rho[i,j] != 0)
+          FP=FP+1
+        if(Rho[i,j] == 0)
+          TN=TN+1
+      }
+    }
+    
+  }
+  success_env<-TN/(TN+FP)
+  
+  if(!is.null(TP_comp)){success_comp <- TP_comp/(TP_comp+FN_comp)}else{ success_comp = NULL}
+  
+  if(!is.null(TP_fac)) {success_fac <- TP_fac/(TP_fac+FN_fac)}else{ success_fac = NULL}
+  
+  list("FP"=FP,"TN"=TN,"TP_comp"=TP_comp,"FN_comp"=FN_comp,"TP_fac"=TP_fac,"FN_fac"=FN_fac,
+       "wrong"=wrong,"success_env"=success_env,"success_comp"=success_comp,"success_fac"=success_fac)
+}
 
 
 ###########################################GJAM functions #######################################################################
@@ -551,11 +859,10 @@ hm_inter<-function(mod){
 R_list<-lapply(hmsc_list,hm_inter)
 Tau_list<-lapply(R_list, function(x) list(Rho_mean=x$Tau,Rho_sign=x$Tau_sign))
 
-
 hmsc_cor<-mean_cor_other(R_list,lab="HMSC")
 hmsc_pcor<-mean_cor_other(Tau_list,lab="HMSC")
 
-
+hmsc_metrics<-mapply(metrics_hmsc,R_list,fac_inter,comp_inter,SIMPLIFY = FALSE)
 
 #####GJAM#########################################################################################################
 
@@ -704,11 +1011,142 @@ m<- ggplot(total_mean_part_cor) +
   theme(legend.position = "top")
 m
 dev.off()
+#############################################################################################################################
+
+all_part<-list("g_metric_e5"=g_metric_e5_p,"g_dr_metric_e5"=g_dr_metric_e5_p,"h_metric_e5"=h_metric_e5_p,
+               "g_metric_e10"=g_metric_e10_p,"g_dr_metric_e10"=g_dr_metric_e10_p,"h_metric_e10"=h_metric_e10_p,
+               "g_metric_e20"=g_metric_e20_p,"g_dr_metric_e20"=g_dr_metric_e20_p,"h_metric_e20"=h_metric_e20_p,
+               "h_metric_facDense5"=h_metric_facDense5_p,"g_metric_facDense5"=g_metric_facDense5_p,"g_dr_facDense5"=g_dr_metric_facDense5_p,
+               "h_metric_facDense10"=h_metric_facDense10_p,"g_metric_facDense10"=g_metric_facDense10_p,"g_dr_metric_facDense10"=g_dr_metric_facDense10_p,
+               "h_metric_facDense20"=h_metric_facDense20_p,"g_metric_facDense20"=g_metric_facDense20_p,"g_dr_metric_facDense20"=g_dr_metric_facDense20_p,
+               "h_metric_facSparse5"=h_metric_facSparse5_p,"g_metric_facSparse5"=g_metric_facSparse5_p,"g_dr_metric_facSparse5"=g_dr_metric_facSparse5_p,
+               "h_metric_facSparse10"=h_metric_facSparse10_p,"g_metric_facSparse10"=g_metric_facSparse10_p,"g_dr_metric_facSparse10"=g_dr_metric_facSparse10_p,
+               "h_metric_facSparse20"=h_metric_facSparse20_p,"g_metric_facSparse20"=g_metric_facSparse20_p,"g_dr_metric_facSparse20"=g_dr_metric_facSparse20_p,
+               "h_metric_compDense5"=h_metric_compDense5_p,"g_metric_compDense5"=g_metric_compDense5_p,"g_dr_metric_compDense5"=g_dr_metric_compDense5_p,
+               "h_metric_compDense10"=h_metric_compDense10_p,"g_metric_compDense10"=g_metric_compDense10_p,"g_dr_metric_compDense10"=g_dr_metric_compDense10_p,
+               "h_metric_compDense20"=h_metric_compDense20_p,"g_metric_compDense20"=g_metric_compDense20_p,"g_dr_metric_compDense20"=g_dr_metric_compDense20_p,
+               "h_metric_compSparse5"=h_metric_compSparse5_p,"g_metric_compSparse5"=g_metric_compSparse5_p,"g_dr_metric_compSparse5"=g_dr_metric_compSparse5_p,
+               "h_metric_compSparse10"=h_metric_compSparse10_p,"g_metric_compSparse10"=g_metric_compSparse10_p,"g_dr_metric_compSparse10"=g_dr_metric_compSparse10_p,
+               "h_metric_compSparse20"=h_metric_compSparse20_p,"g_metric_compSparse20"=g_metric_compSparse20_p,"g_dr_metric_compSparse20"=g_dr_metric_compSparse20_p,
+               "g_metric_faccompSparseSp5"= g_metric_FacCompSparse5_p,"h_metric_faccompSparseSp5"=h_metric_FacCompSparse5_p, "g_dr_metric_FacCompSparse5"=g_dr_metric_FacCompSparse5_p,
+               "g_metric_faccompSparseSp10"= g_metric_FacCompSparse10_p,"h_metric_faccompSparseSp10"=h_metric_FacCompSparse10_p,"g_dr_metric_FacCompSparse10"=g_dr_metric_FacCompSparse10_p,
+               "g_metric_faccompSparseSp20"= g_metric_FacCompSparse20_p,"h_metric_faccompSparseSp20"=h_metric_FacCompSparse20_p,"g_dr_metric_FacCompSparse20"=g_dr_metric_FacCompSparse20_p,
+               "g_metric_faccompDenseSp5"= g_metric_FacCompDense5_p,"h_metric_faccompDenseSp5"=h_metric_FacCompDense5_p, "g_dr_metric_FacCompDense5"=g_dr_metric_FacCompDense5_p,
+               "g_metric_faccompDenseSp10"= g_metric_FacCompDense10_p,"h_metric_faccompDenseSp10"=h_metric_FacCompDense10_p,"g_dr_metric_FacCompDense10"=g_dr_metric_FacCompDense10_p,
+               "g_metric_faccompDenseSp20"= g_metric_FacCompDense20_p,"h_metric_faccompDenseSp20"=h_metric_FacCompDense20_p,"g_dr_metric_FacCompDense20"=g_dr_metric_FacCompDense20_p
+)
+
+
+
+for(i in 1:length(names(all_part))){
+  if(!is.null(all_part[[i]]$success_env)) table[i,"success_env"]<-all_part[[i]]$success_env
+  if(!is.null(all_part[[i]]$success_comp)) table[i,"success_comp"]<-all_part[[i]]$success_comp
+  if(!is.null(all_part[[i]]$success_fac)) table[i,"success_fac"]<-all_part[[i]]$success_fac
+  
+  if(length(grep("5",names(all_part)[i]))>0) table[i,"n_sp"]<-5
+  if(length(grep("10",names(all_part)[i]))>0) table[i,"n_sp"]<-10
+  if(length(grep("20",names(all_part)[i]))>0) table[i,"n_sp"]<-20
+  
+  if(length(grep("fac",names(all_part)[i]))>0){ table[i,"Facilitation"]<-"facilitation"}#else{table[i,"facilition"]<-NULL}
+  if(length(grep("comp",names(all_part)[i]))>0){ table[i,"Competition"]<-"competition"}#else{table[i,"competition"]<-NULL}
+  #if(!(length(grep("comp",names(all_part)[i]))>0) | length(grep("fac",names(all_part)[i]))>0) {table[i,"Comp_fac"]<-"comp_fac"}else{table[i,"Comp_fac"]<-NULL}
+  
+  
+  if(length(grep("Dense",names(all_part)[i]))>0){ table[i,"sparsity"]<-"dense"}else{table[i,"sparsity"]<-"sparse"}
+  
+  if(length(grep("j_",names(all_part)[i]))>0) table[i,"model"]<-"CM"
+  if(length(grep("g_m",names(all_part)[i]))>0) table[i,"model"]<-"GJAM"
+  if(length(grep("g_dr",names(all_part)[i]))>0) table[i,"model"]<-"DR-GJAM"
+  if(length(grep("h_",names(all_part)[i]))>0) table[i,"model"]<-"HMSC"
+  
+}
+
+table_comp<-table[which(!is.na(table$success_comp)),]
+table_fac<-table[which(!is.na(table$success_fac)),]
+
+tc<-cbind(table_comp$success_comp,table_comp$model,rep("All",nrow(table_comp)),rep("Int",nrow(table_comp)))
+tc<-rbind(tc,cbind(table_comp[which(table_comp$n_sp==5),"success_comp"],table_comp[which(table_comp$n_sp==5),"model"],rep("5",sum(table_comp$n_sp==5)),rep("Int",sum(table_comp$n_sp==5))))
+tc<-rbind(tc,cbind(table_comp[which(table_comp$n_sp==10),"success_comp"],table_comp[which(table_comp$n_sp==10),"model"],rep("10",sum(table_comp$n_sp==10)),rep("Int",sum(table_comp$n_sp==10))))
+tc<-rbind(tc,cbind(table_comp[which(table_comp$n_sp==20),"success_comp"],table_comp[which(table_comp$n_sp==20),"model"],rep("20",sum(table_comp$n_sp==20)),rep("Int",sum(table_comp$n_sp==20))))
+tc<-rbind(tc,cbind(table_comp[which(table_comp$sparsity=="dense"),"success_comp"],table_comp[which(table_comp$sparsity=="dense"),"model"],rep("dense",sum(table_comp$sparsity=="dense")),rep("Int",sum(table_comp$sparsity=="dense"))))
+tc<-rbind(tc,cbind(table_comp[which(table_comp$sparsity=="sparse"),"success_comp"],table_comp[which(table_comp$sparsity=="sparse"),"model"],rep("sparse",sum(table_comp$sparsity=="sparse")),rep("Int",sum(table_comp$sparsity=="sparse"))))
+tc<-rbind(tc,cbind(table_comp$success_env,table_comp$model,rep("All_env",nrow(table_comp)),rep("Env",nrow(table_comp))))
+tc<-rbind(tc,cbind(table_comp[which(table_comp$n_sp==5),"success_env"],table_comp[which(table_comp$n_sp==5),"model"],rep("5_env",sum(table_comp$n_sp==5)),rep("Env",sum(table_comp$n_sp==5))))
+tc<-rbind(tc,cbind(table_comp[which(table_comp$n_sp==10),"success_env"],table_comp[which(table_comp$n_sp==10),"model"],rep("10_env",sum(table_comp$n_sp==10)),rep("Env",sum(table_comp$n_sp==10))))
+tc<-rbind(tc,cbind(table_comp[which(table_comp$n_sp==20),"success_env"],table_comp[which(table_comp$n_sp==20),"model"],rep("20_env",sum(table_comp$n_sp==20)),rep("Env",sum(table_comp$n_sp==20))))
+
+tc<-data.frame("success"=as.numeric(tc[,1]),"model"=tc[,2],"fac"=tc[,3],"int"=rep("Competition",nrow(tc)),"col"=tc[,4])
+
+
+
+tf<-cbind(table_fac$success_fac,table_fac$model,rep("All",nrow(table_fac)),rep("Int",nrow(table_fac)))
+tf<-rbind(tf,cbind(table_fac[which(table_fac$n_sp==5),"success_fac"],table_fac[which(table_fac$n_sp==5),"model"],rep("5",sum(table_fac$n_sp==5)),rep("Int",sum(table_fac$n_sp==5))))
+tf<-rbind(tf,cbind(table_fac[which(table_fac$n_sp==10),"success_fac"],table_fac[which(table_fac$n_sp==10),"model"],rep("10",sum(table_fac$n_sp==10)),rep("Int",sum(table_fac$n_sp==10))))
+tf<-rbind(tf,cbind(table_fac[which(table_fac$n_sp==20),"success_fac"],table_fac[which(table_fac$n_sp==20),"model"],rep("20",sum(table_fac$n_sp==20)),rep("Int",sum(table_fac$n_sp==20))))
+tf<-rbind(tf,cbind(table_fac[which(table_fac$sparsity=="dense"),"success_fac"],table_fac[which(table_fac$sparsity=="dense"),"model"],rep("dense",sum(table_fac$sparsity=="dense")),rep("Int",sum(table_fac$sparsity=="dense"))))
+tf<-rbind(tf,cbind(table_fac[which(table_fac$sparsity=="sparse"),"success_fac"],table_fac[which(table_fac$sparsity=="sparse"),"model"],rep("sparse",sum(table_fac$sparsity=="sparse")),rep("Int",sum(table_fac$sparsity=="sparse"))))
+tf<-rbind(tf,cbind(table_fac$success_env,table_fac$model,rep("All_env",nrow(table_fac)),rep("Env",nrow(table_fac))))
+tf<-rbind(tf,cbind(table_fac[which(table_fac$n_sp==5),"success_env"],table_fac[which(table_fac$n_sp==5),"model"],rep("5_env",sum(table_fac$n_sp==5)),rep("Env",sum(table_fac$n_sp==5))))
+tf<-rbind(tf,cbind(table_fac[which(table_fac$n_sp==10),"success_env"],table_fac[which(table_fac$n_sp==10),"model"],rep("10_env",sum(table_fac$n_sp==10)),rep("Env",sum(table_fac$n_sp==10))))
+tf<-rbind(tf,cbind(table_fac[which(table_fac$n_sp==20),"success_env"],table_fac[which(table_fac$n_sp==20),"model"],rep("20_env",sum(table_fac$n_sp==20)),rep("Env",sum(table_fac$n_sp==20))))
+
+tf<-data.frame("success"=as.numeric(tf[,1]),"model"=tf[,2],"fac"=tf[,3],"int"=rep("Facilitation",nrow(tf)),"col"=tf[,4])
+
+table<-rbind(tf,tc)
+
+p<-ggplot(data=table)+geom_boxplot(aes(y=as.numeric(success),x=as.factor(fac),fill=as.factor(col)))+
+  scale_x_discrete(name="Parameters", breaks=c("All","5","10","20","dense","sparse","All_env","5_env","10_env","20_env"),
+                   labels=c("All","5","10","20","dense","sparse","All","5","10","20"),limits=c("All","5","10","20","dense","sparse","All_env","5_env","10_env","20_env"))+
+  scale_y_continuous(name="% success")+
+  scale_fill_discrete(name = "Success in retrieving", labels = c("Sensibility (non int.)","Sensitivity (int.)"))+theme_bw()+theme(axis.text.x = element_text(angle = 45, hjust = 0.5),legend.position="top",plot.title = element_text(hjust = 0.5))+
+  facet_grid( int~model , scales="free") +ggtitle("Pairs indentification by partial correlation") 
+p
 
 #############################################################################################################################################################
 ### Posterior predictive check
 ### Conditiobal Predictive Ordinate (CPO)
+#### Out of sample prediction 
+setwd("/Users/dariabystrova/Documents/GitHub/Ecology-models/simcoms-master/ExampleFiles")
+load_object("new_sim_data.rds")
 
-cor_relation[abs(cor_relation) < 0.6] <- NA
+
+pdata<- new_sim_data$EnvEvenSp5
+
+mod_gj<- gjamPredict(out, newdata = newdata)
+
+jsdm_list<- lapply(jsdm_files_list, load_object)
+k<-load_object("./gjam_models/gjam5env.rda")
+
+datab <- list(
+  Y = subset(data, select = -env),
+  X = cbind(1, scale(poly(data$env, 2))),
+  covx = cov(cbind(1, scale(poly(data$env, 2)))),
+  K = 3,
+  J = ncol(data) - 1,
+  n = nrow(data),
+  I = diag(ncol(data) - 1),
+  df = ncol(data)
+)
+
+
+
+gjam_predict_out<- function(datap, mod){
+  np<-200
+  xdata<- as.data.frame(scale(poly(datap$env, 2))[1:np,])
+  colnames(xdata)<- c("env", "env2")
+  newdata <- list(xdata = xdata, nsim=200)
+  predict<-  gjamPredict(mod$m1, newdata = newdata)
+  y_full    <- predict$sdList$yMu
+  for(i in 1:(ncol(datap)-1)) AUC_g<-auc(roc(y_full[,i],factor(pdata[1:np,i])))
+  return(AUC_g)
+}
+
+
+
+
+
+
+
+#cor_relation[abs(cor_relation) < 0.6] <- NA
 
 
