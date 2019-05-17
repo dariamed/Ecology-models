@@ -190,6 +190,25 @@ metrics_jsdm<-function(model,fac=NULL,comp=NULL,only_env=T){
 
 
 
+jsdm_tau<-function(jsdm_mod){
+  nsamples<-jsdm_mod$mcmc.info$n.samples
+  ns<- ncol(jsdm_mod$model$cluster1$data()$Y)
+  postT<-array(dim=c(ns,ns,nsamples))
+  for(i in 1:nsamples){
+    postT[,,i]<- -stats::cov2cor(solve(jsdm_mod$sims.list$Rho[i,,]+0.1*diag(ns)))
+  }
+  
+  postTMean = apply(postT,c(1,2),mean)
+  postTUp=apply(postT,c(1,2),quantile,0.95)
+  postTLo=apply(postT,c(1,2),quantile,0.05)
+  
+  Toplot_T<-postTMean*(!(postTUp>0 & postTLo<0))
+  return(list(Tau=postTMean,Tau_sign=Toplot_T)) 
+}
+
+jsdm_rho<-function(jsdm_mod){
+  return(list(Rho=jsdm_mod$mean$Rho,Rho_sign= (!jsdm_mod$overlap0$Rho)*jsdm_mod$mean$Rho))
+}
 ##SET UP ##########################################################################################################
 
 jsdm_files_list<-list(EnvEvenSp5="model-2019-04-09-19-02-16.rda",EnvEvenSp10="model-2019-04-10-08-26-20.rda",EnvEvenSp20 ="model-2019-04-11-19-06-02.rda",
@@ -205,8 +224,8 @@ jsdm_list<- lapply(jsdm_files_list, load_object)
 
 jsdm_metrics<-mapply(metrics_jsdm,jsdm_list,fac_inter,comp_inter,SIMPLIFY = FALSE)
 
-
-identical(class(res), "list")
+jsdm_rho_list<- lapply(jsdm_list,jsdm_rho )
+jsdm_tau_list<- lapply(jsdm_list,jsdm_tau )
 
 jsdm_convergence_par<- lapply(jsdm_list, jsdm_conv)
 
@@ -235,15 +254,16 @@ for(i in 1:dim(jsdm_conv_dataset)[1]){
     }
 }
 
-pdf("plot_conv_jsdm.pdf")
+#pdf("plot_conv_jsdm.pdf")
 p2<- ggplot(jsdm_conv_dataset, aes(x=value, color=parameter,fill=parameter)) +
   geom_histogram( alpha=0.4, position="identity") +
   scale_color_brewer(palette="Dark2")+scale_fill_brewer(palette="Dark2")+ xlab("Rhat") +facet_wrap(type~.,scales = "free")+xlab(" ")+
    ggtitle("Convergence parameters for the CM model")+theme_bw()+ theme(plot.title = element_text(hjust = 0.5))
 plot(p2)
-dev.off()
+#dev.off()
 ############################################HMSC functions#####################################################################################
-hm_conv<-function(mod){
+hm_conv<-function(name){
+  mod<-load_object(name)
   codaList = convertToCodaObject(mod)
   #convergence histograms
   ##NEW convergence histograms
@@ -389,12 +409,11 @@ hmsc_files_list<-list(EnvEvenSp5 ="./new_HMmodels/hm5env.rda",EnvEvenSp10="./new
                       FacCompSparseSp5 ="./new_HMmodels/hmcmp_facs5.rda",FacCompSparseSp10="./new_HMmodels/hmcmp_facs10.rda" ,FacCompSparseSp20="./new_HMmodels/hmcmp_facs20.rda" )
 
 
-hmsc_list<- lapply(hmsc_files_list, load_object)
-hmsc_convergence_par<- lapply(hmsc_list, hm_conv)
+hmsc_convergence_par<- lapply(hmsc_files_list, hm_conv)
 
 hmsc_conv_dataset<- data.frame()
 
-for(j in 1:length(hmsc_list)){
+for(j in 1:length(hmsc_files_list)){
   tmp1<- as.data.frame(hmsc_convergence_par[[j]][1])
   colnames(tmp1)<-c("value","parameter")
   #tmp1<-tmp1[,-2]
@@ -416,21 +435,21 @@ for(i in 1:dim(hmsc_conv_dataset)[1]){
     hmsc_conv_dataset$gentype[i]<-"Comp+Fac"
   }
 }
-pdf("plot_conv_hmsc.pdf")
+#pdf("plot_conv_hmsc.pdf")
 p2<- ggplot(hmsc_conv_dataset, aes(x=value, color=parameter,fill=parameter)) +
   geom_histogram( alpha=0.4, position="identity") +
   scale_color_brewer(palette="Dark2")+scale_fill_brewer(palette="Dark2") +facet_wrap(type~.,scales = "free_x") +xlab(" ")+
   ggtitle("Convergence parameters for the HMSC model")+theme_bw()+ theme(plot.title = element_text(hjust = 0.5))
 
 p2
-dev.off()
+#dev.off()
 
 ###########################################GJAM functions#######################################################################
 
 
 gj_conv<-function(name){
   gj_mod<-load_object(name)
-  burn<-gj$m1$modelList$burnin
+  burn<-gj_mod$m1$modelList$burnin
   gjam_bs<- mcmc.list(mcmc(gj_mod$m1$chains$bgibbsUn[-(1:burn),]),mcmc(gj_mod$m2$chains$bgibbsUn[-(1:burn),]))
   gjam_sigma<- mcmc.list(mcmc(gj_mod$m1$chains$sgibbs[-(1:burn),]),mcmc(gj_mod$m2$chains$sgibbs[-(1:burn),]))
   ###NEW plot for effective size
@@ -581,13 +600,13 @@ for(i in 1:dim(gjam_conv_dataset)[1]){
 }
 
 
-pdf("plot_conv_gjam.pdf")
+#pdf("plot_conv_gjam.pdf")
 p2<- ggplot(gjam_conv_dataset, aes(x=value, color=parameter,fill=parameter)) +
   geom_histogram( alpha=0.4, position="identity") +
   scale_color_brewer(palette="Dark2")+scale_fill_brewer(palette="Dark2") +facet_wrap(type~.,scales = "free_x") +xlab(" ")+
   ggtitle("Convergence parameters for the GJAM model")+theme_bw()+ theme(plot.title = element_text(hjust = 0.5))
-p2
-dev.off()
+#p2
+#dev.off()
 
 
 #########GJAM DIMENSION REDUCTION########################################################################
@@ -631,13 +650,13 @@ for(i in 1:dim(gjam_dr_conv_dataset)[1]){
   }
 }
 
-pdf("plot_conv_gjamdr.pdf")
+#pdf("plot_conv_gjamdr.pdf")
 p2<- ggplot(gjam_dr_conv_dataset, aes(x=value, color=parameter,fill=parameter)) +
   geom_histogram( alpha=0.4, position="identity") +
   scale_color_brewer(palette="Dark2")+scale_fill_brewer(palette="Dark2") +facet_wrap(type~.,scales = "free_x") +xlab(" ")+
   ggtitle("Convergence parameters for the DR_GJAM model")+theme_bw()+ theme(plot.title = element_text(hjust = 0.5))
 p2
-dev.off()
+#dev.off()
 
 
 
@@ -742,23 +761,24 @@ mean_corr_val<- mean_cor(jsdm_list)
 
 #' Plot correlation parameter means
 #+ plot-correlations
-m<- ggplot(mean_corr_val) +
-  aes(factor(nsp), rho, fill = interaction) +
-  geom_hline(yintercept = 0) +
-  geom_boxplot(
-    outlier.size = .2, size = .1, position = position_dodge(preserve = "single")
-  ) +
-  scale_fill_manual(values = c("grey", "blue", "red")) +
-  facet_grid(rho_type ~ type + density) +
-  xlab("Number of species") +
-  ylab("Correlation") +
-  theme_bw() +
-  theme(legend.position = "top")
-m
+# m<- ggplot(mean_corr_val) +
+#   aes(factor(nsp), rho, fill = interaction) +
+#   geom_hline(yintercept = 0) +
+#   geom_boxplot(
+#     outlier.size = .2, size = .1, position = position_dodge(preserve = "single")
+#   ) +
+#   scale_fill_manual(values = c("grey", "blue", "red")) +
+#   facet_grid(rho_type ~ type + density) +
+#   xlab("Number of species") +
+#   ylab("Correlation") +
+#   theme_bw() +
+#   theme(legend.position = "top")
+# m
 
 ######################################### HMSC
 
 mean_cor_other<-function(mod,lab){
+  
   mean_correlations <- do.call(
     rbind,
     lapply(
@@ -820,8 +840,8 @@ mean_cor_other<-function(mod,lab){
   return(mean_correlations)
 }
 
-
-hm_inter<-function(mod){
+hm_inter<-function(name){
+  mod<- load_object(name)
   getOmega = function(a,r=1)
     return(crossprod(a$Lambda[[r]]))
   ns<-mod$ns
@@ -856,7 +876,7 @@ hm_inter<-function(mod){
   return(list(Rho_mean=postRMean,Rho_sign=Toplot_R, Tau=postTMean,Tau_sign=Toplot_T)) 
 }
 
-R_list<-lapply(hmsc_list,hm_inter)
+R_list<-lapply(hmsc_files_list,hm_inter)
 Tau_list<-lapply(R_list, function(x) list(Rho_mean=x$Tau,Rho_sign=x$Tau_sign))
 
 hmsc_cor<-mean_cor_other(R_list,lab="HMSC")
@@ -961,7 +981,6 @@ gjam_dr_Rho<-function(name){
     
   return(list(Rho_mean=S_mean,Rho_sign=Sigma_sign, Tau=invsigma_mean,Tau_sign=INVSigma_sign))
 }
-
 
 
 gjam_dr_list_R<- lapply(gjam_dr_files_list,gjam_dr_Rho)
@@ -1101,21 +1120,68 @@ p<-ggplot(data=table)+geom_boxplot(aes(y=as.numeric(success),x=as.factor(fac),fi
   scale_fill_discrete(name = "Success in retrieving", labels = c("Sensibility (non int.)","Sensitivity (int.)"))+theme_bw()+theme(axis.text.x = element_text(angle = 45, hjust = 0.5),legend.position="top",plot.title = element_text(hjust = 0.5))+
   facet_grid( int~model , scales="free") +ggtitle("Pairs indentification by partial correlation") 
 p
+#############################################################################################################################################################
+#Correlation_vs_Partial correlation
 
+mat_measure<- function(Mat_list){
+  A<- Mat_list$Rho
+  B<- Mat_list$Tau
+  n<- dim(A)
+  coef<- n*(n-1)
+  A[A < -0.01] <- -1
+  B[B < -0.01] <- -1
+  A[A > 0.01] <- 1
+  B[B > 0.01] <- 1
+  diag(A)<-0
+  diag(B)<-0
+  M<- 0.5* abs(A-B)
+  val<- sum(M)/coef
+  return(val)
+}
+
+
+R_Tau_list_gjam_sign<-lapply(gjam_list_R, function(x) list(Rho=x$Rho_sign,Tau=x$Tau_sign))
+R_Tau_list_gjam_dr_sign<-lapply(gjam_dr_list_R, function(x) list(Rho=x$Rho_sign,Tau=x$Tau_sign))
+R_Tau_list_hmsc_sign<-lapply(R_list, function(x) list(Rho=x$Rho_sign,Tau=x$Tau_sign))
+R_Tau_list_jsdm_sign<-mapply(function(x,y) list(Rho=x$Rho_sign,Tau=y$Tau_sign),jsdm_rho_list,jsdm_tau_list,SIMPLIFY = FALSE )
+
+
+difference_gjam<- lapply(R_Tau_list_gjam_sign,mat_measure)
+difference_gjam_dr<- lapply(R_Tau_list_gjam_dr_sign,mat_measure)
+difference_hmsc<- lapply(R_Tau_list_hmsc_sign,mat_measure)
+difference_jsdm<- lapply(R_Tau_list_jsdm_sign,mat_measure)
+
+
+difference_gjam_df<- as.data.frame(unlist(difference_gjam))
+colnames(difference_gjam_df)<-c("value")
+difference_gjam_df$model<-"GJAM"
+difference_gjam_dr_df<- as.data.frame(unlist(difference_gjam_dr))
+colnames(difference_gjam_dr_df)<-c("value")
+difference_gjam_dr_df$model<- "DR-GJAM"
+difference_hmsc_df<- as.data.frame(unlist(difference_hmsc))
+colnames(difference_hmsc_df)<-c("value")
+difference_hmsc_df$model<- "HMSC"
+difference_jsdm_df<- as.data.frame(unlist(difference_jsdm))
+colnames(difference_jsdm_df)<-c("value")
+difference_jsdm_df$model<- "CM"
+
+tab_diff<- rbind(difference_gjam_df,difference_gjam_dr_df,difference_hmsc_df,difference_jsdm_df)
+
+#pdf("plot_diff_corr.pdf")
+
+p<-ggplot(data=tab_diff)+geom_boxplot(aes(x=model, y=as.numeric(value),fill=as.factor(model)))+
+  theme_bw()+theme(axis.text.x = element_text( hjust = 0.5),legend.position=" ",plot.title = element_text(hjust = 0.5))+ scale_y_continuous(name="% of different pairs")+
+  ggtitle("Difference between correlation and partial correlation matrices") 
+p
+#dev.off()
 #############################################################################################################################################################
 ### Posterior predictive check
 ### Conditiobal Predictive Ordinate (CPO)
 #### Out of sample prediction 
-setwd("/Users/dariabystrova/Documents/GitHub/Ecology-models/simcoms-master/ExampleFiles")
-load_object("new_sim_data.rds")
-
+setwd("/Users/dariabystrova/Documents/GitHub/Ecology-models/simcoms-master")
+load("new_sim_data.rds")
 
 pdata<- new_sim_data$EnvEvenSp5
-
-mod_gj<- gjamPredict(out, newdata = newdata)
-
-jsdm_list<- lapply(jsdm_files_list, load_object)
-k<-load_object("./gjam_models/gjam5env.rda")
 
 datab <- list(
   Y = subset(data, select = -env),
@@ -1130,23 +1196,203 @@ datab <- list(
 
 
 
-gjam_predict_out<- function(datap, mod){
+gjam_predict_out<- function(datap, name){
+  mod<-load_object(name)
   np<-200
-  xdata<- as.data.frame(scale(poly(datap$env, 2))[1:np,])
+  xdata<- as.data.frame(cbind(1, scale(poly(datap$env, 2)))[1:np,])
   colnames(xdata)<- c("env", "env2")
   newdata <- list(xdata = xdata, nsim=200)
   predict<-  gjamPredict(mod$m1, newdata = newdata)
   y_full    <- predict$sdList$yMu
+  for(i in 1:(ncol(datap)-1)) AUC_g<-auc(roc(y_full[,i],factor(datap[1:np,i])))
+  return(AUC_g)
+}
+
+
+gjam_AUC<-mapply(gjam_predict_out,new_sim_data, gjam_dr_files_list,SIMPLIFY = FALSE)
+
+gjam_dr_AUC<-mapply(gjam_predict_out,new_sim_data, gjam_files_list,SIMPLIFY = FALSE)
+
+
+hmsc_predict_out<- function(datap, name){
+  np<-200
+  colnames(xdata)<- c("env", "env2")
+  mod<-load_object(name)
+  X<-scale(poly(datap$env[1:np], 2))
+  colnames(X)<-c("env","env2")
+  XDataNew<-as.data.frame(X)
+  studyDesignNew = data.frame(sample = as.factor(1:np))
+  rLNew = HmscRandomLevel(units = studyDesignNew$sample)
+  predY = predict(hm_mod, XData=XDataNew, studyDesign=studyDesignNew, ranLevels=list(sample = rLNew), expected=TRUE )
+ 
   for(i in 1:(ncol(datap)-1)) AUC_g<-auc(roc(y_full[,i],factor(pdata[1:np,i])))
   return(AUC_g)
 }
 
 
 
+jsdm_predict_out<- function(datap, name){
+  np<-200
+  S<- ncol(datap)-1
+  nsamples<-mod$mcmc.info$n.samples
+  xdata<- as.data.frame(cbind(1, scale(poly(datap$env, 2)))[1:np,])
+  colnames(xdata)<- c("inter","env", "env2")
+  mod<-load_object(name)
+  postBX<-array(dim=c(nsamples,np,S))
+  postW<-array(dim=c(nsamples,np,S))
+  for(i in 1:nsamples){
+    postBX[i,,]<- t(mod$sims.list$B[i, , ]%*%t(xdata))
+    postW[i,,]<- .rMVN(np, postBX[i,,], mod$sims.list$Rho[i,,])
+    
+  }
+  predY_mean<-pnorm(apply(postW,2:3, mean))
+  
+  for(i in 1:S) AUC_j<-auc(roc(predY_mean[,i],factor(datap[1:np,i])))
+  return(AUC_j)
+}  
+  
+jsdm_AUC<-mapply(jsdm_predict_out,new_sim_data, jsdm_files_list,SIMPLIFY = FALSE)
+
+#datap<- new_sim_data$FacDenseSp10
+#name=jsdm_files_list[[5]]
+
+
+hm_mod<- load_object("./new_HMmodels/hm5env.rda")
+np<-200
+X<-scale(poly(datap$env[1:np], 2))
+colnames(X)<-c("env","env2")
+XDataNew<-as.data.frame(X)
+studyDesignNew = data.frame(sample = as.factor(1:np))
+rLNew = HmscRandomLevel(units = studyDesignNew$sample)
+
+predY = predict(hm_mod, XData=XDataNew, studyDesign=studyDesignNew, ranLevels=list(sample = rLNew), expected=TRUE )
+
+
+
+##############################################################################################################
 
 
 
 
-#cor_relation[abs(cor_relation) < 0.6] <- NA
 
 
+jsdm_AUC<-mapply(metrics_jsdm,jsdm_list,fac_inter,comp_inter,SIMPLIFY = FALSE)
+
+jsdm_AUC<- lapply(jsdm_list,jsdm_rho )
+jsdm_tau_list<- lapply(jsdm_list,jsdm_tau )
+
+jsdm_convergence_par<- lapply(jsdm_list, jsdm_conv)
+
+jsdm_conv_dataset<- data.frame()
+
+
+
+
+xdata%*%mod$sims.list$B
+
+xdata[1,]
+
+
+
+
+env<-runif(200,0,100)
+X<-scale(poly(env, 2))
+colnames(X)<-c("env","env2")
+XDataNew<-as.data.frame(X)
+studyDesignNew = data.frame(sample = as.factor(1:length(env)))
+rLNew = HmscRandomLevel(units = studyDesignNew$sample)
+
+predY = predict(hm_mod, XData=XDataNew, studyDesign=studyDesignNew, ranLevels=list(sample = rLNew), expected=TRUE )
+
+
+
+
+
+mod<-load_object("./new_HMmodels/hm5env.rda")
+
+
+name="./new_HMmodels/hm5env.rda"
+
+pdata<- new_sim_data$EnvEvenSp5
+
+datap<- pdata
+
+predict(mod, Xdata=xdata, expected=FALSE)
+computePredictedValues(mod)
+
+predY = predict(mod, XData=xdata)
+np<-200
+X<-scale(poly(datap$env[1:np], 2))
+colnames(X)<-c("env","env2")
+studyDesign = data.frame(sample = as.factor(1:np))
+rL = HmscRandomLevel(units = studyDesign$sample)
+
+XFormula=~env+env2
+predY = predict(mod, X=xdata, studyDesign=mod$studyDesign, ranLevels=mod$ranLevels, expected=TRUE)
+predYR1 = predict(mod, studyDesign=mod$studyDesign, XData=as.data.frame(X), ranLevels=mod$ranLevels, expected=TRUE)
+
+Gradient=constructGradient(mod, focalVariable="env")
+
+predY = predict(mod, XData=Gradient$XDataNew, studyDesign=Gradient$studyDesignNew, ranLevels=Gradient$rLNew, expected=TRUE)
+
+plotGradient(mod, Gradient, pred=predY, measure="Y", showData = TRUE)
+
+predict_mean<- lapply(predY,mean)
+
+plot(datap[,1],predY[,1])
+
+m = Hmsc(Y=as.matrix(Y_data), XData=as.data.frame(X), XFormula=~env+env2, distr="probit",
+         studyDesign = studyDesign, ranLevels = list(sample = rL))
+m = sampleMcmc(m, nsamples, thin=10, adaptNf=c(200,200), transient=500,nChains=nchains ,verbose=F)
+
+array(unlist(lapply(predY$postList[[1]],getOmega)),c(ns,ns,mod$samples))
+
+
+
+
+
+
+.rMVN <- function (nn, mu, sigma){
+  
+  # nn - no. samples from one mu vector or nrow(mu) for matrix
+  
+  if(!is.matrix(mu)) mu <- matrix(mu,1)
+  if(length(mu) == 1)mu <- matrix(mu,1,nrow(sigma))
+  if(ncol(mu) == 1)  mu <- t(mu)
+  
+  m <- ncol(sigma)
+  
+  if(ncol(mu) != m)stop('dimension mismatch mu, sigma')
+  if(nn > 1 & nrow(mu) == 1)mu <- matrix(mu,nn,m,byrow=T)
+  if(nn != nrow(mu))stop('sample size does not match mu')
+  
+  si <- try(svd(sigma),T)
+  
+  if( inherits(si,'try-error') ){
+    ev <- eigen(sigma, symmetric = TRUE)
+    si <- t(ev$vectors %*% (t(ev$vectors) * sqrt(ev$values)))
+  } else {
+    si <- t(si$v %*% (t(si$u) * sqrt(si$d)))
+  }
+  p <- matrix(rnorm(nn * m), nn) %*% si
+  p + mu
+}
+
+
+
+w<-.rMVN(1, m, s)
+
+
+studyDesign = data.frame(sample = as.factor(1:np))
+rL = HmscRandomLevel(units = studyDesign$sample)
+m = Hmsc(Y=as.matrix(Y_data), XData=as.data.frame(X), XFormula=~env+env2, distr="probit",
+         studyDesign = studyDesign, ranLevels = list(sample = rL))
+m = sampleMcmc(m, nsamples, thin=10, adaptNf=c(200,200), transient=500,nChains=nchains ,verbose=F)
+
+
+rL = HmscRandomLevel(units = studyDesign$sample)
+studyDesign = data.frame(sample = as.factor(1:np))
+rL = HmscRandomLevel(units = studyDesign$sample)
+m = Hmsc(Y=as.matrix(Y_data), XData=as.data.frame(X), XFormula=~env+env2, distr="probit",
+         studyDesign = studyDesign, ranLevels = list(sample = rL))
+m = sampleMcmc(m, nsamples, thin=10, adaptNf=c(200,200), transient=500,nChains=nchains ,verbose=F)

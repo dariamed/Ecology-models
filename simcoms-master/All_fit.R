@@ -23,8 +23,6 @@ Rcpp::sourceCpp('/Users/dariabystrova/Documents/GitHub/gjamed/src/cppFns.cpp')
 source("/Users/dariabystrova/Documents/GitHub/gjamed/R/gjamHfunctions_mod.R")
 
 
-#setwd("C:/Users/giaru/Desktop/Documents/GitHub/Ecology-models/simcoms-master")
-
 setwd("/Users/dariabystrova/Documents/GitHub/Ecology-models/simcoms-master/ExampleFiles")
 # lapply(list.files(path = "."),load,.GlobalEnv)
 #setwd("~/Tesi/Code/Ecology-models-master/simcoms-master")
@@ -43,6 +41,12 @@ sim_data<-readRDS("sim_data.rds")
 
 ####SETUP########################################################################
 
+cols = colorRampPalette(c("dark blue","white","red"))
+col2 <- colorRampPalette(c("#4393C3", "#2166AC", "#053061",
+                           "#FDDBC7", "#FFFFFF", "#D1E5F0", "#92C5DE",
+                           "#67001F", "#B2182B", "#D6604D", "#F4A582"))
+
+gcols = colorRampPalette(c( "White", "White", "Black"))
 
 
 ### JSDM Functions##############################################################################################################################################
@@ -94,7 +98,7 @@ jsdm_conv<-function(mod) {
   p2<- ggplot(Rhat_mod_nonNA, aes(x=value, color=parameter,fill=parameter)) +
     geom_histogram( alpha=0.4, position="identity",binwidth = 0.01) +
     scale_color_brewer(palette="Dark2")+scale_fill_brewer(palette="Dark2")+ xlab("Rhat") +
-    ggtitle("Rhat for the parameters beta and the coefficients of correlation matrix")
+    ggtitle("Rhat for the parameters beta and the correlation matrix.CM")
   plot(p2)
   
 }
@@ -450,7 +454,7 @@ fit_gjam<-function(data, it=2500,burn=500 , name="./gjam_models/temp.rda",intera
 
 
 ###this function only loads the model and return the R and T significant
-load_gjam<-function(data,it=2500,burn=500,name="./gjam_models/temp.rda",interact=diag(ncol(data$Y))){
+load_gjam<-function(data,name="./gjam_models/temp.rda",interact=diag(ncol(data$Y))){
   #setup parameters
   data <- list(
     Y = subset(data, select = -env),
@@ -467,6 +471,8 @@ load_gjam<-function(data,it=2500,burn=500,name="./gjam_models/temp.rda",interact
   
   gj_mod<-load_object(name)
   S<-ncol(data$Y)
+  burn<-gj_mod$m1$modelList$burnin
+  it<-gj_mod$m1$modelList$ng
   gjam_bs<- mcmc.list(mcmc(gj_mod$m1$chains$bgibbsUn[-(1:burn),]),mcmc(gj_mod$m2$chains$bgibbsUn[-(1:burn),]))
   gjam_sigma<- mcmc.list(mcmc(gj_mod$m1$chains$sgibbs[-(1:burn),]),mcmc(gj_mod$m2$chains$sgibbs[-(1:burn),]))
   ###NEW plot for effective size
@@ -480,7 +486,7 @@ load_gjam<-function(data,it=2500,burn=500,name="./gjam_models/temp.rda",interact
   p<- ggplot(neff, aes(x=value, color=parameter,fill=parameter)) +
     geom_histogram( alpha=0.4, position="identity") + xlab("effective size") +
     scale_color_brewer(palette="Dark2")+scale_fill_brewer(palette="Dark2")+
-    ggtitle("Effective size for the parameters beta and coefficients of correlation matrix")
+    ggtitle("Effective size for the parameters beta and correlation matrix. model GJAM")
   plot(p)
   
   Rhat_beta<-as.data.frame(gelman.diag(gjam_bs, multivariate=FALSE)$psrf)
@@ -491,7 +497,7 @@ load_gjam<-function(data,it=2500,burn=500,name="./gjam_models/temp.rda",interact
   p2<- ggplot(Rhat, aes(x= Rhat$`Point est.`, color=parameter,fill=parameter)) +
     geom_histogram( alpha=0.4, position="identity",binwidth =1) +
     scale_color_brewer(palette="Dark2")+scale_fill_brewer(palette="Dark2")+ xlab("Rhat") +
-    ggtitle("Rhat for the parameters beta and the coefficients of correlation matrix")
+    ggtitle("Rhat for the parameters beta and correlation matrix for model GJAM")
   plot(p2)
   
   #gelman.plot(gjam_bs)
@@ -601,7 +607,7 @@ hm_conv<-function(mod){
   p<- ggplot(neff, aes(x=value, color=parameter,fill=parameter)) +
     geom_histogram( alpha=0.4, position="identity",binwidth =50) + xlab("effective size") +
     scale_color_brewer(palette="Dark2")+scale_fill_brewer(palette="Dark2")+
-    ggtitle("Effective size for the parameters beta and coefficients of correlation matrix")
+    ggtitle("Effective size for the parameters beta and correlation matrix.HMSC")
   plot(p)
   
   Rhat_beta<-as.data.frame(gelman.diag(codaList$Beta,multivariate=FALSE)$psrf)
@@ -612,7 +618,7 @@ hm_conv<-function(mod){
   p2<- ggplot(Rhat, aes(x= Rhat$`Point est.`, color=parameter,fill=parameter)) +
     geom_histogram( alpha=0.4, position="identity",binwidth =0.01) +
     scale_color_brewer(palette="Dark2")+scale_fill_brewer(palette="Dark2")+ xlab("Rhat") +
-    ggtitle("Rhat for the parameters beta and the coefficients of correlation matrix")
+    ggtitle("Rhat for the parameters beta and the coefficients of correlation matrix.HMSC")
   plot(p2)
 }
 
@@ -708,10 +714,11 @@ metrics_hmsc<-function(Rho, comp=NULL,fac=NULL,only_env=T){
 }
 
 
-hm_inter<-function(mod, nchains=2,nsamples = 1000, interact=diag(ns)){
+hm_inter<-function(mod, nchains=2, interact=diag(ns)){
   getOmega = function(a,r=1)
     return(crossprod(a$Lambda[[r]]))
   ns<-mod$ns
+  nsamples<-mod$samples
   postOmega1 = array(unlist(lapply(mod$postList[[1]],getOmega)),c(ns,ns,mod$samples))
   postOmega2 = array(unlist(lapply(mod$postList[[2]],getOmega)),c(ns,ns,mod$samples))
   
@@ -765,7 +772,7 @@ hm_inter<-function(mod, nchains=2,nsamples = 1000, interact=diag(ns)){
 ### HMSC Functions##############################################################################################################################################
 
 ### DR-GJAM Functions##############################################################################################################################################
-gjam_dim_red_5<-function(datab,ng=2500, burnin=500,name="./gjam_models/tmpdr.rda", regime="L"){
+gjam_dim_red_5<-function(datab,name="./gjam_models/tmpdr.rda", regime="L"){
   ydata<-subset(datab, select = -env)
   xdata<-scale(poly(datab$env, 2))
   ns<- ncol(ydata)
@@ -787,6 +794,8 @@ gjam_dim_red_5<-function(datab,ng=2500, burnin=500,name="./gjam_models/tmpdr.rda
     gjam_dr_mods<- list(m1=mod_gjam_red_1,m2=mod_gjam_red_2)
     save(gjam_dr_mods, file = name)
   }
+  ng<-gjam_dr_mods$m1$modelList$ng
+  burnin<-gjam_dr_mods$m1$modelList$burnin
   gjam_bs<- mcmc.list(mcmc(mod_gjam_red_1$chains$bgibbs[-(1:burnin),]),mcmc(mod_gjam_red_2$chains$bgibbsUn[-(1:burnin),]))
   gjam_sigma<- mcmc.list(mcmc(mod_gjam_red_1$chains$sgibbs[-(1:burnin),]),mcmc(mod_gjam_red_2$chains$sgibbs[-(1:burnin),]))
   n_eff_beta<- as.data.frame(effectiveSize(gjam_bs))
@@ -799,7 +808,7 @@ gjam_dim_red_5<-function(datab,ng=2500, burnin=500,name="./gjam_models/tmpdr.rda
   p<- ggplot(neff, aes(x=value, color=parameter,fill=parameter)) +
     geom_histogram( alpha=0.4, position="identity",binwidth = 100) + xlab("effective size") +
     scale_color_brewer(palette="Dark2")+scale_fill_brewer(palette="Dark2")+
-    ggtitle("Effective size for the parameters beta and coefficients of correlation matrix")
+    ggtitle("Effective size for the parameters beta and correlation matrix.DR-GJAM")
   
   plot(p)
   
@@ -811,7 +820,7 @@ gjam_dim_red_5<-function(datab,ng=2500, burnin=500,name="./gjam_models/tmpdr.rda
   p2<- ggplot(Rhat, aes(x= Rhat$`Point est.`, color=parameter,fill=parameter)) +
     geom_histogram( alpha=0.4, position="identity",binwidth =0.1) +
     scale_color_brewer(palette="Dark2")+scale_fill_brewer(palette="Dark2")+ xlab("Rhat") +
-    ggtitle("Rhat for the parameters beta and the coefficients of correlation matrix")
+    ggtitle("Rhat for the parameters beta and the coefficients of correlation matrix. DR-GJAM")
   plot(p2)
   
   
@@ -876,11 +885,8 @@ gjam_dim_red_5<-function(datab,ng=2500, burnin=500,name="./gjam_models/tmpdr.rda
 
 
 
-
 ###  Common functions##############################################################################################################################################
 ### Plot species responses
-
-
 create_plot_response<- function(data, nsp=5,pred_gjam, pred_jsdm,pred_hmsc,gjam_dr){
   np<-nrow(data)
   nspecies<-nsp
@@ -905,7 +911,7 @@ create_plot_response<- function(data, nsp=5,pred_gjam, pred_jsdm,pred_hmsc,gjam_
   
   
   for(i in 1:nspecies) {
-    tmp<-data.frame(xx=xx,mean=pred_j_mean[,i],q_95=pred_j_95[,i],q_05=pred_j_05[,i],type=rep("jsdm",np),species=rep(i,np))
+    tmp<-data.frame(xx=xx,mean=pred_j_mean[,i],q_95=pred_j_95[,i],q_05=pred_j_05[,i],type=rep("CM",np),species=rep(i,np))
     table_jsdm<-rbind(table_jsdm,tmp)
     
   }
@@ -917,7 +923,7 @@ create_plot_response<- function(data, nsp=5,pred_gjam, pred_jsdm,pred_hmsc,gjam_
   pred_gj_05<-pred_gjam$pred_gj_05
   
   for(i in 1:nspecies) {
-    tmp<-data.frame(xx=xx,mean=pred_gj_mean[,i],q_95=pred_gj_95[,i],q_05=pred_gj_05[,i],type=rep("gjam",np),species=rep(i,np))
+    tmp<-data.frame(xx=xx,mean=pred_gj_mean[,i],q_95=pred_gj_95[,i],q_05=pred_gj_05[,i],type=rep("GJAM",np),species=rep(i,np))
     table_gjam<-rbind(table_gjam,tmp)
   }
   
@@ -930,7 +936,7 @@ create_plot_response<- function(data, nsp=5,pred_gjam, pred_jsdm,pred_hmsc,gjam_
   pred_gj_dr_05<-pred_gjam_dr$pred_gj_dr_05
   
   for(i in 1:nspecies) {
-    tmp<-data.frame(xx=xx,mean=pred_gj_dr_mean[,i],q_95=pred_gj_dr_95[,i],q_05=pred_gj_dr_05[,i],type=rep("gjam_dr",np),species=rep(i,np))
+    tmp<-data.frame(xx=xx,mean=pred_gj_dr_mean[,i],q_95=pred_gj_dr_95[,i],q_05=pred_gj_dr_05[,i],type=rep("DR-GJAM",np),species=rep(i,np))
     table_gjam_dr<-rbind(table_gjam_dr,tmp)
   }
   
@@ -942,7 +948,7 @@ create_plot_response<- function(data, nsp=5,pred_gjam, pred_jsdm,pred_hmsc,gjam_
   pred_hm_05<-pred_hmsc$pred_hm_05
   
   for(i in 1:nspecies) {
-    tmp<-data.frame(xx=xx,mean=pred_hm_mean[,i],q_95=pred_hm_95[,i],q_05=pred_hm_05[,i],type=rep("hmsc",np),species=rep(i,np))
+    tmp<-data.frame(xx=xx,mean=pred_hm_mean[,i],q_95=pred_hm_95[,i],q_05=pred_hm_05[,i],type=rep("HMSC",np),species=rep(i,np))
     table_hmsc<-rbind(table_hmsc,tmp)
   }
   
@@ -974,8 +980,9 @@ create_plot_response<- function(data, nsp=5,pred_gjam, pred_jsdm,pred_hmsc,gjam_
         geom_line(aes(x=tmp$xx,y=tmp$mean,color = "Predicted probability"),lwd=1.5)+
         geom_point(aes(x=tmp_obs$xx,y=tmp_obs$obs),col="#000066",size=0.5) +xlab("Environmental gradient")+ylab("Probability of presence")+
         geom_line(data=tmp_fund,aes(x=tmp_fund$xx,y=tmp_fund$niche,color = "Fundamental niche"),lwd=1)+
-        labs(title=paste0("JSDM, Species ",i))+
-        scale_color_manual(name = c("Legend"), values = c("Predicted probability" = "#FF6666","Fundamental niche"="#9999FF"))
+        labs(title=paste0("CM, Species ",i))+
+        scale_color_manual(name = c("Legend"), values = c("Predicted probability" = "#FF6666","Fundamental niche"="#9999FF"))+theme_bw()+ theme(plot.title = element_text(hjust = 0.5))
+      
       p_1<<-list.append(p_1,g)
       assign(paste0("p",i), g, pos =1)
     })
@@ -983,6 +990,11 @@ create_plot_response<- function(data, nsp=5,pred_gjam, pred_jsdm,pred_hmsc,gjam_
   if(nsp==5){
     grid.arrange(p1,p2,p3,p4,p5,nrow=ceiling(nspecies/2))
   } else{ p_1}
+  
+  
+  
+  
+  
   
   
   #gjam
@@ -999,7 +1011,7 @@ create_plot_response<- function(data, nsp=5,pred_gjam, pred_jsdm,pred_hmsc,gjam_
         geom_point(aes(x=tmp_obs$xx,y=tmp_obs$obs),col="#000066",size=0.5) +xlab("Environmental gradient")+ylab("Probability of presence")+
         geom_line(data=tmp_fund,aes(x=tmp_fund$xx,y=tmp_fund$niche,color = "Fundamental niche"),lwd=1)+
         labs(title=paste0("GJAM, Species ",i))+
-        scale_color_manual(name = c("Legend"), values = c("Predicted probability" = "#FF6666","Fundamental niche"="#9999FF"))
+        scale_color_manual(name = c("Legend"), values = c("Predicted probability" = "#FF6666","Fundamental niche"="#9999FF"))+theme_bw()+ theme(plot.title = element_text(hjust = 0.5))
       
       p_2<<-list.append(p_2,g)
       assign(paste0("p",i), g, pos =1)
@@ -1024,8 +1036,8 @@ create_plot_response<- function(data, nsp=5,pred_gjam, pred_jsdm,pred_hmsc,gjam_
         geom_line(aes(x=tmp$xx,y=tmp$mean,color = "Predicted probability"),lwd=1.5)+
         geom_point(aes(x=tmp_obs$xx,y=tmp_obs$obs),col="#000066",size=0.5) +xlab("Environmental gradient")+ylab("Probability of presence")+
         geom_line(data=tmp_fund,aes(x=tmp_fund$xx,y=tmp_fund$niche,color = "Fundamental niche"),lwd=1)+
-        labs(title=paste0("GJAM DR, Species ",i))+
-        scale_color_manual(name = c("Legend"), values = c("Predicted probability" = "#FF6666","Fundamental niche"="#9999FF"))
+        labs(title=paste0("DR-GJAM, Species ",i))+
+        scale_color_manual(name = c("Legend"), values = c("Predicted probability" = "#FF6666","Fundamental niche"="#9999FF"))+theme_bw()+ theme(plot.title = element_text(hjust = 0.5))
       
       p_2_1<<-list.append(p_2_1,g)
       assign(paste0("p",i), g, pos =1)
@@ -1053,7 +1065,7 @@ create_plot_response<- function(data, nsp=5,pred_gjam, pred_jsdm,pred_hmsc,gjam_
         geom_point(aes(x=tmp_obs$xx,y=tmp_obs$obs),col="#000066",size=0.5) +xlab("Environmental gradient")+ylab("Probability of presence")+
         geom_line(data=tmp_fund,aes(x=tmp_fund$xx,y=tmp_fund$niche,color = "Fundamental niche"),lwd=1)+
         labs(title=paste0("HMSC, Species ",i))+
-        scale_color_manual(name = c("Legend"), values = c("Predicted probability" = "#FF6666","Fundamental niche"="#9999FF"))
+        scale_color_manual(name = c("Legend"), values = c("Predicted probability" = "#FF6666","Fundamental niche"="#9999FF"))+ theme(plot.title = element_text(hjust = 0.5))
       p_3<<-list.append(p_3,g)
       assign(paste0("p",i), g, pos =1)
     })
@@ -1082,7 +1094,7 @@ create_plot_response<- function(data, nsp=5,pred_gjam, pred_jsdm,pred_hmsc,gjam_
         geom_point(aes(x=tmp_obs$xx,y=tmp_obs$obs),col="#000066",size=0.5) +xlab("Environmental gradient")+ylab("Probability of presence")+
         geom_line(data=tmp_fund,aes(x=tmp_fund$xx,y=tmp_fund$niche,color = "Fundamental niche"),lwd=1)+
         labs(title=paste0("All models, Species ",i))+
-        scale_color_manual(name = c("Legend"), values = c("jsdm" = "#FF6666","gjam" = "#66CC99","gjam_dr" = "#FFFF10","hmsc" = "#FFB266","Fundamental niche"="#9999FF"))
+        scale_color_manual(name = c("Legend"), values = c("CM" = "#FF6666","GJAM" = "#66CC99","DR-GJAM" = "#FFFF10","HMSC" = "#FFB266","Fundamental niche"="#9999FF")) +theme_bw()+ theme(plot.title = element_text(hjust = 0.5))
       p_4<<-list.append(p_4,g)
       assign(paste0("p",i), g, pos =1)
     })
@@ -1096,7 +1108,6 @@ create_plot_response<- function(data, nsp=5,pred_gjam, pred_jsdm,pred_hmsc,gjam_
   #grid.arrange(p1,p2,p3,p4,p5,nrow=ceiling(nspecies/2))
   
 }
-
 
 
 prepare_table<- function(datab,name,class){
@@ -1264,7 +1275,7 @@ ALL4<-function(jsdm_mod,gjam_mod,hmsc_mod,interact=diag(5)){
 
 
 
-gjam_dim_red<-function(datab,ng=2500, burnin=500,r=1, name="./gjam_models/gjamDR5env.rda", regime="F"){
+gjam_dim_red<-function(datab,r=1,ng=10000,burnin=1000, name="./gjam_models/gjamDR5env.rda", regime="F"){
   ydata<-subset(datab, select = -env)
   xdata<-scale(poly(datab$env, 2))
   ns<- ncol(ydata)
@@ -1287,7 +1298,6 @@ gjam_dim_red<-function(datab,ng=2500, burnin=500,r=1, name="./gjam_models/gjamDR
     r<- rseq[which.min(RSMPE_array)+1]
     print(DIC_array)
   }
-  
   rl <-list(N=N, r=r)
   ml  <- list(ng = ng, burnin = burnin, typeNames = 'PA',reductList=rl)
   if(regime=="L"){
@@ -1300,6 +1310,9 @@ gjam_dim_red<-function(datab,ng=2500, burnin=500,r=1, name="./gjam_models/gjamDR
     gjam_dr_mods<- list(m1=mod_gjam_red_1,m2=mod_gjam_red_2)
     save(gjam_dr_mods, file = name)
   }
+  ng<- gjam_dr_mods$m1$modelList$ng
+  burnin<-gjam_dr_mods$m1$modelList$burnin
+  
   gjam_bs<- mcmc.list(mcmc(mod_gjam_red_1$chains$bgibbsUn[-(1:burnin),]),mcmc(mod_gjam_red_2$chains$bgibbsUn[-(1:burnin),]))
   gjam_sigma<- mcmc.list(mcmc(mod_gjam_red_1$chains$sgibbs[-(1:burnin),]),mcmc(mod_gjam_red_2$chains$sgibbs[-(1:burnin),]))
   n_eff_beta<- as.data.frame(effectiveSize(gjam_bs))
@@ -1312,7 +1325,7 @@ gjam_dim_red<-function(datab,ng=2500, burnin=500,r=1, name="./gjam_models/gjamDR
   p<- ggplot(neff, aes(x=value, color=parameter,fill=parameter)) +
     geom_histogram( alpha=0.4, position="identity",binwidth = 50) + xlab("effective size") +
     scale_color_brewer(palette="Dark2")+scale_fill_brewer(palette="Dark2")+
-    ggtitle("Effective size for the parameters beta and coefficients of correlation matrix")
+    ggtitle("Effective size for the parameters beta and  correlation matrix. DR-GJAM")
   plot(p)
   
   Rhat_beta<-as.data.frame(gelman.diag(gjam_bs, multivariate=FALSE)$psrf)
@@ -1323,7 +1336,7 @@ gjam_dim_red<-function(datab,ng=2500, burnin=500,r=1, name="./gjam_models/gjamDR
   p2<- ggplot(Rhat, aes(x= Rhat$`Point est.`, color=parameter,fill=parameter)) +
     geom_histogram( alpha=0.4, position="identity",binwidth =0.1) +
     scale_color_brewer(palette="Dark2")+scale_fill_brewer(palette="Dark2")+ xlab("Rhat") +
-    ggtitle("Rhat for the parameters beta and the coefficients of correlation matrix")
+    ggtitle("Rhat for the parameters beta and correlation matrix. DR-GJAM")
   plot(p2)
   
   #gelman.plot(gjam_bs)
@@ -1385,93 +1398,14 @@ gjam_dim_red<-function(datab,ng=2500, burnin=500,r=1, name="./gjam_models/gjamDR
 
 
 
-
-
-analysis_chunk_5<- function(datab,gjam, hmsc, jsdm, gjam_dr){
+analysis_chunk<- function(datab,gjam, hmsc, jsdm, gjam_dr,nsp=5, interact1=NULL, interact2=NULL){
   ###jsdm######################################################################
   jsdm_mod <- load_object(jsdm)
   summary(jsdm_mod)
   jsdm_mod$mcmc.info[1:7]
-  j_metric_FacCompSparse20<-metrics_jsdm(cmp_fds20,comp = comp_inter[[21]],fac=fac_inter[[21]],only_env = F)
-  # ######################################################Prepare data
-  data_mod <- list(
-    Y = subset(datab, select = -env),
-    X = cbind(1, scale(poly(datab$env, 2))),
-    covx = cov(cbind(1, scale(poly(datab$env, 2)))),
-    K = 3,
-    J = ncol(datab) - 1,
-    n = nrow(datab),
-    I = diag(ncol(datab) - 1),
-    df = ncol(datab)
-  )
-  mod_list_Rho<-list()
-  mod_list_Rho<-list(jsdm =jsdm_mod$mean$Rho*(!jsdm_mod$overlap0$Rho)) 
-  mod_list_Tau<-list()
-  mod_list_Tau<-list(jsdm =jsdm_mod$mean$Rho*(!jsdm_mod$overlap0$Rho)) 
-  
-  pred_j<-array(NA,dim=c(data_mod$n,data_mod$J,jsdm_mod$mcmc.info$n.samples))
-  for(i in 1:jsdm_mod$mcmc.info$n.samples){
-    pred_j[,,i]<-pnorm(data_mod$X%*%t(jsdm_mod$sims.list$B[i,,]))
-  }
-  pred_j_mean <- apply(pred_j, 1:2, mean)
-  pred_j_05 <- apply(pred_j, 1:2, quantile,0.05)
-  pred_j_95 <- apply(pred_j, 1:2, quantile,0.95)
-  pred_jsdm<-list(pred_j_mean=pred_j_mean,pred_j_05=pred_j_05,pred_j_95=pred_j_95)
-  for(i in 1:data_mod$J) AUC_j_comp_fac_sparse<-c(AUC_j_comp_fac_sparse,auc(roc(pred_j_mean[,i],factor(data_mod$Y[,i]))))
-  #####gjam#################################################################
-  gjam_mod<-fit_gjam(datab,10000,1000,gjam,interact= (-1)*comp_inter[[21]]+fac_inter[[21]])
-  gjam_mod<-load_gjam(datab,10000,1000,name=gjam, interact= (-1)*comp_inter[[21]]+fac_inter[[21]])
-  g_metric_FacCompSparse20<-metrics_gjam(gjam_mod$Rho_sign,comp=comp_inter[[21]], fac=fac_inter[[21]],only_env = F)
-  g_metric_FacCompSparse20_p<-metrics_gjam(gjam_mod$Tau_sign,comp=comp_inter[[21]], fac=fac_inter[[21]],only_env = F)
-  mod_list_Rho<-list.append(mod_list_Rho, gjam=gjam_mod$Rho_sign) 
-  mod_list_Tau<-list.append(mod_list_Tau, gjam=gjam_mod$Tau_sign) 
-  pred_gj_mean <-apply(gjam_mod$predict, 1:2,mean)
-  pred_gj_05 <- apply(gjam_mod$predict, 1:2,quantile,0.05)
-  pred_gj_95 <- apply(gjam_mod$predict, 1:2,quantile,0.95)
-  pred_gjam<- list(pred_gj_mean=pred_gj_mean,pred_gj_05=pred_gj_05,pred_gj_95=pred_gj_95)
-  for(i in 1:(ncol(data)-1)) AUC_g_comp_fac_sparse<-c(AUC_g_comp_fac_sparse,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
-  #####gjam_dr############################################################
-  gjam_dr_mod<- gjam_dim_red_5(datab,ng=10000, burnin=1000,name=gjam_dr, regime="L")
-  g_dr_metric_FacCompSparse5<-metrics_gjam(gjam_dr_mod$Rho_sign_d)
-  g_dr_metric_FacCompSparse5_p<-metrics_gjam(gjam_dr_mod$Tau_sign_d)
-  AUC_gdr_comp_fac_sparse<-vector()
-  ##Prediction
-  pred_gj_dr_mean <-apply(gjam_dr_mod$predict, 1:2,mean)
-  pred_gj_dr_05 <- apply(gjam_dr_mod$predict, 1:2,quantile,0.05)
-  pred_gj_dr_95 <- apply(gjam_dr_mod$predict, 1:2,quantile,0.95)
-  for(i in 1:(ncol(datab)-1)) AUC_gdr_comp_fac_sparse<-c(AUC_gdr_comp_fac_sparse,auc(roc(pred_gj_dr_mean[,i],factor(datab[,i]))))
-  pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_dr_mean,pred_gj_dr_05=pred_gj_dr_05,pred_gj_dr_95=pred_gj_dr_95)
-  #####hmsc###############################################################
-  hm_mod<-fit_hmsc(datab,"Fit",nsamples=10000, nchains=2,name=hmsc )
-  hm_mod<-fit_hmsc(datab,"Load",nsamples=10000, nchains=2,name=hmsc )
-  hm_conv(hm_mod)
-  hm_mod_R<-hm_inter(hm_mod,nsamples=10000, nchains=2,interact =  (-1)*comp_inter[[21]] +fac_inter[[21]])
-  h_metric_FacCompSparse20<-metrics_hmsc(hm_mod_R$Rho_sign,comp=comp_inter[[21]],fac=fac_inter[[21]],only_env = F)
-  h_metric_FacCompSparse20_p<-metrics_hmsc(hm_mod_R$Tau_sign,comp=comp_inter[[21]],fac=fac_inter[[21]],only_env = F)
-  mod_list_Rho<-list.append(mod_list_Rho,hmsc=hm_mod_R$Rho_sign)
-  mod_list_Tau<-list.append(mod_list_Tau,hmsc=hm_mod_R$Tau_sign)
-  ####Prediction
-  x = cbind(1, scale(poly(datab$env, 2)))
-  pred_hm<-array(NA,dim=c(hm_mod$ny,hm_mod$ns,2*hm_mod$samples)) #2 is nchains
-  for(k in 1:(2*hm_mod$samples)){
-    if(k<=hm_mod$samples){pred_hm[,,k] <- pnorm(x%*%hm_mod$postList[[1]][[k]]$Beta)
-    }else {pred_hm[,,k] <- pnorm(x%*%hm_mod$postList[[2]][[k-hm_mod$samples]]$Beta)}
-    
-  }
-  pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
-                   pred_hm_05=apply(pred_hm, c(1,2), quantile,0.05),
-                   pred_hm_95=apply(pred_hm, c(1,2), quantile,0.95))
-  
-  for(i in 1:(ncol(datab)-1)) AUC_h_comp_fac_sparse<-c(AUC_h_comp_fac_sparse,auc(roc(pred_hmsc$pred_hm_mean[,i],factor(datab[,i]))))
-}
-
-
-analysis_chunk<- function(datab,gjam, hmsc, jsdm, gjam_dr){
-  ###jsdm######################################################################
-  jsdm_mod <- load_object(jsdm)
-  summary(jsdm_mod)
-  jsdm_mod$mcmc.info[1:7]
-  j_metric<-metrics_jsdm(jsdm_mod,comp = comp_inter[[21]],fac=fac_inter[[21]],only_env = F)
+  envF<-F
+  if(is.null(interact1)&is.null(interact2)){envF<-T}
+  j_metric<-metrics_jsdm(jsdm_mod,comp = interact1,fac=interact2,only_env = envF)
   # ######################################################Prepare data
   data_mod <- list(
     Y = subset(datab, select = -env),
@@ -1498,19 +1432,28 @@ analysis_chunk<- function(datab,gjam, hmsc, jsdm, gjam_dr){
   pred_jsdm<-list(pred_j_mean=pred_j_mean,pred_j_05=pred_j_05,pred_j_95=pred_j_95)
   for(i in 1:data_mod$J) AUC_j<-auc(roc(pred_j_mean[,i],factor(data_mod$Y[,i])))
   #####gjam#################################################################
-  gjam_mod<-fit_gjam(datab,10000,1000,gjam,interact= (-1)*comp_inter[[21]]+fac_inter[[21]])
-  gjam_mod<-load_gjam(datab,10000,1000,name=gjam, interact= (-1)*comp_inter[[21]]+fac_inter[[21]])
-  g_metric<-metrics_gjam(gjam_mod$Rho_sign,comp=comp_inter[[21]], fac=fac_inter[[21]],only_env = F)
-  g_metric_p<-metrics_gjam(gjam_mod$Tau_sign,comp=comp_inter[[21]], fac=fac_inter[[21]],only_env = F)
+  if(is.null(interact1)&is.null(interact2)){interact=diag(data_mod$J)}
+  else{ 
+    if(is.null(interact1)){interact= interact2}
+    else{ interact= (-1)*interact1} 
+    if(!is.null(interact1)&(!is.null(interact2))){interact= (-1)*interact1+interact2}
+    }
+  gjam_mod<-load_gjam(datab,name=gjam, interact= interact)
+  g_metric<-metrics_gjam(gjam_mod$Rho_sign,comp=interact1, fac=interact2,only_env = envF)
+  g_metric_p<-metrics_gjam(gjam_mod$Tau_sign,comp=interact1, fac=interact2,only_env = envF)
   mod_list_Rho<-list.append(mod_list_Rho, gjam=gjam_mod$Rho_sign) 
   mod_list_Tau<-list.append(mod_list_Tau, gjam=gjam_mod$Tau_sign) 
   pred_gj_mean <-apply(gjam_mod$predict, 1:2,mean)
   pred_gj_05 <- apply(gjam_mod$predict, 1:2,quantile,0.05)
   pred_gj_95 <- apply(gjam_mod$predict, 1:2,quantile,0.95)
   pred_gjam<- list(pred_gj_mean=pred_gj_mean,pred_gj_05=pred_gj_05,pred_gj_95=pred_gj_95)
-  for(i in 1:(ncol(data)-1)) AUC_g<-auc(roc(pred_gj_mean[,i],factor(data[,i])))
+  for(i in 1:(ncol(datab)-1)) AUC_g<-auc(roc(pred_gj_mean[,i],factor(datab[,i])))
   #####gjam_dr############################################################
-  gjam_dr_mod<- gjam_dim_red(datab,ng=10000, burnin=1000,r=3,name=gjam_dr, regime="F")
+  if(nsp==5){ 
+      gjam_dr_mod<- gjam_dim_red_5(datab,name=gjam_dr, regime="L")
+    }else{
+      gjam_dr_mod<- gjam_dim_red(datab,r=3,name=gjam_dr, regime="L")
+  }
   g_dr_metric<-metrics_gjam(gjam_dr_mod$Rho_sign_d)
   g_dr_metric_p<-metrics_gjam(gjam_dr_mod$Tau_sign_d)
   
@@ -1520,13 +1463,23 @@ analysis_chunk<- function(datab,gjam, hmsc, jsdm, gjam_dr){
   pred_gj_dr_95 <- apply(gjam_dr_mod$predict, 1:2,quantile,0.95)
   for(i in 1:(ncol(datab)-1)) AUC_gdr<-auc(roc(pred_gj_dr_mean[,i],factor(datab[,i])))
   pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_dr_mean,pred_gj_dr_05=pred_gj_dr_05,pred_gj_dr_95=pred_gj_dr_95)
+  
+  par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
+  corrplot(gjam_dr_mod$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+  title("Correlation from dim. reduction")
+  corrplot(gjam_dr_mod$Tau_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+  title("Partial Correlation from dim. reduction")
+  corrplot(comp.psm(gjam_dr_mod$k), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=gcols(200),cl.lim=c(0, 1), type = "lower")
+  title("Posterior clusters from dim. reduction")
+  corrplot(interact, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+  title("True interactions")
+  
   #####hmsc###############################################################
-  hm_mod<-fit_hmsc(datab,"Fit",nsamples=10000, nchains=2,name=hmsc )
-  hm_mod<-fit_hmsc(datab,"Load",nsamples=10000, nchains=2,name=hmsc )
+  hm_mod<-fit_hmsc(datab,"Load",name=hmsc )
   hm_conv(hm_mod)
-  hm_mod_R<-hm_inter(hm_mod,nsamples=10000, nchains=2,interact =  (-1)*comp_inter[[21]] +fac_inter[[21]])
-  h_metric<-metrics_hmsc(hm_mod_R$Rho_sign,comp=comp_inter[[21]],fac=fac_inter[[21]],only_env = F)
-  h_metric_p<-metrics_hmsc(hm_mod_R$Tau_sign,comp=comp_inter[[21]],fac=fac_inter[[21]],only_env = F)
+  hm_mod_R<-hm_inter(hm_mod, nchains=2,interact = interact)
+  h_metric<-metrics_hmsc(hm_mod_R$Rho_sign,comp=interact1,fac=interact2,only_env = envF)
+  h_metric_p<-metrics_hmsc(hm_mod_R$Tau_sign,comp=interact1,fac=interact1,only_env = envF)
   mod_list_Rho<-list.append(mod_list_Rho,hmsc=hm_mod_R$Rho_sign)
   mod_list_Tau<-list.append(mod_list_Tau,hmsc=hm_mod_R$Tau_sign)
   ####Prediction
@@ -1543,11 +1496,39 @@ analysis_chunk<- function(datab,gjam, hmsc, jsdm, gjam_dr){
   
   for(i in 1:(ncol(datab)-1)) AUC_h<-auc(roc(pred_hmsc$pred_hm_mean[,i],factor(datab[,i])))
   return(list(AUC_l=list(AUC_h,AUC_gdr,AUC_g,AUC_j), metric=list(h_metric,g_dr_metric,g_metric,j_metric), metric_p=list(h_metric_p,g_dr_metric_p,g_metric_p),
-              Rho=mod_list_Rho,Tau=mod_list_Tau, prediction=list(pred_hmsc,pred_gjam_dr,pred_gjam,pred_jsdm))
+              Rho=mod_list_Rho,Tau=mod_list_Tau, prediction=list(hmsc=pred_hmsc,gjam_dr=pred_gjam_dr,gjam=pred_gjam,jsdm=pred_jsdm)))
 }
 
 
 ################################################################################################################################
+datab<-sim_data$FacCompSparseSp20
+
+jsdm<-"model-2019-04-23-09-42-18.rda"
+gjam<-"./gjam_models/gjamcmp_facs20.rda"
+hmsc<-"./new_HMmodels/hmcmp_facs20.rda"
+gjam_dr<-"./gjam_models/gjamDR20compfacs.rda"
+
+
+
+
+#pdf("FacCompSparseSP20.pdf")
+FCSP20<-analysis_chunk(datab,gjam, hmsc, jsdm, gjam_dr,nsp=20, interact1=comp_inter[[21]], interact2=fac_inter[[21]])
+#dev.off()
+
+
+FCSP20$prediction$hmsc
+
+
+
+
+
+
+
+
+
+
+
+
 ################################################################################################################################
 ################################################################################################################################
 

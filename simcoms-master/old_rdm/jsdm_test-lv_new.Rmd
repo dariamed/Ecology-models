@@ -1,0 +1,2557 @@
+---
+title: "JSDM models test"
+output:
+  html_document:
+    toc: true
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(knitr)
+library(arm)
+library(jagsUI)
+library(ggplot2)
+library(gridExtra)
+library(parallel)
+library(Rcpp)
+library(magrittr)
+library(purrr)
+library(readr)
+library(corrplot)
+library(gjam)
+library(Hmsc)
+
+
+#setwd("~/Desktop/VirtualCommunity/simcoms-master/ExampleFiles")
+#setwd("~/Documents/GitHub/Ecology-models/simcoms-master/ExampleFiles")
+#lapply(list.files(path = "."),load,.GlobalEnv)
+
+#setwd("~/Tesi/Code/Ecology-models-master_1/simcoms-master")
+load("params.rds")
+load("sim_names.rds")
+load("comp_inter.rds")
+load("fac_inter.rds")
+#sim_data<-readRDS("sim_data.rds")
+
+
+load_object <- function(file) {
+  tmp <- new.env()
+  load(file = file, envir = tmp)
+  tmp[[ls(tmp)[1]]]
+}
+```
+
+
+
+## Data description
+
+Data was simulated using VirtualCommunity code.\
+Simulated data contains 20 data sets. \
+
+
+
+NB - if chain/sample parameters is modified - should be changed in the whole section(dataset) 
+
+## Environment filtering 5 species
+
+### JSDM
+
+
+```{r draw, echo=FALSE, include=FALSE}
+setwd("~/Desktop/VirtualCommunity/simcoms-master/")
+sim_data<-readRDS("sim_data.rds")
+
+#setwd("~/Tesi/Code/Ecology-models-master/simcoms-master/ExampleFiles")
+
+#' Extract correlation parameter means
+#+ mean-correlations
+
+
+prob_cooccur_es <- function(Y) {
+  K <- ncol(Y)
+  ans <- matrix(0, K, K)
+  
+  for (k in 1:K) {
+    for (kk in 1:K) {
+      N1 <- sum(Y[, k])
+      N2 <- sum(Y[, kk])
+      N <- nrow(Y)
+      j <- max(0, N1 + N2 - N):min(N1, N2)
+      p <- vector("numeric", length(j))
+      for (i in seq_along(j)) {
+        p[i] <- (
+          choose(N, j[i]) * choose(N - j[i], N2 - j[i]) *
+            choose(N - N2, N1 - j[i])
+        ) / (
+          choose(N, N2) * choose(N, N1)
+        )
+      }  
+      ans[k, kk] <- (sum(Y[, k] + Y[, kk] == 2) - sum(p * j)) / N
+    }
+  }
+  ans
+}
+
+#load("model-2019-04-09-19-02-16.rda")
+me5 <- load_object("model-2019-04-09-19-02-16.rda")
+summary(me5)
+jsdm_conv<-function(mod) {
+  cat(sprintf("Maximum Rhat value for Beta: %s\n", round(max(mod$R$B),4)))
+  cat(sprintf("Maximum Rhat value for Rho: %s\n", round(max(mod$R$Rho),4)))
+  cat(sprintf("Maximum Rhat value for EnvRho: %s\n", round(max(mod$R$EnvRho),4)))
+  hist(mod$n.eff$B, lwd=2,col=gray(.6), main="ess(beta)", xlab = "Beta")
+  hist(mod$n.eff$Rho, lwd=2,col=gray(.6), main="ess(rho)",  xlab = "Rho")
+  hist(mod$n.eff$EnvRho, lwd=2,col=gray(.6), main="ess(envrho)",  xlab = "EnvRho")
+}
+
+jsdm_conv(me5)
+me5$mcmc.info[1:7]
+
+
+
+
+#load("fac_inter.rds")
+#load("comp_inter.rds")
+
+mean_cor<-function(mod){
+  mean_correlations <- do.call(
+  rbind,
+  lapply(
+    seq_along(mod),
+    function(i) {
+      x <- models[[i]]
+      nm <- strsplit(
+        names(models)[[i]], "(?<=[a-z])(?=[A-Z])", perl = TRUE
+      )[[1]]
+      nsp <- ncol(x$mean$Rho)
+      ut <- upper.tri(x$mean$Rho)
+      sp <- arrayInd(which(ut), c(nsp, nsp))
+      ans <- data.frame(
+        model = i,
+        sp1 = sp[, 1],
+        sp2 = sp[, 2],
+        rho = c(prob_cooccur_es(x$model$cluster1$data()$Y)[ut], x$mean$Rho[ut]),
+        rho_type = rep(c("Effect-Size", "Residual"), each = sum(ut)),
+        sgn = sign(x$mean$Rho)[ut],
+        significant = x$overlap$Rho[ut],
+        #cint = simulation_parameters$comp_inter[[i]][ut],
+        #fint = simulation_parameters$fac_inter[[i]][ut],
+        cint = comp_inter[[i]][ut],
+        fint = fac_inter[[i]][ut],
+        density = tail(nm, 2)[1],
+        type = paste0(head(nm, -2), collapse = ""),
+        nsp = nsp,
+        stringsAsFactors = FALSE
+      )
+      ans$cint[is.na(ans$cint)] <- 0
+      ans$fint[is.na(ans$fint)] <- 0
+      ans$density[ans$density == "Even"] <- "None"
+      ans$density <- factor(ans$density, c("None", "Sparse", "Dense"))
+      ans$type[ans$type == "Env"] <- "Environmental\nFiltering Only"
+      ans$type[ans$type == "Fac"] <- "Facilitation"
+      ans$type[ans$type == "Comp"] <- "Competition"
+      ans$type[ans$type == "FacComp"] <- "Facililation +\nCompetition"
+      ans$type <- factor(
+        ans$type, 
+        c(
+          "Environmental\nFiltering Only", "Facilitation", "Competition",
+          "Facililation +\nCompetition"
+        )
+      )
+      ans$interaction <- "None"
+      ans$interaction <- ifelse(ans$cint, "Competition", ans$interaction)
+      ans$interaction <- ifelse(ans$fint, "Facilitation", ans$interaction)
+      ans$status <- ifelse(
+        ans$significant,
+        ifelse(ans$sgn * -ans$cint == 1 | ans$sgn * ans$fint == 1, "TP", "FP"),
+        ifelse(ans$cint == 0 & ans$fint == 0, "TN", "FN")
+      )
+      ans$interaction <- factor(
+        ans$interaction, c("None", "Facilitation", "Competition")
+      )
+      ans
+    }
+  )
+)
+ return(mean_correlations)  
+}
+
+
+
+
+
+metrics_jsdm<-function(model,fac=NULL,comp=NULL,only_env=T){
+  
+  Rho<-(!model$overlap0$Rho)*model$mean$Rho
+  
+  {if(!is.null(comp) & !is.null(fac)){
+    fac_comp <- fac-comp
+    TP_comp <- FN_comp <-TP_fac <- FN_fac <- FP <- TN <- wrong <- 0
+    for(i in 1:(nrow(Rho)-1)){
+      for(j in (i+1):ncol(Rho)){
+        if(fac_comp[i,j]>0 & Rho[i,j] >0)
+          TP_fac=TP_fac+1
+        if(fac_comp[i,j]>0 & Rho[i,j] == 0)
+          FN_fac=FN_fac+1
+        if(fac_comp[i,j]==0 & Rho[i,j] == 0)
+           TN=TN+1
+        if(fac_comp[i,j]==0 & Rho[i,j] != 0)
+           FP=FP+1
+        if(fac_comp[i,j]< 0 & Rho[i,j] < 0)
+          TP_comp=TP_comp+1
+        if(fac_comp[i,j]<0 & Rho[i,j] == 0)
+          FN_comp=FN_comp+1
+        if((fac_comp[i,j]<0 & Rho[i,j] > 0) | (fac_comp[i,j]>0 & Rho[i,j] < 0))
+          wrong=wrong+1
+      }
+    }
+    
+  }else{
+    if(!is.null(comp)){
+    
+    TP_comp <- FN_comp <- FP <- TN <- wrong <- 0
+    TP_fac <- FN_fac<-NULL
+    for(i in 1:(nrow(Rho)-1)){
+      for(j in (i+1):ncol(Rho)){
+        if(comp[i,j]>0 & Rho[i,j] <0)
+          TP_comp=TP_comp+1
+        if(comp[i,j]>0 & Rho[i,j] >0)
+          wrong=wrong+1
+        if(comp[i,j]>0 & Rho[i,j] == 0)
+          FN_comp=FN_comp+1
+        if(comp[i,j]==0 & Rho[i,j] == 0)
+          TN=TN+1
+        if(comp[i,j]==0 & Rho[i,j] != 0)
+          FP=FP+1
+       
+      }
+    }
+    }
+    }
+    }
+  if(!is.null(fac)){
+    
+            TP_fac <- FN_fac <- FP <- TN <- wrong <- 0
+            TP_comp <- FN_comp<-NULL
+            for(i in 1:(nrow(Rho)-1)){
+              for(j in (i+1):ncol(Rho)){
+                   if(fac[i,j]>0 & Rho[i,j] >0)
+                      TP_fac=TP_fac+1
+                   if(fac[i,j]>0 & Rho[i,j] <0)
+                      wrong = wrong+1
+                   if(fac[i,j]>0 & Rho[i,j] == 0)
+                      FN_fac=FN_fac+1
+                   if(fac[i,j]==0 & Rho[i,j] == 0)
+                      TN=TN+1
+                   if(fac[i,j]==0 & Rho[i,j] != 0)
+                      FP=FP+1
+              }
+            }
+  }
+  
+  if(only_env){
+    
+      FP <- TN <- 0
+      TP_fac <- FN_fac<-TP_comp <- FN_comp<-wrong<-NULL
+         for(i in 1:(nrow(Rho)-1)){
+            for(j in (i+1):nrow(Rho)){
+                if(Rho[i,j] != 0)
+                      FP=FP+1
+                if(Rho[i,j] == 0)
+                      TN=TN+1
+              }
+            }
+      
+  }
+  success_env<-TN/(TN+FP)
+  
+  if(!is.null(TP_comp)){success_comp <- TP_comp/(TP_comp+FN_comp)}else{ success_comp = NULL}
+  
+  if(!is.null(TP_fac)) {success_fac <- TP_fac/(TP_fac+FN_fac)}else{ success_fac = NULL}
+  
+   list("FP"=FP,"TN"=TN,"TP_comp"=TP_comp,"FN_comp"=FN_comp,"TP_fac"=TP_fac,"FN_fac"=FN_fac,
+       "wrong"=wrong,"success_env"=success_env,"success_comp"=success_comp,"success_fac"=success_fac)
+  }
+
+
+
+```
+
+
+```{r heat, include=TRUE}
+data<-sim_data$EnvEvenSp5
+data <- list(
+  Y = subset(data, select = -env),
+  X = cbind(1, scale(poly(data$env, 2))),
+  covx = cov(cbind(1, scale(poly(data$env, 2)))),
+  K = 3,
+  J = ncol(data) - 1,
+  n = nrow(data),
+  I = diag(ncol(data) - 1),
+  df = ncol(data)
+)
+
+Y_cor<-cor(data$Y)
+
+to_prec<-function(m){
+  n<-dim(m)[1]
+  Tau_n<-matrix(nrow=n, ncol=n)
+  for (j in 1:n) {
+   for (k in 1:n){
+    Tau_n[j, k] <-  -m[j, k]/sqrt((m[j,j]*m[k,k]))
+   }
+  }
+  return(Tau_n)
+}
+
+#Tau_n<-matrix(nrow=dim(model$mean$Tau)[1], ncol=dim(model$mean$Tau)[1])
+Tau_n<-to_prec(me5$mean$Tau)
+#Tau_k<-Tau_n*(!(model$q97.5$Tau>0 & model$q2.5$Tau<0))
+
+par(mfrow=c(2,4),oma = c(3, 1, 2, 1))
+cols = colorRampPalette(c("dark blue","white","red"))
+col2 <- colorRampPalette(c("#4393C3", "#2166AC", "#053061",
+                           "#FDDBC7", "#FFFFFF", "#D1E5F0", "#92C5DE",
+                           "#67001F", "#B2182B", "#D6604D", "#F4A582"))
+
+
+corrplot(Y_cor, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Correlation cor(Y)")
+corrplot(me5$mean$EnvRho, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("EnvRho")
+corrplot(me5$mean$EnvRho*(!me5$overlap0$EnvRho), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("EnvRho signif")
+corrplot(me5$mean$Rho, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Rho")
+corrplot(me5$mean$Rho*(!me5$overlap0$Rho), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Rho signif")
+corrplot(Tau_n, diag = FALSE, order ="original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Tau")
+corrplot(Tau_n*(!me5$overlap0$Tau), diag = FALSE, order ="original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Tau signif")
+
+#j_metric_e5<-metrics_jsdm(me5)
+#cat("Success rate ")
+#j_metric_e5$success_env
+ cat(sprintf("Success rate: %s\n", metrics_jsdm(me5)$success_env))
+ 
+```
+
+
+### GJAM 
+
+```{r gjam functions, include=FALSE}
+############################################################Functions
+makeSymm <- function(m) {
+  m[upper.tri(m)] <- t(m)[upper.tri(m)]
+  return(m)
+}
+
+expandSigma_rmd <- function(sigma, S){
+
+  ss <- diag(S)
+  ss[lower.tri(ss,diag=T)] <- sigma
+  ss[upper.tri(ss)] <- t(ss)[upper.tri(ss)]
+  ss
+}
+
+convert_to_m<-function(ar){
+  d <-floor((sqrt(length(ar)*8+1)-1)/2)
+  C <- matrix(0,d,d)
+  i.lwr <- which(lower.tri(C, diag = TRUE), arr.ind=TRUE)
+  C[i.lwr] <- ar
+  C<-makeSymm(C)
+  return(t(C))
+}
+
+
+metrics_gjam<-function(Rho, comp=NULL,fac=NULL,only_env=T){
+  
+  
+  #{
+    if(!is.null(comp) & !is.null(fac)){
+    fac_comp <- fac-comp
+    TP_comp <- FN_comp <-TP_fac <- FN_fac <- FP <- TN <- wrong <- 0
+    for(i in 1:(nrow(Rho)-1)){
+      for(j in (i+1):ncol(Rho)){
+        if(fac_comp[i,j]>0 & Rho[i,j] >0)
+          TP_fac=TP_fac+1
+        if(fac_comp[i,j]>0 & Rho[i,j] == 0)
+          FN_fac=FN_fac+1
+        if(fac_comp[i,j]==0 & Rho[i,j] == 0)
+           TN=TN+1
+        if(fac_comp[i,j]==0 & Rho[i,j] != 0)
+           FP=FP+1
+        if(fac_comp[i,j]< 0 & Rho[i,j] < 0)
+          TP_comp=TP_comp+1
+        if(fac_comp[i,j]<0 & Rho[i,j] == 0)
+          FN_comp=FN_comp+1
+        if((fac_comp[i,j]<0 & Rho[i,j] > 0) | (fac_comp[i,j]>0 & Rho[i,j] < 0))
+          wrong=wrong+1
+      }
+    }
+    
+  }else{
+    if(!is.null(comp)){
+    
+    TP_comp <- FN_comp <- FP <- TN <- wrong <- 0
+    TP_fac <- FN_fac<-NULL
+    for(i in 1:(nrow(Rho)-1)){
+      for(j in (i+1):ncol(Rho)){
+        if(comp[i,j]>0 & Rho[i,j] <0)
+          TP_comp=TP_comp+1
+        if(comp[i,j]>0 & Rho[i,j] >0)
+          wrong=wrong+1
+        if(comp[i,j]>0 & Rho[i,j] == 0)
+          FN_comp=FN_comp+1
+        if(comp[i,j]==0 & Rho[i,j] == 0)
+          TN=TN+1
+        if(comp[i,j]==0 & Rho[i,j] != 0)
+          FP=FP+1
+       
+      }
+    }
+#    }
+#    }
+    }
+  if(!is.null(fac)){
+    
+            TP_fac <- FN_fac <- FP <- TN <- wrong <- 0
+            TP_comp <- FN_comp<-NULL
+            for(i in 1:(nrow(Rho)-1)){
+              for(j in (i+1):ncol(Rho)){
+                   if(fac[i,j]>0 & Rho[i,j] >0)
+                      TP_fac=TP_fac+1
+                   if(fac[i,j]>0 & Rho[i,j] <0)
+                      wrong = wrong+1
+                   if(fac[i,j]>0 & Rho[i,j] == 0)
+                      FN_fac=FN_fac+1
+                   if(fac[i,j]==0 & Rho[i,j] == 0)
+                      TN=TN+1
+                   if(fac[i,j]==0 & Rho[i,j] != 0)
+                      FP=FP+1
+              }
+            }
+  }
+  }
+  if(only_env){
+    
+      FP <- TN <- 0
+      TP_fac <- FN_fac<-TP_comp <- FN_comp<-wrong<-NULL
+         for(i in 1:(nrow(Rho)-1)){
+            for(j in (i+1):nrow(Rho)){
+                if(Rho[i,j] != 0)
+                      FP=FP+1
+                if(Rho[i,j] == 0)
+                      TN=TN+1
+              }
+            }
+      
+  }
+  success_env<-TN/(TN+FP)
+  
+  if(!is.null(TP_comp)){success_comp <- TP_comp/(TP_comp+FN_comp)}else{ success_comp = NULL}
+  
+  if(!is.null(TP_fac)) {success_fac <- TP_fac/(TP_fac+FN_fac)}else{ success_fac = NULL}
+  
+  list("FP"=FP,"TN"=TN,"TP_comp"=TP_comp,"FN_comp"=FN_comp,"TP_fac"=TP_fac,"FN_fac"=FN_fac,
+       "wrong"=wrong,"success_env"=success_env,"success_comp"=success_comp,"success_fac"=success_fac)
+  }
+
+
+
+
+
+fit_gjam<-function(data, it=2500,burn=500 , name="./gjam_models/temp.rda",interact=diag(ncol(data$Y))){
+  #setup parameters
+  data <- list(
+    Y = subset(data, select = -env),
+    X = cbind(1, scale(poly(data$env, 2))),
+    covx = cov(cbind(1, scale(poly(data$env, 2)))),
+    K = 3,
+    J = ncol(data) - 1,
+    n = nrow(data),
+    I = diag(ncol(data) - 1),
+    df = ncol(data)
+  )
+  xdata<-as.data.frame(data$X[,-1])
+  colnames(xdata)<- c("env","env2")
+  ydata<-as.data.frame(data$Y)
+  ###formula
+  formula<-as.formula( ~env+ env2)
+  ml   <- list(ng = it, burnin = burn, typeNames = 'PA')
+  ####fit
+  
+  mod_gjam1  <- gjam(formula, xdata = xdata, ydata = ydata, modelList = ml)
+  save(mod_gjam1, file = name)
+  #summary(mod_gjam1)
+  hist(effectiveSize(mod_gjam1$chains$sgibbs), main="ess(beta)",lwd=2,col=gray(.6))
+  hist(effectiveSize(mod_gjam1$chains$bgibbs), main="ess(beta)",lwd=2,col=gray(.6))
+  
+  # postH<-apply(mod_gjam1$chains$sgibbs, 2, quantile,0.95)
+  # postL<-apply(mod_gjam1$chains$sgibbs, 2, quantile,0.05)
+  postH<-apply(mod_gjam1$chains$sgibbs[burn:dim(mod_gjam1$chains$sgibbs)[1],], 2, quantile,0.95)
+  postL<-apply(mod_gjam1$chains$sgibbs[burn:dim(mod_gjam1$chains$sgibbs)[1],], 2, quantile,0.05)
+  
+  pH<-convert_to_m(postH)
+  pL<-convert_to_m(postL)
+  
+  R_sign<-cov2cor(mod_gjam1$parameters$sigMu)*(!(pH>0 & pL<0))
+  
+  
+  sgibbs<-mod_gjam1$chains$sgibbs
+  # tau<-array(NA,dim=c(data$J,data$J,1000))
+  # for(j in 1:1000){
+  #   ss <- expandSigma_rmd(sgibbs[j,], S = 5)
+  #   si <- solve(ss)
+  #   tau[,,j] <- -cov2cor(si)
+  # }
+   sgibbs<-mod_gjam1$chains$sgibbs
+  tau<-array(NA,dim=c(data$J,data$J,it-burn))
+  for(j in (burn:it)){
+    ss <- expandSigma_rmd(sgibbs[j,], S = 5)
+    si <- solve(ss)
+    tau[,,j-burn] <- -cov2cor(si)
+  }
+
+  tau_mean<-apply(tau,c(1,2), mean)
+  tau_HI<-apply(tau,c(1,2),quantile,0.95)
+  tau_LO<-apply(tau,c(1,2),quantile,0.05)
+  
+  Tau_sign<-tau_mean*(!(tau_HI>0 & tau_LO<0))
+
+  
+  
+  
+  par(mfrow=c(2,3),oma = c(1, 1, 1, 1))
+  corrplot(cor(ydata), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200),   type = "lower")
+  title("Correlation cor(Y)")
+  corrplot(mod_gjam1$parameters$corMu, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+  title("R")
+  corrplot(mod_gjam1$parameters$ematrix, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+  title("E matrix")
+  corrplot(Tau_sign, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+  title("Tau signif")
+  corrplot(R_sign, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+  title("R signif")
+  corrplot(interact, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+  title("True interactions")
+  R_sign
+}
+
+load_gjam<-function(data,it=2500,burn=500,name="./gjam_models/temp.rda",interact=diag(ncol(data$Y))){
+  #setup parameters
+  data <- list(
+    Y = subset(data, select = -env),
+    X = cbind(1, scale(poly(data$env, 2))),
+    covx = cov(cbind(1, scale(poly(data$env, 2)))),
+    K = 3,
+    J = ncol(data) - 1,
+    n = nrow(data),
+    I = diag(ncol(data) - 1),
+    df = ncol(data)
+  )
+
+  
+  gj_mod<-load_object(name)
+  #summary(gj_mod)
+  S<-ncol(data$Y)
+  ind <-which(array(diag(S)[lower.tri(diag(S),diag=T)])==1)
+  par(mfrow=c(1,3),oma = c(1, 1, 1, 1))
+  hist(effectiveSize(gj_mod$chains$sgibbs[,-ind]), main="sigma non diagonal elements",lwd=2,col=gray(.6))
+  hist(effectiveSize(gj_mod$chains$sgibbs[,ind]), main="sigma diagonal elements",lwd=2,col=gray(.6))
+  hist(effectiveSize(gj_mod$chains$bgibbs), main="ess(beta)",lwd=2,col=gray(.6))
+ 
+  
+  postH<-apply(gj_mod$chains$sgibbs[burn:dim(gj_mod$chains$sgibbs)[1],], 2, quantile,0.95)
+  postL<-apply(gj_mod$chains$sgibbs[burn:dim(gj_mod$chains$sgibbs)[1],], 2, quantile,0.05)
+  pH<-convert_to_m(postH)
+  pL<-convert_to_m(postL)
+  R_sign<-cov2cor(gj_mod$parameters$sigMu)*(!(pH>0 & pL<0))
+  
+  
+  sgibbs<-gj_mod$chains$sgibbs
+  tau<-array(NA,dim=c(data$J,data$J,it-burn))
+  for(j in (burn:it)){
+    ss <- expandSigma_rmd(sgibbs[j,], S = 5)
+    si <- solve(ss)
+    tau[,,j-burn] <- -cov2cor(si)
+  }
+    # sgibbs<-gj_mod$chains$sgibbs
+    # tau<-array(NA,dim=c(data$J,data$J,1000))
+    # for(j in (1:1000)){
+    #   ss <- expandSigma_rmd(sgibbs[j,], S = 5)
+    #   si <- solve(ss)
+    #   tau[,,j] <- -cov2cor(si)
+    # }
+
+  
+  
+  
+  tau_mean<-apply(tau,c(1,2), mean)
+  tau_HI<-apply(tau,c(1,2),quantile,0.95)
+  tau_LO<-apply(tau,c(1,2),quantile,0.05)
+  
+  Tau_sign<-tau_mean*(!(tau_HI>0 & tau_LO<0))
+  
+  
+
+  par(mfrow=c(2,3),oma = c(1, 1, 1, 1))
+  corrplot(cor(data$Y), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+  title("Correlation cor(Y)")
+  corrplot(gj_mod$parameters$corMu, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+  title("R")
+  corrplot(gj_mod$parameters$ematrix, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+  title("E matrix")
+  corrplot(Tau_sign, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+  title("Tau signif")
+  corrplot(R_sign, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+  title("R signif")
+  corrplot(interact, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+  title("True interactions")
+  
+  R_sign
+}
+
+######################################################################
+```
+
+
+
+
+```{r gjam env5, include=TRUE}
+
+##to setup chains parameters
+data<-sim_data$EnvEvenSp5
+#Rho_sign<-fit_gjam(data,10000,5000,"./gjam_models/gjam5env.rda")
+Rho_sign<-load_gjam(data,10000,5000,name="./gjam_models/gjam5env.rda")
+
+g_metric_e5<-metrics_gjam(Rho_sign)
+#cat("Success rate ")
+#g_metric_e5$success_env
+cat(" ")
+cat(sprintf("Success rate: %s\n", metrics_gjam(Rho_sign)$success_env))
+
+```
+
+### HMSC
+
+```{r hmsc, include=TRUE, results=FALSE}
+
+#setwd("~/Tesi/Code/Ecology-models-master/simcoms-master/ExampleFiles")
+fit_hmsc<-function(data,label="Fit",nsamples = 3000,nchains=2,name="./HMmodels/hmtemp.rda" ){
+  if (label=="Fit"){
+    Y_data = subset(data, select = -env)
+    ns<- ncol(Y_data)
+    np <- nrow(Y_data)
+    X<-scale(poly(data$env[1:np], 2))
+    colnames(X)<-c("env","env2")
+    studyDesign = data.frame(sample = as.factor(1:np))
+    rL = HmscRandomLevel(units = studyDesign$sample)
+    m = Hmsc(Y=as.matrix(Y_data), XData=as.data.frame(X), XFormula=~env+env2, distr="probit",
+             studyDesign = studyDesign, ranLevels = list(sample = rL))
+    m = sampleMcmc(m, nsamples, thin=10, adaptNf=c(200,200), transient=500,nChains=nchains ,verbose=F)
+    save(m, file = name)
+    return(m)
+  }
+  if (label=="Load"){
+    return(load_object(name))
+  }
+}
+
+
+data<-sim_data$EnvEvenSp5
+hm_mod<-fit_hmsc(data,"Load",name="./HMmodels/hm5env.rda" )
+
+```
+
+
+
+Convergence:
+
+```{r hmsc convergence, include=TRUE}
+
+hm_conv<-function(mod){
+  codaList = convertToCodaObject(mod)
+
+  #convergence histograms
+  hist(effectiveSize(codaList$Beta), main="ess(beta)",lwd=2,col=gray(.6))
+  hist(gelman.diag(codaList$Beta,multivariate=FALSE)$psrf,lwd=2,col=gray(.6), main="psrf(beta)")
+  
+  hist(effectiveSize(codaList$Omega[[1]]), main="ess(omega)",lwd=2,col=gray(.6))
+  hist(gelman.diag(codaList$Omega[[1]], multivariate=FALSE)$psrf,lwd=2,col=gray(.6),      main="psrf(omega)")
+}
+
+hm_conv(hm_mod)
+```
+
+Study of interactions
+
+```{r hmsc study of interactions, include=TRUE}
+metrics_hmsc<-function(Rho, comp=NULL,fac=NULL,only_env=T){
+  #{
+    if(!is.null(comp) & !is.null(fac)){
+    fac_comp <- fac-comp
+    TP_comp <- FN_comp <-TP_fac <- FN_fac <- FP <- TN <- wrong <- 0
+    for(i in 1:(nrow(Rho)-1)){
+      for(j in (i+1):ncol(Rho)){
+        if(fac_comp[i,j]>0 & Rho[i,j] >0)
+          TP_fac=TP_fac+1
+        if(fac_comp[i,j]>0 & Rho[i,j] == 0)
+          FN_fac=FN_fac+1
+        if(fac_comp[i,j]==0 & Rho[i,j] == 0)
+           TN=TN+1
+        if(fac_comp[i,j]==0 & Rho[i,j] != 0)
+           FP=FP+1
+        if(fac_comp[i,j]< 0 & Rho[i,j] < 0)
+          TP_comp=TP_comp+1
+        if(fac_comp[i,j]<0 & Rho[i,j] == 0)
+          FN_comp=FN_comp+1
+        if((fac_comp[i,j]<0 & Rho[i,j] > 0) | (fac_comp[i,j]>0 & Rho[i,j] < 0))
+          wrong=wrong+1
+      }
+    }
+    
+  }else{
+    if(!is.null(comp)){
+    TP_comp <- FN_comp <- FP <- TN <- wrong <- 0
+    TP_fac <- FN_fac<-NULL
+    for(i in 1:(nrow(Rho)-1)){
+      for(j in (i+1):ncol(Rho)){
+        if(comp[i,j]>0 & Rho[i,j] <0)
+          TP_comp=TP_comp+1
+        if(comp[i,j]>0 & Rho[i,j] >0)
+          wrong=wrong+1
+        if(comp[i,j]>0 & Rho[i,j] == 0)
+          FN_comp=FN_comp+1
+        if(comp[i,j]==0 & Rho[i,j] == 0)
+          TN=TN+1
+        if(comp[i,j]==0 & Rho[i,j] != 0)
+          FP=FP+1
+      }
+    }
+  #  }
+  #  }
+  }
+  if(!is.null(fac)){
+    
+            TP_fac <- FN_fac <- FP <- TN <- wrong <- 0
+            TP_comp <- FN_comp<-NULL
+            for(i in 1:(nrow(Rho)-1)){
+              for(j in (i+1):ncol(Rho)){
+                   if(fac[i,j]>0 & Rho[i,j] >0)
+                      TP_fac=TP_fac+1
+                   if(fac[i,j]>0 & Rho[i,j] <0)
+                      wrong = wrong+1
+                   if(fac[i,j]>0 & Rho[i,j] == 0)
+                      FN_fac=FN_fac+1
+                   if(fac[i,j]==0 & Rho[i,j] == 0)
+                      TN=TN+1
+                   if(fac[i,j]==0 & Rho[i,j] != 0)
+                      FP=FP+1
+              }
+            }
+  }
+  }  
+  
+  if(only_env){
+    
+      FP <- TN <- 0
+      TP_fac <- FN_fac<-TP_comp <- FN_comp<-wrong<-NULL
+         for(i in 1:(nrow(Rho)-1)){
+            for(j in (i+1):nrow(Rho)){
+                if(Rho[i,j] != 0)
+                      FP=FP+1
+                if(Rho[i,j] == 0)
+                      TN=TN+1
+              }
+            }
+      
+  }
+  success_env<-TN/(TN+FP)
+  
+  if(!is.null(TP_comp)){success_comp <- TP_comp/(TP_comp+FN_comp)}else{ success_comp = NULL}
+  
+  if(!is.null(TP_fac)) {success_fac <- TP_fac/(TP_fac+FN_fac)}else{ success_fac = NULL}
+  
+  list("FP"=FP,"TN"=TN,"TP_comp"=TP_comp,"FN_comp"=FN_comp,"TP_fac"=TP_fac,"FN_fac"=FN_fac,
+       "wrong"=wrong,"success_env"=success_env,"success_comp"=success_comp,"success_fac"=success_fac)
+}
+
+
+
+hm_inter<-function(mod, nchains=2,nsamples = 1000, interact=diag(ns)){
+  getOmega = function(a,r=1)
+  return(crossprod(a$Lambda[[r]]))
+  ns<-mod$ns
+  postOmega1 = array(unlist(lapply(mod$postList[[1]],getOmega)),c(ns,ns,mod$samples))
+  postOmega2 = array(unlist(lapply(mod$postList[[2]],getOmega)),c(ns,ns,mod$samples))
+  
+  postOmega<-abind(postOmega1,postOmega2,along=3)
+  postOmegaMean = apply(postOmega,c(1,2),mean)
+  postOmegaUp=apply(postOmega,c(1,2),quantile,0.95)
+  postOmegaLo=apply(postOmega,c(1,2),quantile,0.05)
+  
+  postR<-array(dim=c(ns,ns,nchains*nsamples))
+  postT<-array(dim=c(ns,ns,nchains*nsamples))
+  for(i in 1:dim(postOmega)[3]){
+  postR[,,i]<-stats::cov2cor(postOmega[,,i])
+  postT[,,i]<- -stats::cov2cor(solve(postOmega[,,i]+diag(ns)))
+  }
+  
+  postRMean = apply(postR,c(1,2),mean)
+  postRUp=apply(postR,c(1,2),quantile,0.95)
+  postRLo=apply(postR,c(1,2),quantile,0.05)
+  
+  postTMean = apply(postT,c(1,2),mean)
+  postTUp=apply(postT,c(1,2),quantile,0.95)
+  postTLo=apply(postT,c(1,2),quantile,0.05)
+  
+  Toplot_R<-postRMean*(!(postRUp>0 & postRLo<0))
+  Toplot_T<-postRMean*(!(postTUp>0 & postTLo<0))
+  
+  # Omegacor<- computeAssociations(m)
+  # supportLevel<- 0.95
+  # toPlot<- ((Omegacor[[1]]$support>supportLevel)+ (Omegacor[[1]]$support<(1-supportLevel))>0)*Omegacor[[1]]$mean
+  # corrplot(toPlot, method="color", col=colorRampPalette(c("blue", "white", "red"))(200))
+  
+  par(mfrow=c(2,3),oma = c(1, 1, 1, 1))
+  corrplot(cor(hm_mod$Y), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+  title("Correlation cor(Y)")
+  corrplot(postRMean, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+  title("R")
+  corrplot(Toplot_R, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+  title("R non zero value")
+  corrplot(Toplot_T, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+  title("Partial correlation non zero")
+  corrplot(interact, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+  title("True interactions")
+  
+  Toplot_R
+}
+
+Rho_sign<-hm_inter(hm_mod, nsamples = 3000,nchains=2)
+
+# h_metric_e5<-metrics_hmsc(Rho_sign)
+# cat("Success rate ")
+# h_metric_e5$success_env
+cat(" ")
+cat(sprintf("Success rate: %s\n", metrics_hmsc(Rho_sign)$success_env))
+
+```
+
+
+## Environmental filtering 10 species
+
+### JSDM
+
+```{r load_m en10}
+me10 <- load_object("model-2019-04-10-08-26-20.rda")
+#load("model-2019-04-09-19-02-16.rda")
+summary(me10)
+jsdm_conv(me10)
+me10$mcmc.info[1:7]
+
+j_metric_e10<-metrics_jsdm(me10)
+cat("Success rate ")
+j_metric_e10$success_env
+
+data<-sim_data$EnvEvenSp10
+data <- list(
+  Y = subset(data, select = -env),
+  X = cbind(1, scale(poly(data$env, 2))),
+  covx = cov(cbind(1, scale(poly(data$env, 2)))),
+  K = 3,
+  J = ncol(data) - 1,
+  n = nrow(data),
+  I = diag(ncol(data) - 1),
+  df = ncol(data)
+)
+
+##########################################################################################
+#Tau<-solve
+#Tau_n<-to_prec(me10$mean$Tau)
+#Tau_k<-Tau_n*(!(model$q97.5$Tau>0 & model$q2.5$Tau<0))
+
+plot_cor_jsdm<-function(mod,y,interact=diag(ncol(y))){
+  par(mfrow=c(2,4),oma = c(3, 1, 2, 1))
+  corrplot(cor(y), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+  title("Correlation cor(Y)")
+  corrplot(mod$mean$EnvRho, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+  title("EnvRho")
+  corrplot(mod$mean$EnvRho*(!mod$overlap0$EnvRho), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+  title("EnvRho signif")
+  corrplot(mod$mean$Rho, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+  title("Rho")
+  corrplot(mod$mean$Rho*(!mod$overlap0$Rho), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+  title("Rho signif")
+  corrplot(interact, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+  title("True interactions")
+}
+
+plot_cor_jsdm(me10,data$Y)
+
+```
+
+### Gjam
+
+```{r gjam en10}
+
+data<-sim_data$EnvEvenSp10
+
+Rho_sign<-fit_gjam(data,5000,500,"./gjam_models/gjam10env.rda")
+Rho_sign(data,5000,500,name="./gjam_models/gjam10env.rda")
+
+g_metric_e10<-metrics_gjam(Rho_sign)
+cat("Success rate ")
+g_metric_e10$success_env
+
+
+#to check posterior density of s in Sigma 
+#gje10<-load_object("./gjam_models/gjam10env.rda")
+#plot(density(gje10$chains$sgibbs[,4]))
+
+
+```
+
+### HMSC
+```{r hmsc en10}
+
+data<-sim_data$EnvEvenSp10
+hm_mod<-fit_hmsc(data,"Load",name="./HMmodels/hm10env.rda" )
+
+hm_conv(hm_mod)
+Rho_sign<-hm_inter(hm_mod)
+
+h_metric_e10<-metrics_hmsc(Rho_sign)
+# cat("Success rate ")
+# h_metric_e10$success_env
+# h_metric_e10$success_fac
+
+cat(" ")
+cat(sprintf("Success rate: %s\n", h_metric_e10$success_env))
+cat(sprintf("Success rate: %s\n", h_metric_e10$success_fac))
+
+```
+
+
+
+
+## Environmental filtering 20 species
+
+### JSDM
+
+```{r load_m en20}
+me20 <- load_object("model-2019-04-11-19-06-02.rda")
+#load("model-2019-04-09-19-02-16.rda")
+summary(me20)
+
+me20$mcmc.info[1:7]
+
+jsdm_conv(me20)
+
+j_metric_e20<-metrics_jsdm(me20)
+cat("Success rate ")
+j_metric_e20$success_env
+
+data<-sim_data$EnvEvenSp20
+data <- list(
+  Y = subset(data, select = -env),
+  X = cbind(1, scale(poly(data$env, 2))),
+  covx = cov(cbind(1, scale(poly(data$env, 2)))),
+  K = 3,
+  J = ncol(data) - 1,
+  n = nrow(data),
+  I = diag(ncol(data) - 1),
+  df = ncol(data)
+)
+
+##########################################################################################
+
+plot_cor_jsdm(me20,data$Y)
+
+```
+
+
+### Gjam
+
+```{r gjam en20}
+
+data<-sim_data$EnvEvenSp20
+
+#Rho_sign<-fit_gjam(data,5000,500,"./gjam_models/gjam20env.rda")
+
+Rho_sign<-load_gjam(data,name="./gjam_models/gjam20env.rda")
+#gje20<-load_object("./gjam_models/gjam20env.rda")
+
+# g_metric_e20<-metrics_gjam(Rho_sign)
+# cat("Success rate ")
+# g_metric_e20$success_env
+
+cat(" ")
+cat(sprintf("Success rate env: %s\n", round(metrics_gjam(Rho_sign)$success_env,3)))
+
+#to check posterior density of s in Sigma 
+#gje20<-load_object("./gjam_models/gjam20env.rda")
+#plot(density(gje20$chains$sgibbs[,4]))
+
+
+```
+
+### Gjam dimension reduction
+
+```{r gjam en20 dim red}
+
+data<-sim_data$EnvEvenSp20
+
+#fit_gjam(data,5000,500,"./gjam_models/gjam20env.rda")
+
+#load_gjam(data,name="./gjam_models/gjam20env.rda")
+#gje20<-load_object("./gjam_models/gjam20env.rda")
+
+
+#to check posterior density of s in Sigma 
+#gje20<-load_object("./gjam_models/gjam20env.rda")
+#plot(density(gje20$chains$sgibbs[,4]))
+ data <- list(
+    Y = subset(data, select = -env),
+    X = cbind(1, scale(poly(data$env, 2))),
+    covx = cov(cbind(1, scale(poly(data$env, 2)))),
+    K = 3,
+    J = ncol(data) - 1,
+    n = nrow(data),
+    I = diag(ncol(data) - 1),
+    df = ncol(data)
+  )
+xdata<-as.data.frame(data$X[,-1])
+colnames(xdata)<- c("env","env2")
+ydata<-as.data.frame(data$Y)
+###formula
+rl   <- list(r = 8, N = 20)
+formula<-as.formula( ~env+ env2)
+ml  <- list(ng = 2500, burnin = 500, typeNames = 'PA', reductList = rl)
+####fit
+
+
+mod_gjam1 <- gjam(formula, xdata = xdata, ydata = ydata, modelList = ml)
+save(mod_gjam1, file = "./gjam_models/gjam20env_dr.rda")
+summary(mod_gjam1)
+
+Tau <- solve(mod_gjam1$parameters$sigMu)
+Tau_n = to_prec(Tau)
+
+#postH<-apply(mod_gjam1$chains$sgibbs, 2, quantile,0.95)
+#postL<-apply(mod_gjam1$chains$sgibbs, 2, quantile,0.05)
+
+
+#pH<-convert_to_m(postH)
+#pL<-convert_to_m(postL)
+
+#R_sign<-cov2cor(mod_gjam1$parameters$sigMu)*(!(pH>0 & pL<0))
+
+g_metric_e20_dim_red<-metrics_gjam(Rho_sign)
+cat("Success rate ")
+g_metric_e20_dim_red$success_env
+
+par(mfrow=c(2,3),oma = c(1, 1, 1, 1))
+corrplot(cor(ydata), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("Correlation cor(Y)")
+corrplot(mod_gjam1$parameters$corMu, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("R")
+corrplot(mod_gjam1$parameters$ematrix, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("E matrix")
+# corrplot(Tau_n, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+# title("Tau")
+# corrplot(R_sign, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", type = "lower")
+# title("R signif")
+corrplot(diag(20), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("True interactions")
+
+
+
+```
+
+```{r hmsc en20}
+
+data<-sim_data$EnvEvenSp20
+hm_mod<-fit_hmsc(data,"Load",name="./HMmodels/hm20env.rda" )
+hm_conv(hm_mod)
+Rho_sign<-hm_inter(hm_mod)
+
+# h_metric_e20<-metrics_hmsc(Rho_sign)
+# cat("Success score ")
+# h_metric_e20$success_env
+cat(" ")
+cat(sprintf("Success rate non-interacting: %s\n", round(metrics_hmsc(Rho_sign)$success_env,3)))
+
+```
+
+## Environmental filtering + Facilitation dense 5 species
+
+### JSDM
+
+```{r load_m facd5}
+mfd5 <- load_object("model-2019-04-11-19-35-11.rda")
+summary(mfd5)
+#mfd5$Rhat
+jsdm_conv(mfd5)
+mfd5$mcmc.info[1:7]
+
+j_metric_facDense5<-metrics_jsdm(mfd5,fac = fac_inter[[4]],only_env = F)
+cat("Success rate ")
+j_metric_facDense5$success_env
+j_metric_facDense5$success_fac
+
+data<-sim_data$FacDenseSp5
+data <- list(
+  Y = subset(data, select = -env),
+  X = cbind(1, scale(poly(data$env, 2))),
+  covx = cov(cbind(1, scale(poly(data$env, 2)))),
+  K = 3,
+  J = ncol(data) - 1,
+  n = nrow(data),
+  I = diag(ncol(data) - 1),
+  df = ncol(data)
+)
+
+##########################################################################################
+#Tau<-solve
+#Tau_n<-to_prec(me10$mean$Tau)
+#Tau_k<-Tau_n*(!(model$q97.5$Tau>0 & model$q2.5$Tau<0))
+
+plot_cor_jsdm(mfd5,data$Y,fac_inter[[4]])
+
+```
+
+### Gjam
+
+```{r gjam fd5}
+data<-sim_data$FacDenseSp5
+#Rho_sign<-fit_gjam(data,10000,2000,"./gjam_models/gjam5f.rda",interact=fac_inter[[4]])
+Rho_sign<-load_gjam(data,name="./gjam_models/gjam5f.rda", interact=fac_inter[[4]])
+#gjfd5<-load_object("./gjam_models/gjam5f.rda")
+
+g_metric_facDense5<-metrics_gjam(Rho_sign,fac=fac_inter[[4]], only_env = F)
+#cat("Success rate ")
+#g_metric_facDense5$success_env
+#g_metric_facDense5$success_fac
+
+#to check posterior density of s in Sigma 
+#gjfd5<-load_object("./gjam_models/gjam5f.rda")
+#plot(density(gjfd5$chains$sgibbs[,4]))
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(g_metric_facDense5$success_env,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(g_metric_facDense5$success_fac,3)))
+
+```
+
+
+
+### HMSC
+```{r hmsc fd5}
+data<-sim_data$FacDenseSp5
+hm_mod<-fit_hmsc(data,"Load",name="./HMmodels/hm5fd.rda" )
+hm_conv(hm_mod)
+hm_inter(hm_mod, interact = fac_inter[[4]])
+Rho_sign<-hm_inter(hm_mod)
+
+h_metric_facDense5<-metrics_hmsc(Rho_sign,fac=fac_inter[[4]],only_env = F)
+#cat("Success rate ")
+# h_metric_facDense5$success_env
+# h_metric_facDense5$success_fac
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(h_metric_facDense5$success_env,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(h_metric_facDense5$success_fac,3)))
+
+
+```
+
+## Environmental filtering + Facilitation dense 10 species
+
+### JSDM
+
+```{r model jsdm fd10, echo=FALSE}
+#load("model-2019-04-10-15-13-15.rda")
+mfd10 <- load_object("model-2019-04-12-06-59-42.rda")
+
+summary(mfd10)
+jsdm_conv(mfd10)
+mfd10$mcmc.info[1:7]
+
+j_metric_facDense10<-metrics_jsdm(mfd10,fac = fac_inter[[5]],only_env = F)
+cat("Success rate ")
+j_metric_facDense10$success_env
+j_metric_facDense10$success_fac
+
+######################################################Prepare data
+data<-sim_data$FacDenseSp10
+data <- list(
+  Y = subset(data, select = -env),
+  X = cbind(1, scale(poly(data$env, 2))),
+  covx = cov(cbind(1, scale(poly(data$env, 2)))),
+  K = 3,
+  J = ncol(data) - 1,
+  n = nrow(data),
+  I = diag(ncol(data) - 1),
+  df = ncol(data)
+)
+
+######################################################Plot 
+
+plot_cor_jsdm(mfd10,data$Y,fac_inter[[5]])
+
+```
+
+
+```{r gjam fd10}
+
+data<-sim_data$FacDenseSp10
+
+#Rho_sign<-fit_gjam(data,5000,500,"./gjam_models/gjam10fd.rda",interact=fac_inter[[5]])
+load_gjam(data,name="./gjam_models/gjam10fd.rda", interact=fac_inter[[5]])
+#gjfd5<-load_object("./gjam_models/gjam10fd.rda")
+
+g_metric_facDense10<-metrics_gjam(Rho_sign,fac=fac_inter[[5]], only_env = F)
+# cat("Success rate ")
+# g_metric_facDense10$success_env
+# g_metric_facDense10$success_fac
+
+#to check posterior density of s in Sigma 
+#gjfd5<-load_object("./gjam_models/gjam10fd.rda")
+#plot(density(gjfd5$chains$sgibbs[,4]))
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(g_metric_facDense10$success_env,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(g_metric_facDense10$success_fac,3)))
+
+
+```
+
+
+### HMSC
+
+```{r model2 hmsc, echo=FALSE}
+data<-sim_data$FacDenseSp10
+hm_mod<-fit_hmsc(data,"Load",nsamples = 2000,nchains=2,name="./HMmodels/hm10fd.rda" )
+hm_conv(hm_mod)
+Rho_sigh<-hm_inter(hm_mod, nsamples = 2000,nchains=2,interact = fac_inter[[5]])
+
+h_metric_facDense10<-metrics_hmsc(Rho_sign,fac=fac_inter[[5]],only_env = F)
+# cat("Success rate ")
+# h_metric_facDense10$success_env
+# h_metric_facDense10$success_fac
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(h_metric_facDense10$success_env,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(h_metric_facDense10$success_fac,3)))
+
+
+```
+
+
+
+
+## Environmental filtering + Facilitation dense 20 species
+
+### JSDM
+
+```{r model jsdm fd20, echo=FALSE}
+#load("model-2019-04-10-15-13-15.rda")
+mfd20 <- load_object("model-2019-04-13-17-22-12.rda")
+
+summary(mfd20)
+#mfd20$Rhat
+jsdm_conv(mfd20)
+mfd20$mcmc.info[1:7]
+
+j_metric_facDense20<-metrics_jsdm(mfd20,fac = fac_inter[[6]],only_env = F)
+cat("Success rate ")
+j_metric_facDense20$success_env
+j_metric_facDense20$success_fac
+
+######################################################Prepare data
+data<-sim_data$FacDenseSp20
+data <- list(
+  Y = subset(data, select = -env),
+  X = cbind(1, scale(poly(data$env, 2))),
+  covx = cov(cbind(1, scale(poly(data$env, 2)))),
+  K = 3,
+  J = ncol(data) - 1,
+  n = nrow(data),
+  I = diag(ncol(data) - 1),
+  df = ncol(data)
+)
+
+#Tau_n<-to_prec(mfd20$mean$Tau)
+plot_cor_jsdm(mfd20,data$Y,fac_inter[[6]])
+
+```
+
+
+### Gjam
+
+
+```{r gjam fd20}
+
+data<-sim_data$FacDenseSp20
+
+#Rho_sign<-fit_gjam(data,10000,1500,"./gjam_models/gjam20fd.rda",interact=fac_inter[[6]])
+Rho_sign<-load_gjam(data,name="./gjam_models/gjam20fd.rda", interact=fac_inter[[6]])
+#gjfd5<-load_object("./gjam_models/gjam20fd.rda")
+
+g_metric_facDense20<-metrics_gjam(Rho_sign,fac=fac_inter[[6]], only_env = F)
+# cat("Success rate ")
+# g_metric_facDense20$success_env
+# g_metric_facDense20$success_fac
+# 
+#to check posterior density of s in Sigma 
+#gjfd5<-load_object("./gjam_models/gjam20fd.rda")
+#plot(density(gjfd5$chains$sgibbs[,4]))
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(g_metric_facDense20$success_env,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(g_metric_facDense20$success_fac,3)))
+
+
+
+```
+
+
+### HMSC
+```{r hmsc fd20}
+data<-sim_data$FacDenseSp20
+hm_mod<-fit_hmsc(data,"Load",name="./HMmodels/hm20fd.rda" )
+hm_conv(hm_mod)
+Rho_sign<-hm_inter(hm_mod, interact = fac_inter[[6]])
+
+h_metric_facDense20<-metrics_hmsc(Rho_sign,fac=fac_inter[[6]],only_env = F)
+# cat("Success rate ")
+# h_metric_facDense20$success_env
+# h_metric_facDense20$success_fac
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(h_metric_facDense20$success_env,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(h_metric_facDense20$success_fac,3)))
+
+```
+
+
+
+## Environmental filtering + Facilitation sparse 5 species
+
+### JSDM
+
+
+```{r model jsdm fs5, echo=FALSE}
+#load("model-2019-04-10-15-13-15.rda")
+mfs5 <- load_object("model-2019-04-13-17-51-16.rda")
+
+summary(mfs5)
+#mfs5$Rhat
+jsdm_conv(mfs5)
+
+mfs5$mcmc.info[1:7]
+
+j_metric_facSparse5<-metrics_jsdm(mfs5,fac = fac_inter[[7]],only_env = F)
+# cat("Success rate ")
+# j_metric_facSparse5$success_env
+# j_metric_facSparse5$success_fac
+# cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(j_metric_facSparse5$success_env,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(j_metric_facSparse5$success_fac,3)))
+
+######################################################Prepare data
+data<-sim_data$FacSparseSp5
+data <- list(
+  Y = subset(data, select = -env),
+  X = cbind(1, scale(poly(data$env, 2))),
+  covx = cov(cbind(1, scale(poly(data$env, 2)))),
+  K = 3,
+  J = ncol(data) - 1,
+  n = nrow(data),
+  I = diag(ncol(data) - 1),
+  df = ncol(data)
+)
+#Tau_n<-to_prec(mfd10$mean$Tau)
+plot_cor_jsdm(mfs5,data$Y,fac_inter[[7]])
+```
+
+
+### Gjam
+
+```{r gjam fs5}
+
+data<-sim_data$FacSparseSp5
+
+#Rho_sign<-fit_gjam(data,2500,500,"./gjam_models/gjam5fs.rda",interact=fac_inter[[7]])
+Rho_sign<-load_gjam(data,name="./gjam_models/gjam5fs.rda", interact=fac_inter[[7]])
+#gjfd5<-load_object("./gjam_models/gjam5fs.rda")
+
+g_metric_facSparse5<-metrics_gjam(Rho_sign,fac=fac_inter[[7]], only_env = F)
+# cat("Success rate ")
+# g_metric_facSparse5$success_env
+# g_metric_facSparse5$success_fac
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(g_metric_facSparse5$success_env,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(g_metric_facSparse5$success_fac,3)))
+
+#to check posterior density of s in Sigma 
+#gjfd5<-load_object("./gjam_models/gjam20fd.rda")
+#plot(density(gjfd5$chains$sgibbs[,4]))
+
+
+```
+
+### HMSC
+```{r hmsc fs5}
+data<-sim_data$FacSparseSp5
+
+hm_mod<-fit_hmsc(data,"Load",name="./HMmodels/hm5fs.rda" )
+hm_conv(hm_mod)
+Rho_sign<-hm_inter(hm_mod, interact = fac_inter[[7]])
+h_metric_facSparse5<-metrics_hmsc(Rho_sign,fac=fac_inter[[8]],only_env = F)
+# cat("Success rate ")
+# h_metric_facSparse5$success_env
+# h_metric_facSparse5$success_fac
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(h_metric_facSparse5$success_env,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(h_metric_facSparse5$success_fac,3)))
+
+```
+
+
+
+
+
+
+
+## Environmental filtering + Facilitation sparse 10 species
+
+### JSDM
+
+```{r model jsdm fs10, echo=FALSE}
+#load("model-2019-04-10-15-13-15.rda")
+mfs10 <- load_object("model-2019-04-14-05-17-58.rda")
+
+summary(mfs10)
+#mfs10$Rhat
+jsdm_conv(mfs10)
+mfs10$mcmc.info[1:7]
+
+j_metric_facSparse10<-metrics_jsdm(mfd10,fac = fac_inter[[8]],only_env = F)
+# cat("Success rate ")
+# j_metric_facSparse10$success_env
+# j_metric_facSparse10$success_fac
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(j_metric_facSparse10$success_env,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(j_metric_facSparse10$success_fac,3)))
+
+######################################################Prepare data
+data<-sim_data$FacSparseSp10
+data <- list(
+  Y = subset(data, select = -env),
+  X = cbind(1, scale(poly(data$env, 2))),
+  covx = cov(cbind(1, scale(poly(data$env, 2)))),
+  K = 3,
+  J = ncol(data) - 1,
+  n = nrow(data),
+  I = diag(ncol(data) - 1),
+  df = ncol(data)
+)
+#Tau_n<-to_prec(mfd10$mean$Tau)
+plot_cor_jsdm(mfs10,data$Y,fac_inter[[8]])
+```
+
+```{r gjam fs10}
+
+data<-sim_data$FacSparseSp10
+
+#Rho_sign<-fit_gjam(data,2500,500,"./gjam_models/gjam10fs.rda",interact=fac_inter[[8]])
+Rho_sign<-load_gjam(data,name="./gjam_models/gjam10fs.rda", interact=fac_inter[[8]])
+#gjfd5<-load_object("./gjam_models/gjam10fs.rda")
+
+g_metric_facSparse10<-metrics_gjam(Rho_sign,fac=fac_inter[[8]], only_env = F)
+# cat("Success rate ")
+# g_metric_facSparse10$success_env
+# g_metric_facSparse10$success_fac
+
+#to check posterior density of s in Sigma 
+#gjfd5<-load_object("./gjam_models/gjam10fs.rda")
+#plot(density(gjfd5$chains$sgibbs[,4]))
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(g_metric_facSparse10$success_env,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(g_metric_facSparse10$success_fac,3)))
+
+
+```
+
+### HMSC
+```{r hmsc fs10}
+data<-sim_data$FacSparseSp10
+
+hm_mod<-fit_hmsc(data,"Load",name="./HMmodels/hm10fs.rda" )
+hm_conv(hm_mod)
+Rho_sign<-hm_inter(hm_mod, interact = fac_inter[[8]])
+h_metric_facSparse10<-metrics_hmsc(Rho_sign,fac=fac_inter[[8]],only_env = F)
+# cat("Success rate ")
+# h_metric_facSparse10$success_env
+# h_metric_facSparse10$success_fac
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(h_metric_facSparse10$success_env,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(h_metric_facSparse10$success_fac,3)))
+
+```
+
+
+
+## Environmental filtering + Facilitation sparse 20 species
+
+### JSDM
+
+
+```{r model jsdm fs20, echo=FALSE}
+#load("model-2019-04-10-15-13-15.rda")
+mfs20 <- load_object("model-2019-04-15-15-34-20.rda")
+
+summary(mfs20)
+#mfs20$Rhat
+jsdm_conv(mfs20)
+mfs20$mcmc.info[1:7]
+
+j_metric_facSparse20<-metrics_jsdm(mfs20,fac = fac_inter[[9]],only_env = F)
+# cat("Success rate ")
+# j_metric_facSparse20$success_env
+# j_metric_facSparse20$success_fac
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(j_metric_facSparse20$success_env,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(j_metric_facSparse20$success_fac,3)))
+
+######################################################Prepare data
+data<-sim_data$FacSparseSp20
+data <- list(
+  Y = subset(data, select = -env),
+  X = cbind(1, scale(poly(data$env, 2))),
+  covx = cov(cbind(1, scale(poly(data$env, 2)))),
+  K = 3,
+  J = ncol(data) - 1,
+  n = nrow(data),
+  I = diag(ncol(data) - 1),
+  df = ncol(data)
+)
+#Tau_n<-to_prec(mfd10$mean$Tau)
+plot_cor_jsdm(mfs20,data$Y,fac_inter[[9]])
+```
+
+
+### Gjam
+
+```{r gjam fs20}
+
+data<-sim_data$FacSparseSp20
+
+#fit_gjam(data,10000,1500,"./gjam_models/gjam20fs.rda",interact=fac_inter[[9]])
+load_gjam(data,name="./gjam_models/gjam20fs.rda", interact=fac_inter[[9]])
+#gjfd5<-load_object("./gjam_models/gjam20fd.rda")
+
+g_metric_facSparse20<-metrics_gjam(Rho_sign,fac=fac_inter[[9]], only_env = F)
+# cat("Success rate ")
+# g_metric_facSparse20$success_env
+# g_metric_facSparse20$success_fac
+
+#to check posterior density of s in Sigma 
+#gjfd5<-load_object("./gjam_models/gjam20fd.rda")
+#plot(density(gjfd5$chains$sgibbs[,4]))
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(g_metric_facSparse20$success_env,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(g_metric_facSparse20$success_fac,3)))
+
+
+```
+
+
+### HMSC
+
+### HMSC
+```{r hmsc fs20}
+data<-sim_data$FacSparseSp20
+hm_mod<-fit_hmsc(data,nsamples=3000, nchains=2,"Load",name="./HMmodels/hm20fs.rda" )
+hm_conv(hm_mod)
+hm_inter(hm_mod, nsamples=3000, nchains=2,interact = fac_inter[[9]])
+h_metric_facSparse20<-metrics_hmsc(Rho_sign,fac=fac_inter[[9]],only_env = F)
+# cat("Success rate ")
+# h_metric_facSparse20$success_env
+# h_metric_facSparse20$success_fac
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(h_metric_facSparse20$success_env,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(h_metric_facSparse20$success_fac,3)))
+
+```
+
+
+## Environmental filtering + Competition dense 5 species
+
+### JSDM
+
+
+```{r model jsdm cmpd5, echo=FALSE}
+#load("model-2019-04-10-15-13-15.rda")
+mcmpd5 <- load_object("model-2019-04-15-16-03-39.rda")
+
+summary(mcmpd5)
+#mcmpd5$Rhat
+jsdm_conv(mcmpd5)
+
+mcmpd5$mcmc.info[1:7]
+
+j_metric_compDense5<-metrics_jsdm(mcmpd5,comp = comp_inter[[10]],only_env = F)
+cat("Success rate ")
+j_metric_compDense5$success_env
+j_metric_compDense5$success_comp
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(h_metric_facSparse20$success_env,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(h_metric_facSparse20$success_fac,3)))
+
+######################################################Prepare data
+data<-sim_data$CompDenseSp5
+data <- list(
+  Y = subset(data, select = -env),
+  X = cbind(1, scale(poly(data$env, 2))),
+  covx = cov(cbind(1, scale(poly(data$env, 2)))),
+  K = 3,
+  J = ncol(data) - 1,
+  n = nrow(data),
+  I = diag(ncol(data) - 1),
+  df = ncol(data)
+)
+#Tau_n<-to_prec(mfd10$mean$Tau)
+plot_cor_jsdm(mcmpd5,data$Y,comp_inter[[10]])
+```
+
+
+
+### Gjam
+
+```{r gjam cmpd5}
+data<-sim_data$CompDenseSp5
+
+#Rho_sign<-fit_gjam(data,10000,1000,"./gjam_models/gjam5cmpd.rda",interact=comp_inter[[10]])
+
+Rho_sign<-load_gjam(data,name="./gjam_models/gjam5cmpd.rda", interact=(-1)*comp_inter[[10]])
+#gjfd5<-load_object("./gjam_models/gjam5cmpd.rda")
+
+g_metric_compDense5<-metrics_gjam(Rho_sign,comp=comp_inter[[10]], only_env = F)
+# cat("Success rate ")
+# g_metric_compDense5$success_env
+# g_metric_compDense5$success_comp
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(g_metric_compDense5$success_env,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(g_metric_compDense5$success_comp,3)))
+
+#to check posterior density of s in Sigma 
+#gjfd5<-load_object("./gjam_models/gjam5cmpd.rda")
+#plot(density(gjfd5$chains$sgibbs[,4]))
+
+
+```
+
+
+```{r hmsc cmpd5}
+data<-sim_data$CompDenseSp5
+
+hm_mod<-fit_hmsc(data,"Load",nsamples=3000, nchains=2,name="./HMmodels/hm5cmpd.rda" )
+#hm_mod<-fit_hmsc(data,"Fit",nsamples=3000, nchains=2 )
+
+hm_conv(hm_mod)
+Rho_sign<-hm_inter(hm_mod, nsamples=3000, nchains=2,interact = (-1)*comp_inter[[10]])
+
+h_metric_compDense5<-metrics_hmsc(Rho_sign,comp=comp_inter[[10]],only_env = F)
+# cat("Success rate ")
+# h_metric_compDense5$success_env
+# h_metric_compDense5$success_comp
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(h_metric_compDense5$success_env,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(h_metric_compDense5$success_comp,3)))
+
+```
+
+
+## Environmental filtering + Competition dense 10 species
+
+```{r model jsdm cmpd10, echo=FALSE}
+#load("model-2019-04-10-15-13-15.rda")
+mcmpd10 <- load_object("model-2019-04-16-03-39-17.rda")
+
+summary(mcmpd10)
+#mcmpd10$Rhat
+
+jsdm_conv(mcmpd10)
+mcmpd10$mcmc.info[1:7]
+
+j_metric_compDense10<-metrics_jsdm(mcmpd10,comp = comp_inter[[11]],only_env = F)
+# cat("Success rate ")
+# j_metric_compDense10$success_env
+# j_metric_compDense10$success_comp
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(j_metric_compDense10$success_env,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(j_metric_compDense10$success_comp,3)))
+
+######################################################Prepare data
+data<-sim_data$CompDenseSp10
+data <- list(
+  Y = subset(data, select = -env),
+  X = cbind(1, scale(poly(data$env, 2))),
+  covx = cov(cbind(1, scale(poly(data$env, 2)))),
+  K = 3,
+  J = ncol(data) - 1,
+  n = nrow(data),
+  I = diag(ncol(data) - 1),
+  df = ncol(data)
+)
+#Tau_n<-to_prec(mfd10$mean$Tau)
+plot_cor_jsdm(mcmpd10,data$Y,(-1)*comp_inter[[11]])
+```
+
+
+
+### Gjam
+
+```{r gjam cmpd10}
+data<-sim_data$CompDenseSp10
+
+#Rho_sign<-fit_gjam(data,5000,500,"./gjam_models/gjam10cmpd.rda",interact=comp_inter[[11]])
+
+Rho_sign<-load_gjam(data,name="./gjam_models/gjam10cmpd.rda", interact= (-1)*comp_inter[[11]])
+#gjfd5<-load_object("./gjam_models/gjam10cmpd.rda")
+
+g_metric_compDense10<-metrics_gjam(Rho_sign,comp=comp_inter[[11]], only_env = F)
+# cat("Success rate ")
+# g_metric_compDense10$success_env
+# g_metric_compDense10$success_comp
+
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(g_metric_compDense10$success_env,3)))
+cat(sprintf("Success rate for competition: %s\n", round(g_metric_compDense10$success_comp,3)))
+
+
+#to check posterior density of s in Sigma 
+#gjfd5<-load_object("./gjam_models/gjam20fd.rda")
+#plot(density(gjfd5$chains$sgibbs[,4]))
+
+
+```
+
+
+### HMSC
+
+```{r hmsc cmpd10}
+data<-sim_data$CompDenseSp10
+hm_mod<-fit_hmsc(data,"Load",nsamples=5000, nchains=2,name="./HMmodels/hm10cmpd.rda" )
+hm_conv(hm_mod)
+Rho_sign<-hm_inter(hm_mod,nsamples=5000, nchains=2, interact =  (-1)*comp_inter[[11]])
+
+h_metric_compDense10<-metrics_hmsc(Rho_sign,comp=comp_inter[[11]],only_env = F)
+# cat("Success rate ")
+# h_metric_compDense10$success_env
+# h_metric_compDense10$success_comp
+
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(h_metric_compDense10$success_env,3)))
+cat(sprintf("Success rate for competition: %s\n", round(h_metric_compDense10$success_comp,3)))
+
+
+```
+
+
+
+## Environmental filtering + Competition dense 20 species
+
+```{r model jsdm cmpd20, echo=FALSE}
+#load("model-2019-04-10-15-13-15.rda")
+mcmpd20 <- load_object("model-2019-04-17-14-00-45.rda")
+
+summary(mcmpd20)
+#mcmpd10$Rhat
+
+jsdm_conv(mcmpd20)
+mcmpd20$mcmc.info[1:7]
+
+j_metric_compDense20<-metrics_jsdm(mcmpd20,comp = comp_inter[[12]],only_env = F)
+# cat("Success rate ")
+# j_metric_compDense20$success_env
+# j_metric_compDense20$success_comp
+
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(j_metric_compDense20$success_env,3)))
+cat(sprintf("Success rate for competition: %s\n", round(j_metric_compDense20$success_comp,3)))
+
+######################################################Prepare data
+data<-sim_data$CompDenseSp20
+data <- list(
+  Y = subset(data, select = -env),
+  X = cbind(1, scale(poly(data$env, 2))),
+  covx = cov(cbind(1, scale(poly(data$env, 2)))),
+  K = 3,
+  J = ncol(data) - 1,
+  n = nrow(data),
+  I = diag(ncol(data) - 1),
+  df = ncol(data)
+)
+#Tau_n<-to_prec(mfd10$mean$Tau)
+plot_cor_jsdm(mcmpd20,data$Y, (-1)*comp_inter[[12]])
+```
+
+
+
+### Gjam
+
+```{r gjam cmpd20}
+data<-sim_data$CompDenseSp20
+
+#Rho_sign<-fit_gjam(data,10000,1000,"./gjam_models/gjam20cmpd.rda",interact= (-1)*comp_inter[[12]])
+
+Rho_sign<-load_gjam(data,name="./gjam_models/gjam20cmpd.rda", interact= (-1)*comp_inter[[12]])
+#gjfd5<-load_object("./gjam_models/gjam20cmpd.rda")
+
+g_metric_compDense20<-metrics_gjam(Rho_sign,comp=comp_inter[[12]], only_env = F)
+# cat("Success rate ")
+# g_metric_compDense20$success_env
+# g_metric_compDense20$success_comp
+
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(g_metric_compDense20$success_env,3)))
+cat(sprintf("Success rate for competition: %s\n", round(g_metric_compDense20$success_comp,3)))
+
+
+#to check posterior density of s in Sigma 
+#gjfd5<-load_object("./gjam_models/gjam20fd.rda")
+#plot(density(gjfd5$chains$sgibbs[,4]))
+
+
+```
+
+
+### HMSC
+
+```{r hmsc cmpd20}
+data<-sim_data$CompDenseSp20
+
+hm_mod<-fit_hmsc(data,"Load",nsamples=5000, nchains=2,name="./HMmodels/hm20cmpd.rda" )
+hm_conv(hm_mod)
+Rho_sign<-hm_inter(hm_mod, nsamples=5000, nchains=2,interact =  (-1)*comp_inter[[12]])
+
+h_metric_compDense20<-metrics_hmsc(Rho_sign,comp=comp_inter[[12]],only_env = F)
+# cat("Success rate ")
+# h_metric_compDense20$success_env
+# h_metric_compDense20$success_comp
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(h_metric_compDense20$success_env,3)))
+cat(sprintf("Success rate for competition: %s\n", round(h_metric_compDense20$success_comp,3)))
+
+
+```
+
+
+
+## Environmental filtering + Competition sparse 5 species
+
+```{r model jsdm cmps5, echo=FALSE}
+#load("model-2019-04-17-14-30-01.rda")
+cmps5 <- load_object("model-2019-04-17-14-30-01.rda")
+
+summary(cmps5)
+jsdm_conv(cmps5)
+cmps5$mcmc.info[1:7]
+
+j_metric_compSparse5<-metrics_jsdm(cmps5,comp = comp_inter[[13]],only_env = F)
+# cat("Success rate ")
+# j_metric_compSparse5$success_env
+# j_metric_compSparse5$success_comp
+
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(j_metric_compSparse5$success_env,3)))
+cat(sprintf("Success rate for competition: %s\n", round(j_metric_compSparse5$success_comp,3)))
+
+
+
+######################################################Prepare data
+data<-sim_data$CompSparseSp5
+data <- list(
+  Y = subset(data, select = -env),
+  X = cbind(1, scale(poly(data$env, 2))),
+  covx = cov(cbind(1, scale(poly(data$env, 2)))),
+  K = 3,
+  J = ncol(data) - 1,
+  n = nrow(data),
+  I = diag(ncol(data) - 1),
+  df = ncol(data)
+)
+
+plot_cor_jsdm(cmps5,data$Y,(-1)*comp_inter[[13]])
+```
+
+
+
+
+### Gjam
+
+```{r gjam cmps5}
+data<-sim_data$CompSparseSp5
+
+
+#Rho_sign<-fit_gjam(data,5000,2000,"./gjam_models/gjam5cmps.rda",interact= (-1)*comp_inter[[13]])
+
+Rho_sign<-load_gjam(data,name="./gjam_models/gjam5cmps.rda", interact= (-1)*comp_inter[[13]])
+#gjfd5<-load_object("./gjam_models/gjam5cmps.rda")
+
+g_metric_compSparse5<-metrics_gjam(Rho_sign,comp=comp_inter[[13]], only_env = F)
+cat("Success rate ")
+g_metric_compSparse5$success_env
+g_metric_compSparse5$success_comp
+
+
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(g_metric_compSparse5$success_env,3)))
+cat(sprintf("Success rate for competition: %s\n", round(g_metric_compSparse5$success_comp,3)))
+
+
+#to check posterior density of s in Sigma 
+#gjfd5<-load_object("./gjam_models/gjam5cmps.rda")
+#plot(density(gjfd5$chains$sgibbs[,4]))
+
+
+```
+
+
+### HMSC
+
+```{r hmsc cmps5}
+data<-sim_data$CompSparseSp5
+
+hm_mod<-fit_hmsc(data,"Load",nsamples=2000, nchains=2,name="./HMmodels/hm5cmps.rda" )
+hm_conv(hm_mod)
+Rho_sign<-hm_inter(hm_mod, nsamples=2000, nchains=2,interact =  (-1)*comp_inter[[13]])
+
+h_metric_facSparse5<-metrics_hmsc(Rho_sign,comp=comp_inter[[13]],only_env = F)
+# cat("Success rate ")
+# h_metric_facSparse5$success_env
+# h_metric_facSparse5$success_comp
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(h_metric_facSparse5$success_env,3)))
+cat(sprintf("Success rate for competition: %s\n", round(h_metric_facSparse5$success_comp,3)))
+
+
+```
+
+
+
+## Environmental filtering + Competition sparse 10 species
+
+
+### JSDM
+
+```{r model jsdm cmps10, echo=FALSE}
+#load("model-2019-04-17-14-30-01.rda")
+cmps10 <- load_object("model-2019-04-18-01-55-45.rda")
+
+summary(cmps10)
+jsdm_conv(cmps10)
+cmps10$mcmc.info[1:7]
+
+j_metric_compSparse10<-metrics_jsdm(cmps10,comp = comp_inter[[14]],only_env = F)
+cat("Success rate ")
+j_metric_compSparse10$success_env
+j_metric_compSparse10$success_comp
+
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(j_metric_compSparse10$success_env,3)))
+cat(sprintf("Success rate for competition: %s\n", round(j_metric_compSparse10$success_comp,3)))
+
+
+######################################################Prepare data
+data<-sim_data$CompSparseSp10
+data <- list(
+  Y = subset(data, select = -env),
+  X = cbind(1, scale(poly(data$env, 2))),
+  covx = cov(cbind(1, scale(poly(data$env, 2)))),
+  K = 3,
+  J = ncol(data) - 1,
+  n = nrow(data),
+  I = diag(ncol(data) - 1),
+  df = ncol(data)
+)
+
+plot_cor_jsdm(cmps10,data$Y,(-1)*comp_inter[[14]])
+
+```
+
+
+### Gjam
+
+```{r gjam cmps10}
+data<-sim_data$CompSparseSp10
+#Rho_sign<-fit_gjam(data,2000,500,"./gjam_models/gjam10cmps.rda",interact= (-1)*comp_inter[[14]])
+Rho_sign<-load_gjam(data,name="./gjam_models/gjam10cmps.rda", interact= (-1)*comp_inter[[14]])
+
+g_metric_compSparse10<-metrics_gjam(Rho_sign,comp=comp_inter[[14]], only_env = F)
+# cat("Success rate ")
+# g_metric_compSparse10$success_env
+# g_metric_compSparse10$success_comp
+
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(g_metric_compSparse10$success_env,3)))
+cat(sprintf("Success rate for competition: %s\n", round(g_metric_compSparse10$success_comp,3)))
+
+
+#to check posterior density of s in Sigma 
+#gjfd5<-load_object("./gjam_models/gjam10cmps.rda")
+#plot(density(gjfd5$chains$sgibbs[,4]))
+```
+
+
+```{r hmsc cmps10}
+data<-sim_data$CompSparseSp10
+hm_mod<-fit_hmsc(data,"Load",nsamples=2000, nchains=2,name="./HMmodels/hm10cmps.rda" )
+hm_conv(hm_mod)
+Rho_sign<-hm_inter(hm_mod, nsamples=2000, nchains=2,interact =  (-1)*comp_inter[[14]])
+
+h_metric_facSparse10<-metrics_hmsc(Rho_sign,comp=comp_inter[[14]],only_env = F)
+cat("Success rate ")
+h_metric_facSparse10$success_env
+h_metric_facSparse10$success_comp
+
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(h_metric_facSparse10$success_env,3)))
+cat(sprintf("Success rate for competition: %s\n", round(h_metric_facSparse10$success_comp,3)))
+
+
+```
+
+## Environmental filtering + Competition sparse 20 species
+
+### JSDM 
+
+```{r model jsdm cmps20, echo=FALSE}
+#load("model-2019-04-17-14-30-01.rda")
+cmps20 <- load_object("model-2019-04-19-12-40-30.rda")
+
+summary(cmps20)
+jsdm_conv(cmps20)
+cmps20$mcmc.info[1:7]
+
+j_metric_compSparse20<-metrics_jsdm(cmps20,comp = comp_inter[[15]],only_env = F)
+# cat("Success rate ")
+# j_metric_compSparse10$success_env
+# j_metric_compSparse10$success_comp
+# 
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(j_metric_compSparse20$success_env,3)))
+cat(sprintf("Success rate for competition: %s\n", round(j_metric_compSparse20$success_comp,3)))
+
+
+######################################################Prepare data
+data<-sim_data$CompSparseSp20
+data <- list(
+  Y = subset(data, select = -env),
+  X = cbind(1, scale(poly(data$env, 2))),
+  covx = cov(cbind(1, scale(poly(data$env, 2)))),
+  K = 3,
+  J = ncol(data) - 1,
+  n = nrow(data),
+  I = diag(ncol(data) - 1),
+  df = ncol(data)
+)
+
+plot_cor_jsdm(cmps20,data$Y,(-1)*comp_inter[[15]])
+
+```
+
+### Gjam
+
+```{r gjam cmps20}
+data<-sim_data$CompSparseSp20
+#Rho_sign<-fit_gjam(data,2000,500,"./gjam_models/gjam20cmps.rda",interact= (-1)*comp_inter[[15]])
+Rho_sign<-load_gjam(data,name="./gjam_models/gjam20cmps.rda", interact= (-1)*comp_inter[[15]])
+
+g_metric_compSparse20<-metrics_gjam(Rho_sign,comp=comp_inter[[15]], only_env = F)
+# cat("Success rate ")
+# g_metric_compSparse20$success_env
+# g_metric_compSparse20$success_comp
+
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(g_metric_compSparse20$success_env,3)))
+cat(sprintf("Success rate for competition: %s\n", round(g_metric_compSparse20$success_comp,3)))
+
+
+#to check posterior density of s in Sigma 
+#gjfd5<-load_object("./gjam_models/gjam20cmps.rda")
+#plot(density(gjfd5$chains$sgibbs[,4]))
+```
+
+
+### HMSC
+
+```{r hmsc cmps20}
+data<-sim_data$CompSparseSp20
+
+hm_mod<-fit_hmsc(data,"Load",nsamples=2000, nchains=2,name="./HMmodels/hm20cmps.rda" )
+hm_conv(hm_mod)
+Rho_sign<-hm_inter(hm_mod, nsamples=2000, nchains=2,interact =  (-1)*comp_inter[[15]])
+
+h_metric_compSparse20<-metrics_hmsc(Rho_sign,comp=comp_inter[[15]],only_env = F)
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(h_metric_compSparse20$success_env,3)))
+cat(sprintf("Success rate for competition: %s\n", round(h_metric_compSparse20$success_comp,3)))
+
+```
+
+
+
+
+
+
+## Environmental filtering + Competition +Facilitation 5 dense species
+
+### JSDM 
+
+```{r model jsdm cmp_facd5, echo=FALSE}
+cmp_fd5 <- load_object("model-2019-04-19-13-08-47.rda")
+summary(cmp_fd5)
+jsdm_conv(cmp_fd5)
+cmp_fd5$mcmc.info[1:7]
+j_metric_comp_fDense5<-metrics_jsdm(cmp_fd5,comp = comp_inter[[16]],fac = fac_inter[[16]],only_env = F)
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(j_metric_comp_fDense5$success_env,3)))
+#cat(sprintf("Success rate for competition: %s\n", round(j_metric_comp_fDense5$success_comp,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(j_metric_comp_fDense5$success_fac,3)))
+
+######################################################Prepare data
+data<-sim_data$FacCompDenseSp5
+data <- list(
+  Y = subset(data, select = -env),
+  X = cbind(1, scale(poly(data$env, 2))),
+  covx = cov(cbind(1, scale(poly(data$env, 2)))),
+  K = 3,
+  J = ncol(data) - 1,
+  n = nrow(data),
+  I = diag(ncol(data) - 1),
+  df = ncol(data)
+)
+
+plot_cor_jsdm(cmp_fd5,data$Y,(-1)*comp_inter[[16]]+fac_inter[[16]])
+
+```
+
+
+### Gjam
+
+```{r gjam cmp_facd5}
+data<-sim_data$FacCompDenseSp5
+#Rho_sign<-fit_gjam(data,30000,15000,"./gjam_models/gjam5cmp_facd.rda",interact= (-1)*comp_inter[[16]]+fac_inter[[16]])
+Rho_sign2<-load_gjam(data,"./gjam_models/gjam5cmp_facd2.rda",interact= (-1)*comp_inter[[16]]+fac_inter[[16]])
+#Rho_sign3<-fit_gjam(data,5000,1000,"./gjam_models/gjam5cmp_facd2.rda",interact= (-1)*comp_inter[[16]]+fac_inter[[16]])
+#Rho_sign4<-fit_gjam(data,5000,2500,"./gjam_models/gjam5cmp_facd.rda",interact= (-1)*comp_inter[[16]]+fac_inter[[16]])
+#Rho_sign5<-fit_gjam(data,20000,5000,"./gjam_models/gjam5cmp_facd2.rda",interact= (-1)*comp_inter[[16]]+fac_inter[[16]])
+#Rho_sign<-load_gjam(data,name="./gjam_models/gjam5cmp_facd.rda", (-1)*comp_inter[[16]]+fac_inter[[16]])
+
+g_metric_cmp_facd5<-metrics_gjam(Rho_sign2,comp=comp_inter[[16]], fac=fac_inter[[16]], only_env = F)
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(g_metric_cmp_facd5$success_env,3)))
+cat(sprintf("Success rate for competition: %s\n", round(g_metric_cmp_facd5$success_comp,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(g_metric_cmp_facd5$success_fac,3)))
+
+
+
+
+# par(mfrow=c(2,3))
+#corrplot((Rho_sign+Rho_sign2)/2, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", col=cols(200),type = "lower")
+# corrplot(Rho_sign2, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", col=cols(200),type = "lower")
+# corrplot(Rho_sign3, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", col=cols(200),type = "lower")
+# corrplot(Rho_sign4, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", col=cols(200),type = "lower")
+# corrplot(Rho_sign5, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", col=cols(200),type = "lower")
+
+
+#to check posterior density of s in Sigma 
+#gjfd5<-load_object("./gjam_models/gjam20cmps.rda")
+#plot(density(gjfd5$chains$sgibbs[,4]))
+```
+
+
+
+### HMSC
+
+```{r hmsc cmp_facd5}
+data<-sim_data$FacCompDenseSp5
+hm_mod<-fit_hmsc(data,"Load",nsamples=3000, nchains=2,name="./HMmodels/hmcmp_facd5.rda" )
+hm_conv(hm_mod)
+Rho_sign<-hm_inter(hm_mod, nsamples=3000, nchains=2,interact =  (-1)*comp_inter[[16]]+ fac_inter[[16]])
+
+h_metric_FacCompDenseSp5<-metrics_hmsc(Rho_sign,comp=comp_inter[[16]],fac= fac_inter[[16]],only_env = F)
+
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(h_metric_FacCompDenseSp5$success_env,3)))
+cat(sprintf("Success rate for competition: %s\n", round(h_metric_FacCompDenseSp5$success_comp,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(h_metric_FacCompDenseSp5$success_fac,3)))
+
+```
+
+
+
+
+## Environmental filtering + Competition +Facilitation 10 dense species
+
+### JSDM 
+
+```{r model jsdm cmp_facd10, echo=FALSE}
+#load("model-2019-04-17-14-30-01.rda")
+# cmp_fd5 <- load_object("model-2019-04-18-01-55-45.rda")
+# 
+# summary(cmp_fd5)
+# jsdm_conv(cmp_fd5)
+# cmp_fd5$mcmc.info[1:7]
+# 
+# j_metric_comp_fDense5<-metrics_jsdm(cmp_fd5,comp = comp_inter[[16]],only_env = F)
+# # cat("Success rate ")
+# # j_metric_compSparse10$success_env
+# # j_metric_compSparse10$success_comp
+# # 
+# cat("\n")
+# cat(sprintf("Success rate for non-interacting: %s\n", round(j_metric_comp_fDense5$success_env,3)))
+# cat(sprintf("Success rate for competition: %s\n", round(j_metric_comp_fDense5$success_comp,3)))
+# cat(sprintf("Success rate for facilitation: %s\n", round(j_metric_comp_fDense5$success_comp,3)))
+# 
+# 
+# ######################################################Prepare data
+# data<-sim_data$sim_data$FacCompDenseSp5
+# data <- list(
+#   Y = subset(data, select = -env),
+#   X = cbind(1, scale(poly(data$env, 2))),
+#   covx = cov(cbind(1, scale(poly(data$env, 2)))),
+#   K = 3,
+#   J = ncol(data) - 1,
+#   n = nrow(data),
+#   I = diag(ncol(data) - 1),
+#   df = ncol(data)
+# )
+# 
+# plot_cor_jsdm(cmp_fd5,data$Y,(-1)*comp_inter[[14]])
+
+```
+
+### Gjam
+
+```{r gjam cmp_facd10}
+data<-sim_data$FacCompDenseSp10
+#Rho_sign<-fit_gjam(data,2000,500,"./gjam_models/gjamcmp_facd10.rda",interact=  (-1)*comp_inter[[17]]+fac_inter[[17]])
+Rho_sign<-load_gjam(data,name="./gjam_models/gjamcmp_facd10.rda", interact= (-1)*comp_inter[[17]]+fac_inter[[17]])
+
+g_metric_FacCompDenseSp10<-metrics_gjam(Rho_sign,comp=comp_inter[[17]], fac=fac_inter[[17]], only_env = F)
+
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(g_metric_FacCompDenseSp10$success_env,3)))
+cat(sprintf("Success rate for competition: %s\n", round(g_metric_FacCompDenseSp10$success_comp,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(g_metric_FacCompDenseSp10$success_fac,3)))
+
+```
+
+
+### HMSC
+
+```{r hmsc cmp_facd10}
+  
+hm_mod<-fit_hmsc(data,"Load",nsamples=2000, nchains=2,name="./HMmodels/hmcmp_facd10.rda" )
+hm_conv(hm_mod)
+Rho_sign<-hm_inter(hm_mod, nsamples=2000, nchains=2,interact =  (-1)*comp_inter[[17]] + fac_inter[[17]])
+
+h_metric_FacCompDenseSp10<-metrics_hmsc(Rho_sign,comp=comp_inter[[17]],fac=fac_inter[[17]], only_env = F)
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(h_metric_FacCompDenseSp10$success_env,3)))
+cat(sprintf("Success rate for competition: %s\n", round(h_metric_FacCompDenseSp10$success_comp,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(h_metric_FacCompDenseSp10$success_fac,3)))
+
+```
+
+
+## Environmental filtering + Competition +Facilitation 20 dense species
+
+### JSDM 
+
+```{r model jsdm cmp_facd20, echo=FALSE}
+```
+
+
+### HMSC
+
+```{r hmsc cmp_facd20}
+data<-sim_data$FacCompDenseSp20
+hm_mod<-fit_hmsc(data,"Load",nsamples=2000, nchains=2,name="./HMmodels/hmcmp_facd20.rda" )
+hm_conv(hm_mod)
+Rho_sign<-hm_inter(hm_mod, nsamples=2000, nchains=2,interact =  (-1)*comp_inter[[18]] + fac_inter[[18]])
+h_metric_FacCompDenseSp20<-metrics_hmsc(Rho_sign,comp=comp_inter[[18]],fac=fac_inter[[18]],only_env = F)
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(h_metric_FacCompDenseSp20$success_env,3)))
+cat(sprintf("Success rate for competition: %s\n", round(h_metric_FacCompDenseSp20$success_comp,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(h_metric_FacCompDenseSp20$success_fac,3)))
+
+```
+
+
+
+## Environmental filtering + Competition +Facilitation 5 sparse species
+
+### JSDM 
+
+```{r model jsdm cmp_facd20, echo=FALSE}
+
+```
+
+### Gjam
+
+```{r gjam cmp_facs5}
+data<-sim_data$FacCompSparseSp5
+#Rho_sign<-fit_gjam(data,2000,500,"./gjam_models/gjamcmp_facs5.rda",interact= (-1)*comp_inter[[19]]+ fac_inter[[19]] )
+Rho_sign<-load_gjam(data,name="./gjam_models/gjamcmp_facs5.rda", interact=  (-1)*comp_inter[[19]]+ fac_inter[[19]])
+g_metric_FacCompSparseSp5<-metrics_gjam(Rho_sign,comp=comp_inter[[15]], only_env = F)
+
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(g_metric_FacCompSparseSp5$success_env,3)))
+cat(sprintf("Success rate for competition: %s\n", round(g_metric_FacCompSparseSp5$success_comp,3)))
+cat(sprintf("Success rate for competition: %s\n", round(g_metric_FacCompSparseSp5$success_comp,3)))
+
+```
+
+
+### HMSC
+
+```{r hmsc cmp_facs5}
+data<-sim_data$FacCompSparseSp5
+hm_mod<-fit_hmsc(data,"Load",nsamples=2000, nchains=2,name="./HMmodels/hmcmp_facs5.rda" )
+hm_conv(hm_mod)
+Rho_sign<-hm_inter(hm_mod, nsamples=2000, nchains=2,interact =  (-1)*comp_inter[[19]]+ fac_inter[[19]])
+
+h_metric_FacCompSparseSp5<-metrics_hmsc(Rho_sign,comp=comp_inter[[19]],fac= fac_inter[[19]] ,only_env = F)
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(FacCompSparseSp5$success_env,3)))
+cat(sprintf("Success rate for competition: %s\n", round(FacCompSparseSp5$success_comp,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(FacCompSparseSp5$success_fac,3)))
+
+```
+
+
+
+## Environmental filtering + Competition +Facilitation 10 sparse species
+
+### JSDM 
+
+```{r model jsdm cmp_facs10, echo=FALSE}
+
+```
+
+
+### Gjam
+
+```{r gjam cmp_facs10}
+data<-sim_data$FacCompSparseSp10
+#Rho_sign<-fit_gjam(data,2000,500,"./gjam_models/gjamcmp_facs10.rda",interact= (-1)*comp_inter[[20]] +fac_inter[[20]])
+Rho_sign<-load_gjam(data,name="./gjam_models/gjamcmp_facs10.rda", interact=  (-1)*comp_inter[[20]] +fac_inter[[20]])
+
+g_metric_FacCompSparseSp10<-metrics_gjam(Rho_sign,comp=comp_inter[[20]],fac=fac_inter[[20]], only_env = F)
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(g_metric_FacCompSparseSp10$success_env,3)))
+cat(sprintf("Success rate for competition: %s\n", round(g_metric_FacCompSparseSp10$success_comp,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(g_metric_FacCompSparseSp10$success_fac,3)))
+
+```
+
+
+### HMSC
+
+```{r hmsc cmp_facs10}
+data<-sim_data$FacCompSparseSp10
+hm_mod<-fit_hmsc(data,"Load",nsamples=2000, nchains=2,name="./HMmodels/hmcmp_facs10.rda" )
+hm_conv(hm_mod)
+Rho_sign<-hm_inter(hm_mod, nsamples=2000, nchains=2,interact =  (-1)*comp_inter[[20]] +fac_inter[[20]])
+
+h_metric_FacCompSparseSp10<-metrics_hmsc(Rho_sign,comp=comp_inter[[20]],fac=fac_inter[[20]],only_env = F)
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(h_metric_FacCompSparseSp10$success_env,3)))
+cat(sprintf("Success rate for competition: %s\n", round(h_metric_FacCompSparseSp10$success_comp,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(h_metric_FacCompSparseSp10$success_fac,3)))
+
+```
+
+
+
+## Environmental filtering + Competition +Facilitation 20 sparse species
+
+### JSDM 
+
+```{r model jsdm cmp_facs20, echo=FALSE}
+
+```
+
+### Gjam
+
+```{r gjam cmp_facs20}
+data<-sim_data$FacCompSparseSp20
+#Rho_sign<-fit_gjam(data,2000,500,"./gjam_models/gjamcmp_facs20.rda",interact= (-1)*comp_inter[[21]]+fac_inter[[21]])
+Rho_sign<-load_gjam(data,name="./gjam_models/gjamcmp_facs20.rda", interact= (-1)*comp_inter[[21]]+fac_inter[[21]])
+g_metric_cmp_facs20<-metrics_gjam(Rho_sign,comp=comp_inter[[21]], fac=fac_inter[[21]],only_env = F)
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(g_metric_cmp_facs20$success_env,3)))
+cat(sprintf("Success rate for competition: %s\n", round(g_metric_cmp_facs20$success_comp,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(g_metric_cmp_facs20$success_fac,3)))
+
+```
+
+### HMSC
+
+```{r hmsc cmp_facs20}
+data<-sim_data$FacCompSparseSp20
+hm_mod<-fit_hmsc(data,"Load",nsamples=2000, nchains=2,name="./HMmodels/hmcmp_facs20.rda" )
+hm_conv(hm_mod)
+Rho_sign<-hm_inter(hm_mod, nsamples=2000, nchains=2,interact =  (-1)*comp_inter[[21]] +fac_inter[[21]])
+h_metric_cmp_facs20<-metrics_hmsc(Rho_sign,comp=comp_inter[[21]],fac=fac_inter[[21]],only_env = F)
+cat("\n")
+cat(sprintf("Success rate for non-interacting: %s\n", round(h_metric_cmp_facs20$success_env,3)))
+cat(sprintf("Success rate for competition: %s\n", round(h_metric_cmp_facs20$success_comp,3)))
+cat(sprintf("Success rate for facilitation: %s\n", round(h_metric_cmp_facs20$success_fac,3)))
+
+```
+
+
+
+
+## Graph from paper
+
+```{r combined models, echo=FALSE, warning=FALSE}
+
+models<-list(EnvEvenSp5=me5,EnvEvenSp10=me10, EnvEvenSp20=me20,FacDenseSp5 =mfd5, FacDenseSp10=mfd10, FacDenseSp20=mfd20,
+             FacSparseSp5 =mfs5, FacSparseSp10=mfs10, FacSparseSp20=mfs20, CompDenseSp5=mcmpd5,CompDenseSp10=mcmpd10,CompDenseSp20=mcmpd20)
+
+mean_correlations <- mean_cor(models)
+x <- subset(mean_correlations, type != "Environmental\nFiltering Only")
+acc <- by(x, x$model, function(x) sum(x$status == "TP" | x$status == "TN") / nrow(x))
+
+#' Plot correlation parameter means
+#+ plot-correlations
+ggplot(mean_correlations) +
+  aes(factor(nsp), rho, fill = interaction) +
+  geom_hline(yintercept = 0) +
+  geom_boxplot(
+    outlier.size = .2, size = .1, position = position_dodge(preserve = "single")
+  ) +
+  scale_fill_manual(values = c("grey", "blue", "red")) +
+  facet_grid(type ~ rho_type + density, switch = "y") +
+  xlab("Number of species") +
+  ylab("Correlation") +
+  theme_bw() +
+  theme(legend.position = "top")
+
+```
+
+
+
+## Visualization for true interactions
+
+### Facilitation
+
+```{r inter_patter_fac, echo=FALSE}
+par(mfrow=c(1,3))
+corrplot(fac_inter[[4]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200),type = "lower")
+title("FacDenseSp5")
+corrplot(fac_inter[[5]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("FacDenseSp10")
+corrplot(fac_inter[[6]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", col=cols(200),type = "lower")
+title("FacDenseSp20")
+mtext("Facilitation Dense", outer = TRUE, cex = 1.5,side=1,line=-1)
+
+par(mfrow=c(1,3))
+corrplot(fac_inter[[7]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", col=cols(200),type = "lower")
+title("FacSparseSp5")
+corrplot(fac_inter[[8]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", col=cols(200),type = "lower")
+title("FacSparseSp10")
+corrplot(fac_inter[[9]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", col=cols(200),type = "lower")
+title("FacSparseSp20")
+mtext("Facilitation Sparse", outer = TRUE, cex = 1.5,side=1,line=-1)
+```
+
+### Competition Dense
+
+```{r inter_pattern_comp dense, echo=FALSE}
+par(mfrow=c(1,3))
+corrplot((-1)*comp_inter[[10]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", col=cols(200),type = "lower")
+title("CompDenseSp5")
+corrplot((-1)*comp_inter[[11]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("CompDenseSp10")
+corrplot((-1)*comp_inter[[12]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", col=cols(200),type = "lower")
+title("CompDenseSp20")
+#mtext("Competition Dense", outer = TRUE, cex = 1.5,side=1,line=-1)
+
+```
+
+### Competition Dense
+
+```{r inter_pattern_comp sparse, echo=FALSE}
+
+par(mfrow=c(1,3))
+corrplot((-1)*comp_inter[[13]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", col=cols(200),type = "lower")
+title("CompSparseSp5")
+corrplot((-1)*comp_inter[[14]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", col=cols(200),type = "lower")
+title("CompSparseSp10")
+corrplot((-1)*comp_inter[[15]], diag = FALSE, order = "FPC",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("CompSparseSp20")
+#mtext("Competition Sparse", outer = TRUE, cex = 1.5,side=1,line=-1)
+
+
+```
+
+
+### Competition + Facilitation Dense
+
+```{r inter_pattern_both dense, echo=FALSE}
+par(mfrow=c(2,3))
+corrplot(fac_inter[[16]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", col=cols(200),type = "lower")
+title("FacDenseSp5")
+corrplot(fac_inter[[17]], diag = FALSE,order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", col=cols(200),type = "lower")
+title("FacDenseSp10")
+corrplot(fac_inter[[18]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", col=cols(200),type = "lower")
+title("FacDenseSp20")
+#mtext("Both types Dense - Facilitation + Competition", outer = TRUE, cex = 1.5,side=1,line=-1)
+corrplot((-1)*comp_inter[[16]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", col=cols(200),type = "lower")
+title("CompDenseSp5")
+corrplot((-1)*comp_inter[[17]], diag = FALSE,order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", col=cols(200),type = "lower")
+title("CompDenseSp10")
+corrplot((-1)*comp_inter[[18]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", col=cols(200),type = "lower")
+title("CompDenseSp20")
+#mtext("Both types Dense", outer = TRUE, cex = 1.5,side=3,line=-1)
+
+```
+
+### Competition + Facilitation Sparse
+
+```{r inter_pattern_both sparse, echo=FALSE}
+par(mfrow=c(2,3))
+corrplot(fac_inter[[19]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("FacSparseSp5")
+corrplot(fac_inter[[20]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", col=cols(200),type = "lower")
+title("FacSparseSp10")
+corrplot(fac_inter[[21]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color" ,col=cols(200), type = "lower")
+title("FacSparseSp20")
+#mtext("Both types Sparse", outer = TRUE, cex = 1.5,side=1,line=-0.5)
+corrplot((-1)*comp_inter[[19]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+title("CompSparseSp5")
+corrplot((-1)*comp_inter[[20]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color", col=cols(200),type = "lower")
+title("CompSparseSp10")
+corrplot((-1)*comp_inter[[21]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color" ,col=cols(200), type = "lower")
+title("CompSparseSp20")
+```
+
+
+
+
+
+
+
+
+
+
+

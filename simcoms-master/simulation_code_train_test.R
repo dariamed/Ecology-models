@@ -156,3 +156,5 @@ new_sim_data =
   #map(abund2occur) %>%
   set_names(sim_names) 
 
+
+save(new_sim_data, file = "new_sim_data.rds")
