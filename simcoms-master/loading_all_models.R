@@ -49,6 +49,36 @@ sim_data<-readRDS("sim_data.rds")
 
 
 ############Functions JSDM###################################################################################################
+
+
+.rMVN <- function (nn, mu, sigma){
+  
+  # nn - no. samples from one mu vector or nrow(mu) for matrix
+  
+  if(!is.matrix(mu)) mu <- matrix(mu,1)
+  if(length(mu) == 1)mu <- matrix(mu,1,nrow(sigma))
+  if(ncol(mu) == 1)  mu <- t(mu)
+  
+  m <- ncol(sigma)
+  
+  if(ncol(mu) != m)stop('dimension mismatch mu, sigma')
+  if(nn > 1 & nrow(mu) == 1)mu <- matrix(mu,nn,m,byrow=T)
+  if(nn != nrow(mu))stop('sample size does not match mu')
+  
+  si <- try(svd(sigma),T)
+  
+  if( inherits(si,'try-error') ){
+    ev <- eigen(sigma, symmetric = TRUE)
+    si <- t(ev$vectors %*% (t(ev$vectors) * sqrt(ev$values)))
+  } else {
+    si <- t(si$v %*% (t(si$u) * sqrt(si$d)))
+  }
+  p <- matrix(rnorm(nn * m), nn) %*% si
+  p + mu
+}
+
+
+
 jsdm_conv<-function(mod) {
   n_eff_beta<- as.data.frame(t(mod$n.eff$B))
   n_eff_beta$parameter<- "beta"
@@ -605,7 +635,7 @@ p2<- ggplot(gjam_conv_dataset, aes(x=value, color=parameter,fill=parameter)) +
   geom_histogram( alpha=0.4, position="identity") +
   scale_color_brewer(palette="Dark2")+scale_fill_brewer(palette="Dark2") +facet_wrap(type~.,scales = "free_x") +xlab(" ")+
   ggtitle("Convergence parameters for the GJAM model")+theme_bw()+ theme(plot.title = element_text(hjust = 0.5))
-#p2
+p2
 #dev.off()
 
 
@@ -622,6 +652,7 @@ gjam_dr_files_list<-list(env5="./gjam_models/gjamDR5env.rda",env10="./gjam_model
                       comps5="./gjam_models/gjamDR5comps.rda",comps10="./gjam_models/gjamDR10comps.rda",comps20="./gjam_models/gjamDR20comps.rda",
                       compfacd5="./gjam_models/gjamDR5compfacd.rda",compfacd10="./gjam_models/gjamDR10compfacd.rda",compfacd20="./gjam_models/gjamDR20compfacd.rda",
                       compfacs5="./gjam_models/gjamDR5compfacs.rda",compfacs10="./gjam_models/gjamDR10compfacs.rda",compfacs20="./gjam_models/gjamDR20compfacs.rda")
+
 
 
 
@@ -877,14 +908,20 @@ hm_inter<-function(name){
 }
 
 R_list<-lapply(hmsc_files_list,hm_inter)
+R_sign_list<- lapply(R_list, function(x) Rho_sign=x$Rho_sign)
 Tau_list<-lapply(R_list, function(x) list(Rho_mean=x$Tau,Rho_sign=x$Tau_sign))
+Tau_sign_list<-lapply(Tau_list, function(x) Rho_sign=x$Tau_sign)
 
 hmsc_cor<-mean_cor_other(R_list,lab="HMSC")
 hmsc_pcor<-mean_cor_other(Tau_list,lab="HMSC")
 
-hmsc_metrics<-mapply(metrics_hmsc,R_list,fac_inter,comp_inter,SIMPLIFY = FALSE)
+hmsc_metrics<-mapply(metrics_hmsc,R_sign_list,fac_inter,comp_inter,SIMPLIFY = FALSE)
 
 #####GJAM#########################################################################################################
+makeSymm <- function(m) {
+  m[upper.tri(m)] <- t(m)[upper.tri(m)]
+  return(m)
+}
 
 
 expandSigma_rmd <- function(sigma, S){
@@ -894,8 +931,6 @@ expandSigma_rmd <- function(sigma, S){
   ss[upper.tri(ss)] <- t(ss)[upper.tri(ss)]
   ss
 }
-
-
 
 convert_to_m<-function(ar){
   d <-floor((sqrt(length(ar)*8+1)-1)/2)
@@ -1014,7 +1049,7 @@ m
 
 total_mean_part_cor<- rbind(hmsc_pcor,gjam_mean_cor_p,gjam_dr_mean_cor_p)
 
-pdf("plot_mean_part_corr.pdf")
+#pdf("plot_mean_part_corr.pdf")
 #png("plot_mean_part_corr.png")
 m<- ggplot(total_mean_part_cor) +
   aes(factor(nsp), rho, fill = interaction) +
@@ -1029,97 +1064,97 @@ m<- ggplot(total_mean_part_cor) +
   theme_bw() +
   theme(legend.position = "top")
 m
-dev.off()
+#dev.off()
 #############################################################################################################################
-
-all_part<-list("g_metric_e5"=g_metric_e5_p,"g_dr_metric_e5"=g_dr_metric_e5_p,"h_metric_e5"=h_metric_e5_p,
-               "g_metric_e10"=g_metric_e10_p,"g_dr_metric_e10"=g_dr_metric_e10_p,"h_metric_e10"=h_metric_e10_p,
-               "g_metric_e20"=g_metric_e20_p,"g_dr_metric_e20"=g_dr_metric_e20_p,"h_metric_e20"=h_metric_e20_p,
-               "h_metric_facDense5"=h_metric_facDense5_p,"g_metric_facDense5"=g_metric_facDense5_p,"g_dr_facDense5"=g_dr_metric_facDense5_p,
-               "h_metric_facDense10"=h_metric_facDense10_p,"g_metric_facDense10"=g_metric_facDense10_p,"g_dr_metric_facDense10"=g_dr_metric_facDense10_p,
-               "h_metric_facDense20"=h_metric_facDense20_p,"g_metric_facDense20"=g_metric_facDense20_p,"g_dr_metric_facDense20"=g_dr_metric_facDense20_p,
-               "h_metric_facSparse5"=h_metric_facSparse5_p,"g_metric_facSparse5"=g_metric_facSparse5_p,"g_dr_metric_facSparse5"=g_dr_metric_facSparse5_p,
-               "h_metric_facSparse10"=h_metric_facSparse10_p,"g_metric_facSparse10"=g_metric_facSparse10_p,"g_dr_metric_facSparse10"=g_dr_metric_facSparse10_p,
-               "h_metric_facSparse20"=h_metric_facSparse20_p,"g_metric_facSparse20"=g_metric_facSparse20_p,"g_dr_metric_facSparse20"=g_dr_metric_facSparse20_p,
-               "h_metric_compDense5"=h_metric_compDense5_p,"g_metric_compDense5"=g_metric_compDense5_p,"g_dr_metric_compDense5"=g_dr_metric_compDense5_p,
-               "h_metric_compDense10"=h_metric_compDense10_p,"g_metric_compDense10"=g_metric_compDense10_p,"g_dr_metric_compDense10"=g_dr_metric_compDense10_p,
-               "h_metric_compDense20"=h_metric_compDense20_p,"g_metric_compDense20"=g_metric_compDense20_p,"g_dr_metric_compDense20"=g_dr_metric_compDense20_p,
-               "h_metric_compSparse5"=h_metric_compSparse5_p,"g_metric_compSparse5"=g_metric_compSparse5_p,"g_dr_metric_compSparse5"=g_dr_metric_compSparse5_p,
-               "h_metric_compSparse10"=h_metric_compSparse10_p,"g_metric_compSparse10"=g_metric_compSparse10_p,"g_dr_metric_compSparse10"=g_dr_metric_compSparse10_p,
-               "h_metric_compSparse20"=h_metric_compSparse20_p,"g_metric_compSparse20"=g_metric_compSparse20_p,"g_dr_metric_compSparse20"=g_dr_metric_compSparse20_p,
-               "g_metric_faccompSparseSp5"= g_metric_FacCompSparse5_p,"h_metric_faccompSparseSp5"=h_metric_FacCompSparse5_p, "g_dr_metric_FacCompSparse5"=g_dr_metric_FacCompSparse5_p,
-               "g_metric_faccompSparseSp10"= g_metric_FacCompSparse10_p,"h_metric_faccompSparseSp10"=h_metric_FacCompSparse10_p,"g_dr_metric_FacCompSparse10"=g_dr_metric_FacCompSparse10_p,
-               "g_metric_faccompSparseSp20"= g_metric_FacCompSparse20_p,"h_metric_faccompSparseSp20"=h_metric_FacCompSparse20_p,"g_dr_metric_FacCompSparse20"=g_dr_metric_FacCompSparse20_p,
-               "g_metric_faccompDenseSp5"= g_metric_FacCompDense5_p,"h_metric_faccompDenseSp5"=h_metric_FacCompDense5_p, "g_dr_metric_FacCompDense5"=g_dr_metric_FacCompDense5_p,
-               "g_metric_faccompDenseSp10"= g_metric_FacCompDense10_p,"h_metric_faccompDenseSp10"=h_metric_FacCompDense10_p,"g_dr_metric_FacCompDense10"=g_dr_metric_FacCompDense10_p,
-               "g_metric_faccompDenseSp20"= g_metric_FacCompDense20_p,"h_metric_faccompDenseSp20"=h_metric_FacCompDense20_p,"g_dr_metric_FacCompDense20"=g_dr_metric_FacCompDense20_p
-)
-
-
-
-for(i in 1:length(names(all_part))){
-  if(!is.null(all_part[[i]]$success_env)) table[i,"success_env"]<-all_part[[i]]$success_env
-  if(!is.null(all_part[[i]]$success_comp)) table[i,"success_comp"]<-all_part[[i]]$success_comp
-  if(!is.null(all_part[[i]]$success_fac)) table[i,"success_fac"]<-all_part[[i]]$success_fac
-  
-  if(length(grep("5",names(all_part)[i]))>0) table[i,"n_sp"]<-5
-  if(length(grep("10",names(all_part)[i]))>0) table[i,"n_sp"]<-10
-  if(length(grep("20",names(all_part)[i]))>0) table[i,"n_sp"]<-20
-  
-  if(length(grep("fac",names(all_part)[i]))>0){ table[i,"Facilitation"]<-"facilitation"}#else{table[i,"facilition"]<-NULL}
-  if(length(grep("comp",names(all_part)[i]))>0){ table[i,"Competition"]<-"competition"}#else{table[i,"competition"]<-NULL}
-  #if(!(length(grep("comp",names(all_part)[i]))>0) | length(grep("fac",names(all_part)[i]))>0) {table[i,"Comp_fac"]<-"comp_fac"}else{table[i,"Comp_fac"]<-NULL}
-  
-  
-  if(length(grep("Dense",names(all_part)[i]))>0){ table[i,"sparsity"]<-"dense"}else{table[i,"sparsity"]<-"sparse"}
-  
-  if(length(grep("j_",names(all_part)[i]))>0) table[i,"model"]<-"CM"
-  if(length(grep("g_m",names(all_part)[i]))>0) table[i,"model"]<-"GJAM"
-  if(length(grep("g_dr",names(all_part)[i]))>0) table[i,"model"]<-"DR-GJAM"
-  if(length(grep("h_",names(all_part)[i]))>0) table[i,"model"]<-"HMSC"
-  
-}
-
-table_comp<-table[which(!is.na(table$success_comp)),]
-table_fac<-table[which(!is.na(table$success_fac)),]
-
-tc<-cbind(table_comp$success_comp,table_comp$model,rep("All",nrow(table_comp)),rep("Int",nrow(table_comp)))
-tc<-rbind(tc,cbind(table_comp[which(table_comp$n_sp==5),"success_comp"],table_comp[which(table_comp$n_sp==5),"model"],rep("5",sum(table_comp$n_sp==5)),rep("Int",sum(table_comp$n_sp==5))))
-tc<-rbind(tc,cbind(table_comp[which(table_comp$n_sp==10),"success_comp"],table_comp[which(table_comp$n_sp==10),"model"],rep("10",sum(table_comp$n_sp==10)),rep("Int",sum(table_comp$n_sp==10))))
-tc<-rbind(tc,cbind(table_comp[which(table_comp$n_sp==20),"success_comp"],table_comp[which(table_comp$n_sp==20),"model"],rep("20",sum(table_comp$n_sp==20)),rep("Int",sum(table_comp$n_sp==20))))
-tc<-rbind(tc,cbind(table_comp[which(table_comp$sparsity=="dense"),"success_comp"],table_comp[which(table_comp$sparsity=="dense"),"model"],rep("dense",sum(table_comp$sparsity=="dense")),rep("Int",sum(table_comp$sparsity=="dense"))))
-tc<-rbind(tc,cbind(table_comp[which(table_comp$sparsity=="sparse"),"success_comp"],table_comp[which(table_comp$sparsity=="sparse"),"model"],rep("sparse",sum(table_comp$sparsity=="sparse")),rep("Int",sum(table_comp$sparsity=="sparse"))))
-tc<-rbind(tc,cbind(table_comp$success_env,table_comp$model,rep("All_env",nrow(table_comp)),rep("Env",nrow(table_comp))))
-tc<-rbind(tc,cbind(table_comp[which(table_comp$n_sp==5),"success_env"],table_comp[which(table_comp$n_sp==5),"model"],rep("5_env",sum(table_comp$n_sp==5)),rep("Env",sum(table_comp$n_sp==5))))
-tc<-rbind(tc,cbind(table_comp[which(table_comp$n_sp==10),"success_env"],table_comp[which(table_comp$n_sp==10),"model"],rep("10_env",sum(table_comp$n_sp==10)),rep("Env",sum(table_comp$n_sp==10))))
-tc<-rbind(tc,cbind(table_comp[which(table_comp$n_sp==20),"success_env"],table_comp[which(table_comp$n_sp==20),"model"],rep("20_env",sum(table_comp$n_sp==20)),rep("Env",sum(table_comp$n_sp==20))))
-
-tc<-data.frame("success"=as.numeric(tc[,1]),"model"=tc[,2],"fac"=tc[,3],"int"=rep("Competition",nrow(tc)),"col"=tc[,4])
-
-
-
-tf<-cbind(table_fac$success_fac,table_fac$model,rep("All",nrow(table_fac)),rep("Int",nrow(table_fac)))
-tf<-rbind(tf,cbind(table_fac[which(table_fac$n_sp==5),"success_fac"],table_fac[which(table_fac$n_sp==5),"model"],rep("5",sum(table_fac$n_sp==5)),rep("Int",sum(table_fac$n_sp==5))))
-tf<-rbind(tf,cbind(table_fac[which(table_fac$n_sp==10),"success_fac"],table_fac[which(table_fac$n_sp==10),"model"],rep("10",sum(table_fac$n_sp==10)),rep("Int",sum(table_fac$n_sp==10))))
-tf<-rbind(tf,cbind(table_fac[which(table_fac$n_sp==20),"success_fac"],table_fac[which(table_fac$n_sp==20),"model"],rep("20",sum(table_fac$n_sp==20)),rep("Int",sum(table_fac$n_sp==20))))
-tf<-rbind(tf,cbind(table_fac[which(table_fac$sparsity=="dense"),"success_fac"],table_fac[which(table_fac$sparsity=="dense"),"model"],rep("dense",sum(table_fac$sparsity=="dense")),rep("Int",sum(table_fac$sparsity=="dense"))))
-tf<-rbind(tf,cbind(table_fac[which(table_fac$sparsity=="sparse"),"success_fac"],table_fac[which(table_fac$sparsity=="sparse"),"model"],rep("sparse",sum(table_fac$sparsity=="sparse")),rep("Int",sum(table_fac$sparsity=="sparse"))))
-tf<-rbind(tf,cbind(table_fac$success_env,table_fac$model,rep("All_env",nrow(table_fac)),rep("Env",nrow(table_fac))))
-tf<-rbind(tf,cbind(table_fac[which(table_fac$n_sp==5),"success_env"],table_fac[which(table_fac$n_sp==5),"model"],rep("5_env",sum(table_fac$n_sp==5)),rep("Env",sum(table_fac$n_sp==5))))
-tf<-rbind(tf,cbind(table_fac[which(table_fac$n_sp==10),"success_env"],table_fac[which(table_fac$n_sp==10),"model"],rep("10_env",sum(table_fac$n_sp==10)),rep("Env",sum(table_fac$n_sp==10))))
-tf<-rbind(tf,cbind(table_fac[which(table_fac$n_sp==20),"success_env"],table_fac[which(table_fac$n_sp==20),"model"],rep("20_env",sum(table_fac$n_sp==20)),rep("Env",sum(table_fac$n_sp==20))))
-
-tf<-data.frame("success"=as.numeric(tf[,1]),"model"=tf[,2],"fac"=tf[,3],"int"=rep("Facilitation",nrow(tf)),"col"=tf[,4])
-
-table<-rbind(tf,tc)
-
-p<-ggplot(data=table)+geom_boxplot(aes(y=as.numeric(success),x=as.factor(fac),fill=as.factor(col)))+
-  scale_x_discrete(name="Parameters", breaks=c("All","5","10","20","dense","sparse","All_env","5_env","10_env","20_env"),
-                   labels=c("All","5","10","20","dense","sparse","All","5","10","20"),limits=c("All","5","10","20","dense","sparse","All_env","5_env","10_env","20_env"))+
-  scale_y_continuous(name="% success")+
-  scale_fill_discrete(name = "Success in retrieving", labels = c("Sensibility (non int.)","Sensitivity (int.)"))+theme_bw()+theme(axis.text.x = element_text(angle = 45, hjust = 0.5),legend.position="top",plot.title = element_text(hjust = 0.5))+
-  facet_grid( int~model , scales="free") +ggtitle("Pairs indentification by partial correlation") 
-p
+# 
+# all_part<-list("g_metric_e5"=g_metric_e5_p,"g_dr_metric_e5"=g_dr_metric_e5_p,"h_metric_e5"=h_metric_e5_p,
+#                "g_metric_e10"=g_metric_e10_p,"g_dr_metric_e10"=g_dr_metric_e10_p,"h_metric_e10"=h_metric_e10_p,
+#                "g_metric_e20"=g_metric_e20_p,"g_dr_metric_e20"=g_dr_metric_e20_p,"h_metric_e20"=h_metric_e20_p,
+#                "h_metric_facDense5"=h_metric_facDense5_p,"g_metric_facDense5"=g_metric_facDense5_p,"g_dr_facDense5"=g_dr_metric_facDense5_p,
+#                "h_metric_facDense10"=h_metric_facDense10_p,"g_metric_facDense10"=g_metric_facDense10_p,"g_dr_metric_facDense10"=g_dr_metric_facDense10_p,
+#                "h_metric_facDense20"=h_metric_facDense20_p,"g_metric_facDense20"=g_metric_facDense20_p,"g_dr_metric_facDense20"=g_dr_metric_facDense20_p,
+#                "h_metric_facSparse5"=h_metric_facSparse5_p,"g_metric_facSparse5"=g_metric_facSparse5_p,"g_dr_metric_facSparse5"=g_dr_metric_facSparse5_p,
+#                "h_metric_facSparse10"=h_metric_facSparse10_p,"g_metric_facSparse10"=g_metric_facSparse10_p,"g_dr_metric_facSparse10"=g_dr_metric_facSparse10_p,
+#                "h_metric_facSparse20"=h_metric_facSparse20_p,"g_metric_facSparse20"=g_metric_facSparse20_p,"g_dr_metric_facSparse20"=g_dr_metric_facSparse20_p,
+#                "h_metric_compDense5"=h_metric_compDense5_p,"g_metric_compDense5"=g_metric_compDense5_p,"g_dr_metric_compDense5"=g_dr_metric_compDense5_p,
+#                "h_metric_compDense10"=h_metric_compDense10_p,"g_metric_compDense10"=g_metric_compDense10_p,"g_dr_metric_compDense10"=g_dr_metric_compDense10_p,
+#                "h_metric_compDense20"=h_metric_compDense20_p,"g_metric_compDense20"=g_metric_compDense20_p,"g_dr_metric_compDense20"=g_dr_metric_compDense20_p,
+#                "h_metric_compSparse5"=h_metric_compSparse5_p,"g_metric_compSparse5"=g_metric_compSparse5_p,"g_dr_metric_compSparse5"=g_dr_metric_compSparse5_p,
+#                "h_metric_compSparse10"=h_metric_compSparse10_p,"g_metric_compSparse10"=g_metric_compSparse10_p,"g_dr_metric_compSparse10"=g_dr_metric_compSparse10_p,
+#                "h_metric_compSparse20"=h_metric_compSparse20_p,"g_metric_compSparse20"=g_metric_compSparse20_p,"g_dr_metric_compSparse20"=g_dr_metric_compSparse20_p,
+#                "g_metric_faccompSparseSp5"= g_metric_FacCompSparse5_p,"h_metric_faccompSparseSp5"=h_metric_FacCompSparse5_p, "g_dr_metric_FacCompSparse5"=g_dr_metric_FacCompSparse5_p,
+#                "g_metric_faccompSparseSp10"= g_metric_FacCompSparse10_p,"h_metric_faccompSparseSp10"=h_metric_FacCompSparse10_p,"g_dr_metric_FacCompSparse10"=g_dr_metric_FacCompSparse10_p,
+#                "g_metric_faccompSparseSp20"= g_metric_FacCompSparse20_p,"h_metric_faccompSparseSp20"=h_metric_FacCompSparse20_p,"g_dr_metric_FacCompSparse20"=g_dr_metric_FacCompSparse20_p,
+#                "g_metric_faccompDenseSp5"= g_metric_FacCompDense5_p,"h_metric_faccompDenseSp5"=h_metric_FacCompDense5_p, "g_dr_metric_FacCompDense5"=g_dr_metric_FacCompDense5_p,
+#                "g_metric_faccompDenseSp10"= g_metric_FacCompDense10_p,"h_metric_faccompDenseSp10"=h_metric_FacCompDense10_p,"g_dr_metric_FacCompDense10"=g_dr_metric_FacCompDense10_p,
+#                "g_metric_faccompDenseSp20"= g_metric_FacCompDense20_p,"h_metric_faccompDenseSp20"=h_metric_FacCompDense20_p,"g_dr_metric_FacCompDense20"=g_dr_metric_FacCompDense20_p
+# )
+# 
+# 
+# 
+# for(i in 1:length(names(all_part))){
+#   if(!is.null(all_part[[i]]$success_env)) table[i,"success_env"]<-all_part[[i]]$success_env
+#   if(!is.null(all_part[[i]]$success_comp)) table[i,"success_comp"]<-all_part[[i]]$success_comp
+#   if(!is.null(all_part[[i]]$success_fac)) table[i,"success_fac"]<-all_part[[i]]$success_fac
+#   
+#   if(length(grep("5",names(all_part)[i]))>0) table[i,"n_sp"]<-5
+#   if(length(grep("10",names(all_part)[i]))>0) table[i,"n_sp"]<-10
+#   if(length(grep("20",names(all_part)[i]))>0) table[i,"n_sp"]<-20
+#   
+#   if(length(grep("fac",names(all_part)[i]))>0){ table[i,"Facilitation"]<-"facilitation"}#else{table[i,"facilition"]<-NULL}
+#   if(length(grep("comp",names(all_part)[i]))>0){ table[i,"Competition"]<-"competition"}#else{table[i,"competition"]<-NULL}
+#   #if(!(length(grep("comp",names(all_part)[i]))>0) | length(grep("fac",names(all_part)[i]))>0) {table[i,"Comp_fac"]<-"comp_fac"}else{table[i,"Comp_fac"]<-NULL}
+#   
+#   
+#   if(length(grep("Dense",names(all_part)[i]))>0){ table[i,"sparsity"]<-"dense"}else{table[i,"sparsity"]<-"sparse"}
+#   
+#   if(length(grep("j_",names(all_part)[i]))>0) table[i,"model"]<-"CM"
+#   if(length(grep("g_m",names(all_part)[i]))>0) table[i,"model"]<-"GJAM"
+#   if(length(grep("g_dr",names(all_part)[i]))>0) table[i,"model"]<-"DR-GJAM"
+#   if(length(grep("h_",names(all_part)[i]))>0) table[i,"model"]<-"HMSC"
+#   
+# }
+# 
+# table_comp<-table[which(!is.na(table$success_comp)),]
+# table_fac<-table[which(!is.na(table$success_fac)),]
+# 
+# tc<-cbind(table_comp$success_comp,table_comp$model,rep("All",nrow(table_comp)),rep("Int",nrow(table_comp)))
+# tc<-rbind(tc,cbind(table_comp[which(table_comp$n_sp==5),"success_comp"],table_comp[which(table_comp$n_sp==5),"model"],rep("5",sum(table_comp$n_sp==5)),rep("Int",sum(table_comp$n_sp==5))))
+# tc<-rbind(tc,cbind(table_comp[which(table_comp$n_sp==10),"success_comp"],table_comp[which(table_comp$n_sp==10),"model"],rep("10",sum(table_comp$n_sp==10)),rep("Int",sum(table_comp$n_sp==10))))
+# tc<-rbind(tc,cbind(table_comp[which(table_comp$n_sp==20),"success_comp"],table_comp[which(table_comp$n_sp==20),"model"],rep("20",sum(table_comp$n_sp==20)),rep("Int",sum(table_comp$n_sp==20))))
+# tc<-rbind(tc,cbind(table_comp[which(table_comp$sparsity=="dense"),"success_comp"],table_comp[which(table_comp$sparsity=="dense"),"model"],rep("dense",sum(table_comp$sparsity=="dense")),rep("Int",sum(table_comp$sparsity=="dense"))))
+# tc<-rbind(tc,cbind(table_comp[which(table_comp$sparsity=="sparse"),"success_comp"],table_comp[which(table_comp$sparsity=="sparse"),"model"],rep("sparse",sum(table_comp$sparsity=="sparse")),rep("Int",sum(table_comp$sparsity=="sparse"))))
+# tc<-rbind(tc,cbind(table_comp$success_env,table_comp$model,rep("All_env",nrow(table_comp)),rep("Env",nrow(table_comp))))
+# tc<-rbind(tc,cbind(table_comp[which(table_comp$n_sp==5),"success_env"],table_comp[which(table_comp$n_sp==5),"model"],rep("5_env",sum(table_comp$n_sp==5)),rep("Env",sum(table_comp$n_sp==5))))
+# tc<-rbind(tc,cbind(table_comp[which(table_comp$n_sp==10),"success_env"],table_comp[which(table_comp$n_sp==10),"model"],rep("10_env",sum(table_comp$n_sp==10)),rep("Env",sum(table_comp$n_sp==10))))
+# tc<-rbind(tc,cbind(table_comp[which(table_comp$n_sp==20),"success_env"],table_comp[which(table_comp$n_sp==20),"model"],rep("20_env",sum(table_comp$n_sp==20)),rep("Env",sum(table_comp$n_sp==20))))
+# 
+# tc<-data.frame("success"=as.numeric(tc[,1]),"model"=tc[,2],"fac"=tc[,3],"int"=rep("Competition",nrow(tc)),"col"=tc[,4])
+# 
+# 
+# 
+# tf<-cbind(table_fac$success_fac,table_fac$model,rep("All",nrow(table_fac)),rep("Int",nrow(table_fac)))
+# tf<-rbind(tf,cbind(table_fac[which(table_fac$n_sp==5),"success_fac"],table_fac[which(table_fac$n_sp==5),"model"],rep("5",sum(table_fac$n_sp==5)),rep("Int",sum(table_fac$n_sp==5))))
+# tf<-rbind(tf,cbind(table_fac[which(table_fac$n_sp==10),"success_fac"],table_fac[which(table_fac$n_sp==10),"model"],rep("10",sum(table_fac$n_sp==10)),rep("Int",sum(table_fac$n_sp==10))))
+# tf<-rbind(tf,cbind(table_fac[which(table_fac$n_sp==20),"success_fac"],table_fac[which(table_fac$n_sp==20),"model"],rep("20",sum(table_fac$n_sp==20)),rep("Int",sum(table_fac$n_sp==20))))
+# tf<-rbind(tf,cbind(table_fac[which(table_fac$sparsity=="dense"),"success_fac"],table_fac[which(table_fac$sparsity=="dense"),"model"],rep("dense",sum(table_fac$sparsity=="dense")),rep("Int",sum(table_fac$sparsity=="dense"))))
+# tf<-rbind(tf,cbind(table_fac[which(table_fac$sparsity=="sparse"),"success_fac"],table_fac[which(table_fac$sparsity=="sparse"),"model"],rep("sparse",sum(table_fac$sparsity=="sparse")),rep("Int",sum(table_fac$sparsity=="sparse"))))
+# tf<-rbind(tf,cbind(table_fac$success_env,table_fac$model,rep("All_env",nrow(table_fac)),rep("Env",nrow(table_fac))))
+# tf<-rbind(tf,cbind(table_fac[which(table_fac$n_sp==5),"success_env"],table_fac[which(table_fac$n_sp==5),"model"],rep("5_env",sum(table_fac$n_sp==5)),rep("Env",sum(table_fac$n_sp==5))))
+# tf<-rbind(tf,cbind(table_fac[which(table_fac$n_sp==10),"success_env"],table_fac[which(table_fac$n_sp==10),"model"],rep("10_env",sum(table_fac$n_sp==10)),rep("Env",sum(table_fac$n_sp==10))))
+# tf<-rbind(tf,cbind(table_fac[which(table_fac$n_sp==20),"success_env"],table_fac[which(table_fac$n_sp==20),"model"],rep("20_env",sum(table_fac$n_sp==20)),rep("Env",sum(table_fac$n_sp==20))))
+# 
+# tf<-data.frame("success"=as.numeric(tf[,1]),"model"=tf[,2],"fac"=tf[,3],"int"=rep("Facilitation",nrow(tf)),"col"=tf[,4])
+# 
+# table<-rbind(tf,tc)
+# 
+# p<-ggplot(data=table)+geom_boxplot(aes(y=as.numeric(success),x=as.factor(fac),fill=as.factor(col)))+
+#   scale_x_discrete(name="Parameters", breaks=c("All","5","10","20","dense","sparse","All_env","5_env","10_env","20_env"),
+#                    labels=c("All","5","10","20","dense","sparse","All","5","10","20"),limits=c("All","5","10","20","dense","sparse","All_env","5_env","10_env","20_env"))+
+#   scale_y_continuous(name="% success")+
+#   scale_fill_discrete(name = "Success in retrieving", labels = c("Sensibility (non int.)","Sensitivity (int.)"))+theme_bw()+theme(axis.text.x = element_text(angle = 45, hjust = 0.5),legend.position="top",plot.title = element_text(hjust = 0.5))+
+#   facet_grid( int~model , scales="free") +ggtitle("Pairs indentification by partial correlation") 
+# p
 #############################################################################################################################################################
 #Correlation_vs_Partial correlation
 
@@ -1128,10 +1163,10 @@ mat_measure<- function(Mat_list){
   B<- Mat_list$Tau
   n<- dim(A)
   coef<- n*(n-1)
-  A[A < -0.01] <- -1
-  B[B < -0.01] <- -1
-  A[A > 0.01] <- 1
-  B[B > 0.01] <- 1
+  A[A < 0] <- -1
+  B[B < 0] <- -1
+  A[A > 0] <- 1
+  B[B > 0] <- 1
   diag(A)<-0
   diag(B)<-0
   M<- 0.5* abs(A-B)
@@ -1167,7 +1202,7 @@ difference_jsdm_df$model<- "CM"
 
 tab_diff<- rbind(difference_gjam_df,difference_gjam_dr_df,difference_hmsc_df,difference_jsdm_df)
 
-#pdf("plot_diff_corr.pdf")
+#pdf("plot_diff_corr_0thr.pdf")
 
 p<-ggplot(data=tab_diff)+geom_boxplot(aes(x=model, y=as.numeric(value),fill=as.factor(model)))+
   theme_bw()+theme(axis.text.x = element_text( hjust = 0.5),legend.position=" ",plot.title = element_text(hjust = 0.5))+ scale_y_continuous(name="% of different pairs")+
@@ -1179,27 +1214,14 @@ p
 ### Conditiobal Predictive Ordinate (CPO)
 #### Out of sample prediction 
 setwd("/Users/dariabystrova/Documents/GitHub/Ecology-models/simcoms-master")
-load("new_sim_data.rds")
-
-pdata<- new_sim_data$EnvEvenSp5
-
-datab <- list(
-  Y = subset(data, select = -env),
-  X = cbind(1, scale(poly(data$env, 2))),
-  covx = cov(cbind(1, scale(poly(data$env, 2)))),
-  K = 3,
-  J = ncol(data) - 1,
-  n = nrow(data),
-  I = diag(ncol(data) - 1),
-  df = ncol(data)
-)
-
+new_sim_data <- readRDS("new_sim_data.rds")
 
 
 gjam_predict_out<- function(datap, name){
   mod<-load_object(name)
-  np<-200
-  xdata<- as.data.frame(cbind(1, scale(poly(datap$env, 2)))[1:np,])
+  np<-400
+  
+  xdata<- as.data.frame(scale(poly(datap$env, 2))[1:np,])
   colnames(xdata)<- c("env", "env2")
   newdata <- list(xdata = xdata, nsim=200)
   predict<-  gjamPredict(mod$m1, newdata = newdata)
@@ -1209,35 +1231,46 @@ gjam_predict_out<- function(datap, name){
 }
 
 
-gjam_AUC<-mapply(gjam_predict_out,new_sim_data, gjam_dr_files_list,SIMPLIFY = FALSE)
+gjam_AUC<-mapply(gjam_predict_out,new_sim_data, gjam_files_list,SIMPLIFY = TRUE)
+gjam_AUC_df<- as.data.frame(gjam_AUC)
+colnames(gjam_AUC_df)<- c("AUC_value")
+gjam_AUC_df$model<- "GJAM"
 
-gjam_dr_AUC<-mapply(gjam_predict_out,new_sim_data, gjam_files_list,SIMPLIFY = FALSE)
+gjam_dr_AUC<-mapply(gjam_predict_out,new_sim_data, gjam_dr_files_list,SIMPLIFY = TRUE)
+gjam_dr_AUC_df<- as.data.frame(gjam_dr_AUC)
+colnames(gjam_dr_AUC_df)<- c("AUC_value")
+gjam_dr_AUC_df$model<- "DR-GJAM"
 
 
 hmsc_predict_out<- function(datap, name){
-  np<-200
-  colnames(xdata)<- c("env", "env2")
+  np<-300
   mod<-load_object(name)
   X<-scale(poly(datap$env[1:np], 2))
   colnames(X)<-c("env","env2")
   XDataNew<-as.data.frame(X)
   studyDesignNew = data.frame(sample = as.factor(1:np))
   rLNew = HmscRandomLevel(units = studyDesignNew$sample)
-  predY = predict(hm_mod, XData=XDataNew, studyDesign=studyDesignNew, ranLevels=list(sample = rLNew), expected=TRUE )
- 
-  for(i in 1:(ncol(datap)-1)) AUC_g<-auc(roc(y_full[,i],factor(pdata[1:np,i])))
-  return(AUC_g)
+  predY = predict(mod, XData=XDataNew, studyDesign=studyDesignNew, ranLevels=list(sample = rLNew), expected=TRUE )
+  prY<- apply(simplify2array(predY), 1:2, mean)
+  for(i in 1:(ncol(datap)-1)) AUC_hmcs<-auc(roc(prY[,i],factor(datap[1:np,i])))
+  return(AUC_hmcs)
 }
+
+
+hmsc_AUC<-mapply(hmsc_predict_out,new_sim_data, hmsc_files_list,SIMPLIFY = TRUE)
+hmsc_AUC_df<- as.data.frame(hmsc_AUC)
+colnames(hmsc_AUC_df)<- c("AUC_value")
+hmsc_AUC_df$model<- "HMSC"
 
 
 
 jsdm_predict_out<- function(datap, name){
-  np<-200
+  np<-300
   S<- ncol(datap)-1
-  nsamples<-mod$mcmc.info$n.samples
   xdata<- as.data.frame(cbind(1, scale(poly(datap$env, 2)))[1:np,])
   colnames(xdata)<- c("inter","env", "env2")
   mod<-load_object(name)
+  nsamples<- mod$mcmc.info$n.samples
   postBX<-array(dim=c(nsamples,np,S))
   postW<-array(dim=c(nsamples,np,S))
   for(i in 1:nsamples){
@@ -1246,153 +1279,65 @@ jsdm_predict_out<- function(datap, name){
     
   }
   predY_mean<-pnorm(apply(postW,2:3, mean))
-  
   for(i in 1:S) AUC_j<-auc(roc(predY_mean[,i],factor(datap[1:np,i])))
   return(AUC_j)
 }  
   
-jsdm_AUC<-mapply(jsdm_predict_out,new_sim_data, jsdm_files_list,SIMPLIFY = FALSE)
+jsdm_AUC<-mapply(jsdm_predict_out, new_sim_data, jsdm_files_list,SIMPLIFY = TRUE)
+jsdm_AUC_df<- as.data.frame(jsdm_AUC)
+colnames(jsdm_AUC_df)<- c("AUC_value")
+jsdm_AUC_df$model<- "CM"
 
 #datap<- new_sim_data$FacDenseSp10
 #name=jsdm_files_list[[5]]
 
 
-hm_mod<- load_object("./new_HMmodels/hm5env.rda")
-np<-200
-X<-scale(poly(datap$env[1:np], 2))
-colnames(X)<-c("env","env2")
-XDataNew<-as.data.frame(X)
-studyDesignNew = data.frame(sample = as.factor(1:np))
-rLNew = HmscRandomLevel(units = studyDesignNew$sample)
+table_AUC<- rbind(hmsc_AUC_df,gjam_dr_AUC_df,gjam_AUC_df,jsdm_AUC_df)
 
-predY = predict(hm_mod, XData=XDataNew, studyDesign=studyDesignNew, ranLevels=list(sample = rLNew), expected=TRUE )
+for(i in 1:dim(table_AUC)[1]){
+  if(length(grep("Fac",rownames(table_AUC)[i]))>0){ table_AUC$Filtering[i]<-"Facilitation"}
+  if(length(grep("Comp",rownames(table_AUC)[i]))>0){ table_AUC$Filtering[i]<-"Competition"}
+  if(length(grep("Env",rownames(table_AUC)[i]))>0){ table_AUC$Filtering[i]<-"Environmental"}
+  if((length(grep("Fac",rownames(table_AUC)[i]))>0)&(length(grep("Comp",rownames(table_AUC)[i]))>0)){
+    table_AUC$Filtering[i]<-"Comp+Fac"
+  }
+  if(length(grep("Spar",rownames(table_AUC)[i]))>0){ table_AUC$Density[i]<-"Sparse"}
+  if(length(grep("Dense",rownames(table_AUC)[i]))>0){ table_AUC$Density[i]<-"Dense"}
+  if(length(grep("Env",rownames(table_AUC)[i]))>0){ table_AUC$Density[i]<-"Sparse"}
+  }
+
+
+#pdf("plot_conv_hmsc.pdf")
+# p2<- ggplot(table_AUC, aes(x=AUC_value, color=model,fill=model)) +
+#   geom_histogram( alpha=0.4, position="identity") +
+#   scale_color_brewer(palette="Dark2")+scale_fill_brewer(palette="Dark2")  +xlab(" ")+
+#   ggtitle("Convergence parameters for the HMSC model")+theme_bw()+ theme(plot.title = element_text(hjust = 0.5))
+# 
+# p2
+#dev.off()
+pdf("plot_AUC_out_of_sample.pdf")
+
+table_AUC$Filtering<-factor(table_AUC$Filtering, levels=c("Environmental","Facilitation","Competition","Comp+Fac"))
+p<-ggplot(data=table_AUC)+geom_boxplot(aes(y=AUC_value,x=Filtering,fill=model),position = position_dodge(1,preserve = "single"))+
+  ylim(c(0,1)) +facet_grid(Density~.,scales = "free")+ theme_bw() +theme(axis.text.x = element_text(angle = 0, hjust = 1,size = 10),strip.text = element_text(size = 15),legend.position = "top", plot.title = element_text(hjust = 0.5))+ylab("AUC")+ 
+  scale_x_discrete(name="Filtering", breaks=c("Environmental","Facilitation","Competition","Comp+Fac"))+
+  ggtitle("Accuracy of model out of sample  predictions averaged across communities") 
+p
+
+dev.off()
+# 
+# 
+# name<- "./gjam_models/gjamDR10facd.rda"
+# datap<- new_sim_data$FacDenseSp10
+# AUC<-gjam_predict_out(new_sim_data$FacDenseSp10,name)
+# 
+
+data_train <- new_sim_data$EnvEvenSp20[1:300,]
+data_test <- new_sim_data$EnvEvenSp20[301:500]
+
+gjam_mod<-fit_gjam(data,5000,1000,"./gjam_models/gjam20env_test.rda")
+
 
 
 
 ##############################################################################################################
-
-
-
-
-
-
-jsdm_AUC<-mapply(metrics_jsdm,jsdm_list,fac_inter,comp_inter,SIMPLIFY = FALSE)
-
-jsdm_AUC<- lapply(jsdm_list,jsdm_rho )
-jsdm_tau_list<- lapply(jsdm_list,jsdm_tau )
-
-jsdm_convergence_par<- lapply(jsdm_list, jsdm_conv)
-
-jsdm_conv_dataset<- data.frame()
-
-
-
-
-xdata%*%mod$sims.list$B
-
-xdata[1,]
-
-
-
-
-env<-runif(200,0,100)
-X<-scale(poly(env, 2))
-colnames(X)<-c("env","env2")
-XDataNew<-as.data.frame(X)
-studyDesignNew = data.frame(sample = as.factor(1:length(env)))
-rLNew = HmscRandomLevel(units = studyDesignNew$sample)
-
-predY = predict(hm_mod, XData=XDataNew, studyDesign=studyDesignNew, ranLevels=list(sample = rLNew), expected=TRUE )
-
-
-
-
-
-mod<-load_object("./new_HMmodels/hm5env.rda")
-
-
-name="./new_HMmodels/hm5env.rda"
-
-pdata<- new_sim_data$EnvEvenSp5
-
-datap<- pdata
-
-predict(mod, Xdata=xdata, expected=FALSE)
-computePredictedValues(mod)
-
-predY = predict(mod, XData=xdata)
-np<-200
-X<-scale(poly(datap$env[1:np], 2))
-colnames(X)<-c("env","env2")
-studyDesign = data.frame(sample = as.factor(1:np))
-rL = HmscRandomLevel(units = studyDesign$sample)
-
-XFormula=~env+env2
-predY = predict(mod, X=xdata, studyDesign=mod$studyDesign, ranLevels=mod$ranLevels, expected=TRUE)
-predYR1 = predict(mod, studyDesign=mod$studyDesign, XData=as.data.frame(X), ranLevels=mod$ranLevels, expected=TRUE)
-
-Gradient=constructGradient(mod, focalVariable="env")
-
-predY = predict(mod, XData=Gradient$XDataNew, studyDesign=Gradient$studyDesignNew, ranLevels=Gradient$rLNew, expected=TRUE)
-
-plotGradient(mod, Gradient, pred=predY, measure="Y", showData = TRUE)
-
-predict_mean<- lapply(predY,mean)
-
-plot(datap[,1],predY[,1])
-
-m = Hmsc(Y=as.matrix(Y_data), XData=as.data.frame(X), XFormula=~env+env2, distr="probit",
-         studyDesign = studyDesign, ranLevels = list(sample = rL))
-m = sampleMcmc(m, nsamples, thin=10, adaptNf=c(200,200), transient=500,nChains=nchains ,verbose=F)
-
-array(unlist(lapply(predY$postList[[1]],getOmega)),c(ns,ns,mod$samples))
-
-
-
-
-
-
-.rMVN <- function (nn, mu, sigma){
-  
-  # nn - no. samples from one mu vector or nrow(mu) for matrix
-  
-  if(!is.matrix(mu)) mu <- matrix(mu,1)
-  if(length(mu) == 1)mu <- matrix(mu,1,nrow(sigma))
-  if(ncol(mu) == 1)  mu <- t(mu)
-  
-  m <- ncol(sigma)
-  
-  if(ncol(mu) != m)stop('dimension mismatch mu, sigma')
-  if(nn > 1 & nrow(mu) == 1)mu <- matrix(mu,nn,m,byrow=T)
-  if(nn != nrow(mu))stop('sample size does not match mu')
-  
-  si <- try(svd(sigma),T)
-  
-  if( inherits(si,'try-error') ){
-    ev <- eigen(sigma, symmetric = TRUE)
-    si <- t(ev$vectors %*% (t(ev$vectors) * sqrt(ev$values)))
-  } else {
-    si <- t(si$v %*% (t(si$u) * sqrt(si$d)))
-  }
-  p <- matrix(rnorm(nn * m), nn) %*% si
-  p + mu
-}
-
-
-
-w<-.rMVN(1, m, s)
-
-
-studyDesign = data.frame(sample = as.factor(1:np))
-rL = HmscRandomLevel(units = studyDesign$sample)
-m = Hmsc(Y=as.matrix(Y_data), XData=as.data.frame(X), XFormula=~env+env2, distr="probit",
-         studyDesign = studyDesign, ranLevels = list(sample = rL))
-m = sampleMcmc(m, nsamples, thin=10, adaptNf=c(200,200), transient=500,nChains=nchains ,verbose=F)
-
-
-rL = HmscRandomLevel(units = studyDesign$sample)
-studyDesign = data.frame(sample = as.factor(1:np))
-rL = HmscRandomLevel(units = studyDesign$sample)
-m = Hmsc(Y=as.matrix(Y_data), XData=as.data.frame(X), XFormula=~env+env2, distr="probit",
-         studyDesign = studyDesign, ranLevels = list(sample = rL))
-m = sampleMcmc(m, nsamples, thin=10, adaptNf=c(200,200), transient=500,nChains=nchains ,verbose=F)

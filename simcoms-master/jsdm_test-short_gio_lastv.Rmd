@@ -5181,7 +5181,7 @@ for(i in 1:(ncol(data)-1)) AUC_h_comp_fac_sparse<-c(AUC_h_comp_fac_sparse,auc(ro
 
 ```{r dimred compfacs5, include=TRUE,echo=FALSE}
 
-S<- gjam_dim_red_5(sim_data$FacCompSparseSp5,ng=10000, burnin=1000,name="./gjam_models/gjamDR5compfacs.rda", regime="L")
+S<- gjam_dim_red_5(sim_data$FacCompSparseSp5,ng=10000, burnin=1000,name="./gjam_models/gjamDR5compfacs.rda", regime="F")
 g_dr_metric_FacCompSparse5<-metrics_gjam(S$Rho_sign_d,comp=comp_inter[[19]], fac=fac_inter[[19]], only_env = F)
 g_dr_metric_FacCompSparse5_p<-metrics_gjam(S$Tau_sign_d,comp=comp_inter[[19]], fac=fac_inter[[19]], only_env = F)
 
@@ -6034,7 +6034,7 @@ table[nrow(table)+1,]<-c(-1,"HMSC", "Env","Dense")
 
 table$Filtering<-factor(table$Filtering, levels=c("Env","Fac","Comp","C+F"))
 p<-ggplot(data=table)+geom_boxplot(aes(y=as.numeric(AUC),x=Filtering,fill=Model),position = position_dodge(1,preserve = "single"))+
-  ylim(c(0,1)) +facet_grid(Density~.,scales = "free")+ theme(axis.text.x = element_text(angle = 45, hjust = 1,size = 10),strip.text = element_text(size = 15),legend.position = "top")+ylab("AUC")+ scale_x_discrete(name="Filtering", breaks=c("Env","Fac","Comp","C+F"),
+  ylim(c(0,1)) +facet_grid(Density~.,scales = "free")+ theme(axis.text.x = element_text(angle = 45, hjust = 1,size = 10),strip.text = element_text(size = 15),legend.position = "top",plot.title = element_text(hjust = 0.5))+ylab("AUC")+ scale_x_discrete(name="Filtering", breaks=c("Env","Fac","Comp","C+F"),
                    labels=c("Environmental","Facilitation","Competition","Comp.+Fac."))+
 ggtitle("Accuracy of model predictions averaged across communities") +theme_bw()
 p
