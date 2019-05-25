@@ -35,7 +35,6 @@ load("sim_names.rds")
 load("comp_inter.rds")
 load("fac_inter.rds")
 
-#sim_data<-readRDS("sim_data.rds")
 
 load_object <- function(file) {
   tmp <- new.env()
@@ -46,10 +45,7 @@ load_object <- function(file) {
 setwd("~/Documents/GitHub/Ecology-models/simcoms-master")
 sim_data<-readRDS("sim_data.rds")
 
-
-
 ############Functions JSDM###################################################################################################
-
 
 .rMVN <- function (nn, mu, sigma){
   
@@ -227,7 +223,6 @@ jsdm_tau<-function(jsdm_mod){
   for(i in 1:nsamples){
     postT[,,i]<- -stats::cov2cor(solve(jsdm_mod$sims.list$Rho[i,,]+0.1*diag(ns)))
   }
-  
   postTMean = apply(postT,c(1,2),mean)
   postTUp=apply(postT,c(1,2),quantile,0.95)
   postTLo=apply(postT,c(1,2),quantile,0.05)
@@ -253,12 +248,9 @@ jsdm_list<- lapply(jsdm_files_list, load_object)
 
 
 jsdm_metrics<-mapply(metrics_jsdm,jsdm_list,fac_inter,comp_inter,SIMPLIFY = FALSE)
-
 jsdm_rho_list<- lapply(jsdm_list,jsdm_rho )
 jsdm_tau_list<- lapply(jsdm_list,jsdm_tau )
-
 jsdm_convergence_par<- lapply(jsdm_list, jsdm_conv)
-
 jsdm_conv_dataset<- data.frame()
 
 for(j in 1:length(jsdm_list)){
@@ -283,7 +275,6 @@ for(i in 1:dim(jsdm_conv_dataset)[1]){
     jsdm_conv_dataset$gentype[i]<-"Comp+Fac"
     }
 }
-
 #pdf("plot_conv_jsdm.pdf")
 p2<- ggplot(jsdm_conv_dataset, aes(x=value, color=parameter,fill=parameter)) +
   geom_histogram( alpha=0.4, position="identity") +
@@ -304,22 +295,11 @@ hm_conv<-function(name){
   colnames(n_eff_sigma)<- c("value")
   n_eff_sigma$parameter<- "correlation"
   neff<- rbind(n_eff_beta,n_eff_sigma)
-  # p<- ggplot(neff, aes(x=value, color=parameter,fill=parameter)) +
-  #   geom_histogram( alpha=0.4, position="identity",binwidth =50) + xlab("effective size") +
-  #   scale_color_brewer(palette="Dark2")+scale_fill_brewer(palette="Dark2")+
-  #   ggtitle("Effective size for the parameters beta and coefficients of correlation matrix")
-  # plot(p)
-  # 
   Rhat_beta<-as.data.frame(gelman.diag(codaList$Beta,multivariate=FALSE)$psrf)
   Rhat_beta$parameter<- "beta"
   Rhat_sigma<- as.data.frame(gelman.diag(codaList$Omega[[1]], multivariate=FALSE)$psrf)
   Rhat_sigma$parameter<- "correlation"
   Rhat<- rbind(Rhat_beta,Rhat_sigma)
-  # p2<- ggplot(Rhat, aes(x= Rhat$`Point est.`, color=parameter,fill=parameter)) +
-  #   geom_histogram( alpha=0.4, position="identity",binwidth =0.01) +
-  #   scale_color_brewer(palette="Dark2")+scale_fill_brewer(palette="Dark2")+ xlab("Rhat") +
-  #   ggtitle("Rhat for the parameters beta and the coefficients of correlation matrix")
-  # plot(p2)
   return(list(neff=neff,Rhat=Rhat))
 }
 
@@ -590,9 +570,6 @@ metrics_gjam<-function(Rho, comp=NULL,fac=NULL,only_env=T){
 
 
 ###########################################GJAM functions #######################################################################
-
-
-
 
 gjam_files_list<-list(EnvEvenSp5 ="./gjam_models/gjam5env.rda",EnvEvenSp10="./gjam_models/gjam10env.rda",EnvEvenSp20="./gjam_models/gjam20env.rda",
                       FacDenseSp5="./gjam_models/gjam5f.rda",FacDenseSp10="./gjam_models/gjam10fd.rda",FacDenseSp20="./gjam_models/gjam20fd.rda",
@@ -1219,31 +1196,55 @@ new_sim_data <- readRDS("new_sim_data.rds")
 
 gjam_predict_out<- function(datap, name){
   mod<-load_object(name)
-  np<-400
-  
+  np<-200
   xdata<- as.data.frame(scale(poly(datap$env, 2))[1:np,])
   colnames(xdata)<- c("env", "env2")
   newdata <- list(xdata = xdata, nsim=200)
   predict<-  gjamPredict(mod$m1, newdata = newdata)
   y_full    <- predict$sdList$yMu
-  for(i in 1:(ncol(datap)-1)) AUC_g<-auc(roc(y_full[,i],factor(datap[1:np,i])))
+  AUC_g<-vector()
+  for(i in 1:(ncol(datap)-1)) AUC_g<-c(AUC_g,auc(roc(y_full[,i],factor(datap[1:np,i]))))
   return(AUC_g)
 }
 
 
 gjam_AUC<-mapply(gjam_predict_out,new_sim_data, gjam_files_list,SIMPLIFY = TRUE)
-gjam_AUC_df<- as.data.frame(gjam_AUC)
-colnames(gjam_AUC_df)<- c("AUC_value")
-gjam_AUC_df$model<- "GJAM"
+# gjam_AUC_df<- as.data.frame(gjam_AUC)
+# #colnames(gjam_AUC_df)<- c("SetSP","AUC_value")
+
+
+
+table_mod<- function(auc_list, lab){
+  table_list<-as.data.frame(matrix(ncol=4,dimnames = list(NULL,c("AUC","Model","Filtering","Density"))))
+  for(i in 1:length(auc_list)){
+    k<-ifelse(nrow(table_list)==1,0,nrow(table_list))
+    table_list[(k+1):(k+length(auc_list[[i]])),"AUC"]<-auc_list[[i]]
+    if(length(grep("FacComp",names(auc_list)[[i]]))>0){
+      table_list[(k+1):(k+length(auc_list[[i]])),"Filtering"]<-rep("C+F",length(auc_list[[i]]))
+     }else{if(length(grep("Fac",names(auc_list)[[i]]))>0) { table_list[(k+1):(k+length(auc_list[[i]])),"Filtering"]<-rep("Fac",length(auc_list[[i]]))
+     }else{if(length(grep("Comp",names(auc_list)[[i]]))>0) { table_list[(k+1):(k+length(auc_list[[i]])),"Filtering"]<-rep("Comp",length(auc_list[[i]])) }
+     }
+     }
+     if(length(grep("Env",names(auc_list)[[i]]))>0) table_list[(k+1):(k+length(auc_list[[i]])),"Filtering"]<-rep("Env",length(auc_list[[i]]))
+     if(length(grep("Dense",names(auc_list)[[i]]))>0){
+       table_list[(k+1):(k+length(auc_list[[i]])),"Density"]<-rep("Dense",length(auc_list[[i]]))
+     }else{ table_list[(k+1):(k+length(auc_list[[i]])),"Density"]<-rep("Sparse",length(auc_list[[i]]))
+     }
+  }
+  table_list$Model<- lab
+   return(table_list)
+}
+
+
 
 gjam_dr_AUC<-mapply(gjam_predict_out,new_sim_data, gjam_dr_files_list,SIMPLIFY = TRUE)
-gjam_dr_AUC_df<- as.data.frame(gjam_dr_AUC)
-colnames(gjam_dr_AUC_df)<- c("AUC_value")
-gjam_dr_AUC_df$model<- "DR-GJAM"
+# gjam_dr_AUC_df<- as.data.frame(gjam_dr_AUC)
+# #colnames(gjam_dr_AUC_df)<-  c("SetSP","AUC_value")
+# gjam_dr_AUC_df$model<- "DR-GJAM"
 
 
 hmsc_predict_out<- function(datap, name){
-  np<-300
+  np<-200
   mod<-load_object(name)
   X<-scale(poly(datap$env[1:np], 2))
   colnames(X)<-c("env","env2")
@@ -1252,20 +1253,21 @@ hmsc_predict_out<- function(datap, name){
   rLNew = HmscRandomLevel(units = studyDesignNew$sample)
   predY = predict(mod, XData=XDataNew, studyDesign=studyDesignNew, ranLevels=list(sample = rLNew), expected=TRUE )
   prY<- apply(simplify2array(predY), 1:2, mean)
-  for(i in 1:(ncol(datap)-1)) AUC_hmcs<-auc(roc(prY[,i],factor(datap[1:np,i])))
+  AUC_hmcs<-vector()
+  for(i in 1:(ncol(datap)-1)) AUC_hmcs<-c(AUC_hmcs,auc(roc(prY[,i],factor(datap[1:np,i]))))
   return(AUC_hmcs)
 }
 
 
 hmsc_AUC<-mapply(hmsc_predict_out,new_sim_data, hmsc_files_list,SIMPLIFY = TRUE)
-hmsc_AUC_df<- as.data.frame(hmsc_AUC)
-colnames(hmsc_AUC_df)<- c("AUC_value")
-hmsc_AUC_df$model<- "HMSC"
+# hmsc_AUC_df<-as.data.frame(hmsc_AUC)
+# #colnames(hmsc_AUC_df)<-  c("SetSP","AUC_value")
+# hmsc_AUC_df$model<- "HMSC"
 
 
 
 jsdm_predict_out<- function(datap, name){
-  np<-300
+  np<-200
   S<- ncol(datap)-1
   xdata<- as.data.frame(cbind(1, scale(poly(datap$env, 2)))[1:np,])
   colnames(xdata)<- c("inter","env", "env2")
@@ -1279,33 +1281,49 @@ jsdm_predict_out<- function(datap, name){
     
   }
   predY_mean<-pnorm(apply(postW,2:3, mean))
-  for(i in 1:S) AUC_j<-auc(roc(predY_mean[,i],factor(datap[1:np,i])))
+  AUC_j<-vector()
+  for(i in 1:S) AUC_j<-c(AUC_j,auc(roc(predY_mean[,i],factor(datap[1:np,i]))))
   return(AUC_j)
 }  
   
 jsdm_AUC<-mapply(jsdm_predict_out, new_sim_data, jsdm_files_list,SIMPLIFY = TRUE)
-jsdm_AUC_df<- as.data.frame(jsdm_AUC)
-colnames(jsdm_AUC_df)<- c("AUC_value")
-jsdm_AUC_df$model<- "CM"
+# jsdm_AUC_df<- as.data.frame(jsdm_AUC)
+# #colnames(jsdm_AUC_df)<-  c("SetSP","AUC_value")
+# jsdm_AUC_df$model<- "CM"
 
 #datap<- new_sim_data$FacDenseSp10
 #name=jsdm_files_list[[5]]
 
 
-table_AUC<- rbind(hmsc_AUC_df,gjam_dr_AUC_df,gjam_AUC_df,jsdm_AUC_df)
 
-for(i in 1:dim(table_AUC)[1]){
-  if(length(grep("Fac",rownames(table_AUC)[i]))>0){ table_AUC$Filtering[i]<-"Facilitation"}
-  if(length(grep("Comp",rownames(table_AUC)[i]))>0){ table_AUC$Filtering[i]<-"Competition"}
-  if(length(grep("Env",rownames(table_AUC)[i]))>0){ table_AUC$Filtering[i]<-"Environmental"}
-  if((length(grep("Fac",rownames(table_AUC)[i]))>0)&(length(grep("Comp",rownames(table_AUC)[i]))>0)){
-    table_AUC$Filtering[i]<-"Comp+Fac"
-  }
-  if(length(grep("Spar",rownames(table_AUC)[i]))>0){ table_AUC$Density[i]<-"Sparse"}
-  if(length(grep("Dense",rownames(table_AUC)[i]))>0){ table_AUC$Density[i]<-"Dense"}
-  if(length(grep("Env",rownames(table_AUC)[i]))>0){ table_AUC$Density[i]<-"Sparse"}
-  }
+gj_l<- table_mod(gjam_AUC, "GJAM")
+gj_dr_l<- table_mod(gjam_dr_AUC, "DR-GJAM")
+hmsc_l<- table_mod(hmsc_AUC, "HMSC")
+cm_l<- table_mod(jsdm_AUC, "CM")
 
+
+
+
+table_AUC<- rbind(gj_l,gj_dr_l,hmsc_l,cm_l)
+ 
+table_AUC[nrow(table_AUC)+1,]<-c(-1,"CM", "Env","Dense")
+table_AUC[nrow(table_AUC)+1,]<-c(-1,"GJAM", "Env","Dense")
+table_AUC[nrow(table_AUC)+1,]<-c(-1,"DR_GJAM", "Env","Dense")
+table_AUC[nrow(table_AUC)+1,]<-c(-1,"HMSC", "Env","Dense")
+
+
+
+
+
+table_AUC$Filtering<-factor(table_AUC$Filtering, levels=c("Env","Fac","Comp","C+F"))
+#png("plot_AUC_in.png")
+#("plot_AUC_out_sample.pdf")
+p<-ggplot(data=table_AUC)+geom_boxplot(aes(y=as.numeric(AUC),x=Filtering,fill=Model),position = position_dodge(1,preserve = "single"))+
+  ylim(c(0,1)) +facet_grid(Density~.,scales = "free")+ theme(axis.text.x = element_text(angle = 45, hjust = 1,size = 10),strip.text = element_text(size = 15),legend.position = "top",plot.title = element_text(hjust = 0.5))+ylab("AUC")+ scale_x_discrete(name="Filtering", breaks=c("Env","Fac","Comp","C+F"),
+                                                                                                                                                                                                                                                            labels=c("Environmental","Facilitation","Competition","Comp.+Fac."))+
+  ggtitle("Accuracy of model out-of-sample predictions averaged across communities") +theme_bw()
+p
+#dev.off()
 
 #pdf("plot_conv_hmsc.pdf")
 # p2<- ggplot(table_AUC, aes(x=AUC_value, color=model,fill=model)) +
@@ -1315,29 +1333,34 @@ for(i in 1:dim(table_AUC)[1]){
 # 
 # p2
 #dev.off()
-pdf("plot_AUC_out_of_sample.pdf")
-
-table_AUC$Filtering<-factor(table_AUC$Filtering, levels=c("Environmental","Facilitation","Competition","Comp+Fac"))
-p<-ggplot(data=table_AUC)+geom_boxplot(aes(y=AUC_value,x=Filtering,fill=model),position = position_dodge(1,preserve = "single"))+
+#pdf("plot_AUC_out_of_sample.pdf")
+#png("plot_AUC_out.png")
+table_AUC_mod$Filtering<-factor(table_AUC_mod$Filtering, levels=c("Environmental","Facilitation","Competition","Comp+Fac"))
+p<-ggplot(data=table_AUC_mod)+geom_boxplot(aes(y=value,x=Filtering,fill=model),position = position_dodge(1,preserve = "single"))+
   ylim(c(0,1)) +facet_grid(Density~.,scales = "free")+ theme_bw() +theme(axis.text.x = element_text(angle = 0, hjust = 1,size = 10),strip.text = element_text(size = 15),legend.position = "top", plot.title = element_text(hjust = 0.5))+ylab("AUC")+ 
   scale_x_discrete(name="Filtering", breaks=c("Environmental","Facilitation","Competition","Comp+Fac"))+
   ggtitle("Accuracy of model out of sample  predictions averaged across communities") 
 p
 
-dev.off()
+#dev.off()
 # 
 # 
 # name<- "./gjam_models/gjamDR10facd.rda"
 # datap<- new_sim_data$FacDenseSp10
 # AUC<-gjam_predict_out(new_sim_data$FacDenseSp10,name)
 # 
-
-data_train <- new_sim_data$EnvEvenSp20[1:300,]
-data_test <- new_sim_data$EnvEvenSp20[301:500]
-
-gjam_mod<-fit_gjam(data,5000,1000,"./gjam_models/gjam20env_test.rda")
-
-
-
+# 
+# data_train <- sim_data$EnvEvenSp20[1:500,]
+# data_test <- new_sim_data$EnvEvenSp20[1:500,]
+# 
+# gjam_mod<-fit_gjam(data_train,5000,1000,"./gjam_models/gjam20env_test.rda")
+# 
+# auc<- gjam_predict_out(data_test,"./gjam_models/gjam20env_test.rda")
 
 ##############################################################################################################
+
+
+
+
+
+

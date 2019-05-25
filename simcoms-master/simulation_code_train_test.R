@@ -157,4 +157,5 @@ new_sim_data =
   set_names(sim_names) 
 
 
-save(new_sim_data, file = "new_sim_data.rds")
+#save(new_sim_data, file = "new_sim_data.rds")
+saveRDS(new_sim_data)

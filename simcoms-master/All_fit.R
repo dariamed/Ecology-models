@@ -38,6 +38,7 @@ load_object <- function(file) {
 }
 setwd("~/Documents/GitHub/Ecology-models/simcoms-master")
 sim_data<-readRDS("sim_data.rds")
+new_sim_data<-readRDS("new_sim_data.rds")
 
 ####SETUP########################################################################
 
@@ -50,6 +51,26 @@ gcols = colorRampPalette(c( "White", "White", "Black"))
 
 
 ### JSDM Functions##############################################################################################################################################
+
+
+jsdm_tau<-function(jsdm_mod){
+  nsamples<-jsdm_mod$mcmc.info$n.samples
+  ns<- ncol(jsdm_mod$model$cluster1$data()$Y)
+  postT<-array(dim=c(ns,ns,nsamples))
+  for(i in 1:nsamples){
+    postT[,,i]<- -stats::cov2cor(solve(jsdm_mod$sims.list$Rho[i,,]+0.1*diag(ns)))
+  }
+  
+  postTMean = apply(postT,c(1,2),mean)
+  postTUp=apply(postT,c(1,2),quantile,0.95)
+  postTLo=apply(postT,c(1,2),quantile,0.05)
+  
+  Toplot_T<-postTMean*(!(postTUp>0 & postTLo<0))
+  return(list(Tau=postTMean,Tau_sign=Toplot_T)) 
+}
+
+
+
 
 prob_cooccur_es <- function(Y) {
   K <- ncol(Y)
@@ -584,7 +605,7 @@ fit_hmsc<-function(data,label="Fit",nsamples = 1000,nchains=2,name="./HMmodels/h
     rL = HmscRandomLevel(units = studyDesign$sample)
     m = Hmsc(Y=as.matrix(Y_data), XData=as.data.frame(X), XFormula=~env+env2, distr="probit",
              studyDesign = studyDesign, ranLevels = list(sample = rL))
-    m = sampleMcmc(m, nsamples, thin=10, adaptNf=c(200,200), transient=500,nChains=nchains ,verbose=F)
+    m = sampleMcmc(m, nsamples, thin=10, adaptNf=c(200,200), transient=500,nChains=nchains ,verbose=F,nParallel = 2)
     save(m, file = name)
     return(m)
   }
@@ -592,6 +613,7 @@ fit_hmsc<-function(data,label="Fit",nsamples = 1000,nchains=2,name="./HMmodels/h
     return(load_object(name))
   }
 }
+
 
 hm_conv<-function(mod){
   codaList = convertToCodaObject(mod)
@@ -751,7 +773,7 @@ hm_inter<-function(mod, nchains=2, interact=diag(ns)){
   # corrplot(toPlot, method="color", col=colorRampPalette(c("blue", "white", "red"))(200))
   
   par(mfrow=c(2,3),oma = c(1, 1, 1, 1))
-  corrplot(cor(hm_mod$Y), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+  corrplot(cor(mod$Y), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
   title("Correlation cor(Y)")
   corrplot(postRMean, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
   title("R")
@@ -764,8 +786,6 @@ hm_inter<-function(mod, nchains=2, interact=diag(ns)){
   
   return(list(Rho_sign=Toplot_R,Tau_sign=Toplot_T)) 
 }
-
-
 
 
 
@@ -1259,8 +1279,8 @@ ALL3<-function(jsdm_mod,gjam_mod,hmsc_mod,interact=diag(5)){
 
 ALL4<-function(jsdm_mod,gjam_mod,hmsc_mod,interact=diag(5)){
   par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
-  #corrplot(jsdm_mod, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
-  #title("Partial correlation  JSDM ")
+  corrplot(jsdm_mod, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+  title("Partial correlation  JSDM ")
   corrplot(gjam_mod, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
   title("Partial correlation GJAM")
   corrplot(hmsc_mod, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
@@ -1500,7 +1520,23 @@ analysis_chunk<- function(datab,gjam, hmsc, jsdm, gjam_dr,nsp=5, interact1=NULL,
 }
 
 
+
+
+
+
+
+
+
+
+
 ################################################################################################################################
+
+
+
+
+
+
+
 datab<-sim_data$FacCompSparseSp20
 
 jsdm<-"model-2019-04-23-09-42-18.rda"
@@ -1520,168 +1556,10 @@ FCSP20$prediction$hmsc
 
 
 
+setwd("~/Documents/GitHub/Ecology-models/simcoms-master")
 
+data_all<- rbind(sim_data$FacDenseSp5,new_sim_data$FacDenseSp5)
+hmsc_all_5<- fit_hmsc(data_all,label="Fit",nsamples =5000,nchains=2,name="./HMmodels/hmFacd10ALL.rda" )
 
-
-
-
-
-
-
-
-################################################################################################################################
-################################################################################################################################
-
-## Environmental filtering + Competition +Facilitation 20 sparse species
-
-### JSDM 
-
-cmp_fds20 <- load_object("model-2019-04-23-09-42-18.rda")
-jsdm_conv(cmp_fds20)
-cmp_fds20$mcmc.info[1:7]
-# 
-j_metric_FacCompSparse20<-metrics_jsdm(cmp_fds20,comp = comp_inter[[21]],fac=fac_inter[[21]],only_env = F)
-# ######################################################Prepare data
-data<-sim_data$FacCompSparseSp20
-data <- list(
-  Y = subset(data, select = -env),
-  X = cbind(1, scale(poly(data$env, 2))),
-  covx = cov(cbind(1, scale(poly(data$env, 2)))),
-  K = 3,
-  J = ncol(data) - 1,
-  n = nrow(data),
-  I = diag(ncol(data) - 1),
-  df = ncol(data)
-)
-
-mod_list_Rho<-list()
-mod_list_Rho<-list(jsdm =cmp_fds20$mean$Rho*(!cmp_fds20$overlap0$Rho)) 
-
-mod_list_Tau<-list()
-mod_list_Tau<-list(jsdm =cmp_fds20$mean$Rho*(!cmp_fds20$overlap0$Rho)) 
-
-pred_j<-array(NA,dim=c(data$n,data$J,cmp_fds20$mcmc.info$n.samples))
-for(i in 1:cmp_fds20$mcmc.info$n.samples){
-  
-  pred_j[,,i]<-pnorm(data$X%*%t(cmp_fds20$sims.list$B[i,,]))
-  
-}
-
-pred_j_mean <- apply(pred_j, 1:2, mean)
-pred_j_05 <- apply(pred_j, 1:2, quantile,0.05)
-pred_j_95 <- apply(pred_j, 1:2, quantile,0.95)
-
-pred_jsdm<-list(pred_j_mean=pred_j_mean,pred_j_05=pred_j_05,pred_j_95=pred_j_95)
-
-for(i in 1:data$J) AUC_j_comp_fac_sparse<-c(AUC_j_comp_fac_sparse,auc(roc(pred_j_mean[,i],factor(data$Y[,i]))))
-
-
-
-
-
-### Gjam
-
-data<-sim_data$FacCompSparseSp20
-#gjam_mod<-fit_gjam(data,10000,1000,"./gjam_models/gjamcmp_facs20.rda",interact= (-1)*comp_inter[[21]]+fac_inter[[21]])
-gjam_mod<-load_gjam(data,10000,1000,name="./gjam_models/gjamcmp_facs20.rda", interact= (-1)*comp_inter[[21]]+fac_inter[[21]])
-g_metric_FacCompSparse20<-metrics_gjam(gjam_mod$Rho_sign,comp=comp_inter[[21]], fac=fac_inter[[21]],only_env = F)
-g_metric_FacCompSparse20_p<-metrics_gjam(gjam_mod$Tau_sign,comp=comp_inter[[21]], fac=fac_inter[[21]],only_env = F)
-
-cat("\n")
-cat(sprintf("Success rate for non-interacting: %s\n", round(g_metric_FacCompSparse20$success_env,3)))
-cat(sprintf("Success rate for competition: %s\n", round(g_metric_FacCompSparse20$success_comp,3)))
-cat(sprintf("Success rate for facilitation: %s\n", round(g_metric_FacCompSparse20$success_fac,3)))
-mod_list_Rho<-list.append(mod_list_Rho, gjam=gjam_mod$Rho_sign) 
-mod_list_Tau<-list.append(mod_list_Tau, gjam=gjam_mod$Tau_sign) 
-
-
-pred_gj_mean <-apply(gjam_mod$predict, 1:2,mean)
-pred_gj_05 <- apply(gjam_mod$predict, 1:2,quantile,0.05)
-pred_gj_95 <- apply(gjam_mod$predict, 1:2,quantile,0.95)
-
-pred_gjam<- list(pred_gj_mean=pred_gj_mean,pred_gj_05=pred_gj_05,pred_gj_95=pred_gj_95)
-
-for(i in 1:(ncol(data)-1)) AUC_g_comp_fac_sparse<-c(AUC_g_comp_fac_sparse,auc(roc(pred_gj_mean[,i],factor(data[,i]))))
-
-
-
-
-### HMSC
-
-
-data<-sim_data$FacCompSparseSp20
-hm_mod<-fit_hmsc(data,"Load",nsamples=2000, nchains=2,name="./HMmodels/hmcmp_facs20.rda" )
-hm_conv(hm_mod)
-hm_mod_R<-hm_inter(hm_mod, nsamples=2000, nchains=2,interact =  (-1)*comp_inter[[21]] +fac_inter[[21]])
-h_metric_FacCompSparse20<-metrics_hmsc(hm_mod_R$Rho_sign,comp=comp_inter[[21]],fac=fac_inter[[21]],only_env = F)
-h_metric_FacCompSparse20_p<-metrics_hmsc(hm_mod_R$Tau_sign,comp=comp_inter[[21]],fac=fac_inter[[21]],only_env = F)
-
-cat("\n")
-cat(sprintf("Success rate for non-interacting: %s\n", round(h_metric_FacCompSparse20$success_env,3)))
-cat(sprintf("Success rate for competition: %s\n", round(h_metric_FacCompSparse20$success_comp,3)))
-cat(sprintf("Success rate for facilitation: %s\n", round(h_metric_FacCompSparse20$success_fac,3)))
-#mod_list<-list.append(mod_list,hmsc=Rho_sign)
-mod_list_Rho<-list.append(mod_list_Rho,hmsc=hm_mod_R$Rho_sign)
-mod_list_Tau<-list.append(mod_list_Tau,hmsc=hm_mod_R$Tau_sign)
-####Prediction
-x = cbind(1, scale(poly(data$env, 2)))
-pred_hm<-array(NA,dim=c(hm_mod$ny,hm_mod$ns,2*hm_mod$samples)) #2 is nchains
-for(k in 1:(2*hm_mod$samples)){
-  if(k<=hm_mod$samples){pred_hm[,,k] <- pnorm(x%*%hm_mod$postList[[1]][[k]]$Beta)
-  }else {pred_hm[,,k] <- pnorm(x%*%hm_mod$postList[[2]][[k-hm_mod$samples]]$Beta)}
-  
-}
-pred_hmsc<- list(pred_hm_mean=apply(pred_hm, c(1,2), mean),
-                 pred_hm_05=apply(pred_hm, c(1,2), quantile,0.05),
-                 pred_hm_95=apply(pred_hm, c(1,2), quantile,0.95))
-
-for(i in 1:(ncol(data)-1)) AUC_h_comp_fac_sparse<-c(AUC_h_comp_fac_sparse,auc(roc(pred_hmsc$pred_hm_mean[,i],factor(data[,i]))))
-
-
-
-
-### Dimension reduction
-
-################################################################################################################################
-
-#r-opt=15
-S<- gjam_dim_red(sim_data$FacCompSparseSp20,ng=10000, burnin=1000,r=3,name="./gjam_models/gjamDR20compfacs.rda", regime="L")
-g_dr_metric_FacCompSparse20<-metrics_gjam(S$Rho_sign_d)
-g_dr_metric_FacCompSparse20_p<-metrics_gjam(S$Tau_sign_d)
-
-
-##Prediction
-pred_gj_dr_mean <-apply(S$predict, 1:2,mean)
-pred_gj_dr_05 <- apply(S$predict, 1:2,quantile,0.05)
-pred_gj_dr_95 <- apply(S$predict, 1:2,quantile,0.95)
-data<-sim_data$FacCompSparseSp20
-for(i in 1:(ncol(data)-1)) AUC_gdr_comp_fac_sparse<-c(AUC_gdr_comp_fac_sparse,auc(roc(pred_gj_dr_mean[,i],factor(data[,i]))))
-pred_gjam_dr<- list(pred_gj_dr_mean=pred_gj_dr_mean,pred_gj_dr_05=pred_gj_dr_05,pred_gj_dr_95=pred_gj_dr_95)
-
-
-par(mfrow=c(2,2),oma = c(1, 1, 1, 1))
-corrplot(S$Rho_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
-title("Correlation from dimension reduction")
-corrplot(S$Tau_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
-title("Partial Correlation from dimension reduction")
-corrplot(comp.psm(S$k), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=gcols(200),cl.lim=c(0, 1), type = "lower")
-title("Partial Correlation from dimension reduction")
-corrplot((-1)*comp_inter[[21]]+fac_inter[[21]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
-title("True interactions")
-
-
-################################################################################################################################
-
-
-### Summary plots
-create_beta_plot(load_object("./gjam_models/gjamcmp_facs20.rda"),cmp_fds20,load_object("./HMmodels/hmcmp_facs20.rda"), S$bchain)
-create_plot_response(sim_data$FacCompSparseSp20, nsp=20,pred_gjam, pred_jsdm,pred_hmsc,pred_gjam_dr )
-ALL3(mod_list_Rho$jsdm,mod_list_Rho$gjam,mod_list_Rho$hmsc, (-1)*comp_inter[[21]]+ fac_inter[[21]])
-ALL4(mod_list_Tau$jsdm,mod_list_Tau$gjam,mod_list_Tau$hmsc, (-1)*comp_inter[[21]]+ fac_inter[[21]])
-################################################################################################################################
-
-
-
-
-
-
+hm_inter(hmsc_all_5)
+hm_conv(hmsc_all_5)

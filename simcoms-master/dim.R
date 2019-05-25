@@ -7,6 +7,23 @@ g<- sum(diag(M%*%A_1))
 A_ninv2<- A_s + (1/(1+g))*A_1%*%M%*%A_1
 A_s<-solveRcpp(A_ninv2)
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 data<-sim_data$FacCompSparseSp20
 
 data <- list(
