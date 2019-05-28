@@ -1440,7 +1440,7 @@ create_plot_response(data=sim_data$EnvEvenSp5, nsp=5,pred_gjam,pred_jsdm= pred_j
 
 
 
-## Plot coefficients
+## Summary plots
 
 
 ```{r beta coefs env5, include=TRUE,echo=FALSE}
@@ -1951,10 +1951,6 @@ create_plot_response(data=sim_data$EnvEvenSp10, nsp=10,pred_gjam, pred_jsdm,pred
 ALL3(mod_list_Rho$jsdm,mod_list_Rho$gjam,mod_list_Rho$hmsc,diag(10))
 
 ```
-
-
-
-### Summary plots for models
 
 
 
@@ -5922,7 +5918,7 @@ tf<-rbind(tf,cbind(table_fac[which(table_fac$n_sp==20),"success_env"],table_fac[
 tf<-data.frame("success"=as.numeric(tf[,1]),"model"=tf[,2],"fac"=tf[,3],"int"=rep("Facilitation",nrow(tf)),"col"=tf[,4])
 
 table<-rbind(tf,tc)
-
+table_nodr<- table[-which(table$model=="DR-GJAM"),]
 p<-ggplot(data=table)+geom_boxplot(aes(y=as.numeric(success),x=as.factor(fac),fill=as.factor(col)))+
   scale_x_discrete(name="Parameters", breaks=c("All","5","10","20","dense","sparse","All_env","5_env","10_env","20_env"),
                    labels=c("All","5","10","20","dense","sparse","All","5","10","20"),limits=c("All","5","10","20","dense","sparse","All_env","5_env","10_env","20_env"))+
@@ -5931,6 +5927,18 @@ p<-ggplot(data=table)+geom_boxplot(aes(y=as.numeric(success),x=as.factor(fac),fi
   facet_grid( int~model, scales="free")+ggtitle("Pairs indentification by correlation") 
 p
 
+
+#pdf("Correlation_suc_nodr.pdf")
+
+p_ndr<-ggplot(data=table_nodr)+geom_boxplot(aes(y=as.numeric(success),x=as.factor(fac),fill=as.factor(col)))+
+  scale_x_discrete(name="Parameters", breaks=c("All","5","10","20","dense","sparse","All_env","5_env","10_env","20_env"),
+                   labels=c("All","5","10","20","dense","sparse","All","5","10","20"),limits=c("All","5","10","20","dense","sparse","All_env","5_env","10_env","20_env"))+
+  scale_y_continuous(name="% success")+
+  scale_fill_discrete(name = "Success in retrieving", labels = c("Sensibility (non int.)","Sensitivity (int.)"))+theme_bw()+ theme(axis.text.x = element_text(angle = 45, hjust = 1),legend.position="top",plot.title = element_text(hjust = 0.5))+
+  facet_grid( int~model, scales="free")+ggtitle("Pairs indentification by correlation") 
+p_ndr
+
+#dev.off()
 
 ```
 
@@ -5945,14 +5953,6 @@ p
 
 
 ```{r inter_partial correlations, echo=FALSE, warning=FALSE}
-
-
-
-
-
-
-
-
 
 
 all_part<-list("j_metric_e5"=j_metric_e5_p, "j_metric_e10"=j_metric_e10_p,"j_metric_e20"=j_metric_e20_p,
@@ -6047,6 +6047,7 @@ tf<-rbind(tf,cbind(table_fac[which(table_fac$n_sp==20),"success_env"],table_fac[
 tf<-data.frame("success"=as.numeric(tf[,1]),"model"=tf[,2],"fac"=tf[,3],"int"=rep("Facilitation",nrow(tf)),"col"=tf[,4])
 
 table<-rbind(tf,tc)
+table_p_nodr<- table[-which(table$model=="DR-GJAM"),]
 
 #pdf("plot_partial_inter.pdf")
 
@@ -6058,6 +6059,22 @@ p<-ggplot(data=table)+geom_boxplot(aes(y=as.numeric(success),x=as.factor(fac),fi
   facet_grid( int~model , scales="free") +ggtitle("Pairs indentification by partial correlation") 
 p
 #dev.off()
+
+
+
+#pdf("plot_partial_inter_nodr.pdf")
+
+p_ndr<-ggplot(data=table_p_nodr)+geom_boxplot(aes(y=as.numeric(success),x=as.factor(fac),fill=as.factor(col)))+
+  scale_x_discrete(name="Parameters", breaks=c("All","5","10","20","dense","sparse","All_env","5_env","10_env","20_env"),
+                   labels=c("All","5","10","20","dense","sparse","All","5","10","20"),limits=c("All","5","10","20","dense","sparse","All_env","5_env","10_env","20_env"))+
+  scale_y_continuous(name="% success")+
+  scale_fill_discrete(name = "Success in retrieving", labels = c("Sensibility (non int.)","Sensitivity (int.)"))+theme_bw()+theme(axis.text.x = element_text(angle = 45, hjust = 0.5),legend.position="top",plot.title = element_text(hjust = 0.5))+
+  facet_grid( int~model , scales="free") +ggtitle("Pairs indentification by partial correlation") 
+p_ndr
+
+#dev.off()
+
+
 ```
 
 
@@ -6087,7 +6104,7 @@ for(i in 1:length(AUCs)){
   if(length(grep("_j_",names(AUCs)[[i]]))>0)  table[(k+1):(k+length(AUCs[[i]])),"Model"]<-rep("CM",length(AUCs[[i]]))
   
   if(length(grep("_g_",names(AUCs)[[i]]))>0)  table[(k+1):(k+length(AUCs[[i]])),"Model"]<-rep("GJAM",length(AUCs[[i]]))
-  if(length(grep("_gdr_",names(AUCs)[[i]]))>0)  table[(k+1):(k+length(AUCs[[i]])),"Model"]<-rep("DR_GJAM",length(AUCs[[i]]))
+  if(length(grep("_gdr_",names(AUCs)[[i]]))>0)  table[(k+1):(k+length(AUCs[[i]])),"Model"]<-rep("DR-GJAM",length(AUCs[[i]]))
   
   if(length(grep("_h_",names(AUCs)[[i]]))>0)  table[(k+1):(k+length(AUCs[[i]])),"Model"]<-rep("HMSC",length(AUCs[[i]]))
   
@@ -6110,14 +6127,30 @@ for(i in 1:length(AUCs)){
   
 table[nrow(table)+1,]<-c(-1,"CM", "Env","Dense")
 table[nrow(table)+1,]<-c(-1,"GJAM", "Env","Dense")
-table[nrow(table)+1,]<-c(-1,"DR_GJAM", "Env","Dense")
+table[nrow(table)+1,]<-c(-1,"DR-GJAM", "Env","Dense")
 table[nrow(table)+1,]<-c(-1,"HMSC", "Env","Dense")
 
 
 table$Filtering<-factor(table$Filtering, levels=c("Env","Fac","Comp","C+F"))
+
+
 #png("plot_AUC_in.png")
 #pdf("plot_AUC_in_sample.pdf")
 p<-ggplot(data=table)+geom_boxplot(aes(y=as.numeric(AUC),x=Filtering,fill=Model),position = position_dodge(1,preserve = "single"))+
+  ylim(c(0,1)) +facet_grid(Density~.,scales = "free")+ theme(axis.text.x = element_text(angle = 45, hjust = 1,size = 10),strip.text = element_text(size = 15),legend.position = "top",plot.title = element_text(hjust = 0.5))+ylab("AUC")+ scale_x_discrete(name="Filtering", breaks=c("Env","Fac","Comp","C+F"),
+                   labels=c("Environmental","Facilitation","Competition","Comp.+Fac."))+
+ggtitle("Accuracy of model in-sample predictions averaged across communities") +theme_bw()
+p
+
+
+
+table_auc_nodr<- table[-which(table$Model=="DR_GJAM"),]
+
+
+
+#png("plot_AUC_in.png")
+#pdf("plot_AUC_in_sample_nodr.pdf")
+p<-ggplot(data=table_auc_nodr)+geom_boxplot(aes(y=as.numeric(AUC),x=Filtering,fill=Model),position = position_dodge(1,preserve = "single"))+
   ylim(c(0,1)) +facet_grid(Density~.,scales = "free")+ theme(axis.text.x = element_text(angle = 45, hjust = 1,size = 10),strip.text = element_text(size = 15),legend.position = "top",plot.title = element_text(hjust = 0.5))+ylab("AUC")+ scale_x_discrete(name="Filtering", breaks=c("Env","Fac","Comp","C+F"),
                    labels=c("Environmental","Facilitation","Competition","Comp.+Fac."))+
 ggtitle("Accuracy of model in-sample predictions averaged across communities") +theme_bw()

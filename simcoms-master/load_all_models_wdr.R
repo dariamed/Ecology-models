@@ -273,13 +273,13 @@ for(i in 1:dim(jsdm_conv_dataset)[1]){
   if(length(grep("Env",jsdm_conv_dataset$Filtering[i]))>0){ jsdm_conv_dataset$gentype[i]<-"Environmental"}
   if((length(grep("Fac",jsdm_conv_dataset$Filtering[i]))>0)&(length(grep("Comp",jsdm_conv_dataset$Filtering[i]))>0)){
     jsdm_conv_dataset$gentype[i]<-"Comp+Fac"
-    }
+  }
 }
 #pdf("plot_conv_jsdm.pdf")
 p2<- ggplot(jsdm_conv_dataset, aes(x=value, color=parameter,fill=parameter)) +
   geom_histogram( alpha=0.4, position="identity") +
   scale_color_brewer(palette="Dark2")+scale_fill_brewer(palette="Dark2")+ xlab("Rhat") +facet_wrap(type~.,scales = "free")+xlab(" ")+
-   ggtitle("Convergence parameters for the CM model")+theme_bw()+ theme(plot.title = element_text(hjust = 0.5))
+  ggtitle("Convergence parameters for the CM model")+theme_bw()+ theme(plot.title = element_text(hjust = 0.5))
 plot(p2)
 #dev.off()
 ############################################HMSC functions#####################################################################################
@@ -625,10 +625,10 @@ p2
 gjam_dr_files_list<-list(env5="./gjam_models/gjamDR5env.rda",env10="./gjam_models/gjamDR10env.rda",env20="./gjam_models/gjamDR20env.rda",
                          facd5="./gjam_models/gjamDR5facd.rda",facd10="./gjam_models/gjamDR10facd.rda",facd20="./gjam_models/gjamDR20facd.rda",
                          facs5="./gjam_models/gjamDR5facs.rda",facs10="./gjam_models/gjamDR10facs.rda",facs20="./gjam_models/gjamDR20facs.rda",
-                      compd5="./gjam_models/gjamDR5compd.rda",compd10="./gjam_models/gjamDR10compd.rda",compd20="./gjam_models/gjamDR20compd.rda",
-                      comps5="./gjam_models/gjamDR5comps.rda",comps10="./gjam_models/gjamDR10comps.rda",comps20="./gjam_models/gjamDR20comps.rda",
-                      compfacd5="./gjam_models/gjamDR5compfacd.rda",compfacd10="./gjam_models/gjamDR10compfacd.rda",compfacd20="./gjam_models/gjamDR20compfacd.rda",
-                      compfacs5="./gjam_models/gjamDR5compfacs.rda",compfacs10="./gjam_models/gjamDR10compfacs.rda",compfacs20="./gjam_models/gjamDR20compfacs.rda")
+                         compd5="./gjam_models/gjamDR5compd.rda",compd10="./gjam_models/gjamDR10compd.rda",compd20="./gjam_models/gjamDR20compd.rda",
+                         comps5="./gjam_models/gjamDR5comps.rda",comps10="./gjam_models/gjamDR10comps.rda",comps20="./gjam_models/gjamDR20comps.rda",
+                         compfacd5="./gjam_models/gjamDR5compfacd.rda",compfacd10="./gjam_models/gjamDR10compfacd.rda",compfacd20="./gjam_models/gjamDR20compfacd.rda",
+                         compfacs5="./gjam_models/gjamDR5compfacs.rda",compfacs10="./gjam_models/gjamDR10compfacs.rda",compfacs20="./gjam_models/gjamDR20compfacs.rda")
 
 
 
@@ -762,6 +762,7 @@ mean_cor<-function(mod){
 
 mean_corr_val<- mean_cor(jsdm_list)
 
+
 # mean_correlations <- mean_cor(models)
 # x <- subset(mean_correlations, type != "Environmental\nFiltering Only")
 # acc <- by(x, x$model, function(x) sum(x$status == "TP" | x$status == "TN") / nrow(x))
@@ -806,7 +807,7 @@ mean_cor_other<-function(mod,lab){
           rho_type = rep(paste0("Residual ",lab), each = sum(ut)),
           sgn = sign(x$Rho_mean)[ut],
           significant = !(x$Rho_sign[ut]==0),
-
+          
           cint = comp_inter[[i]][ut],
           fint = fac_inter[[i]][ut],
           density = tail(nm, 2)[1],
@@ -847,13 +848,6 @@ mean_cor_other<-function(mod,lab){
   return(mean_correlations)
 }
 
-
-
-jsdm_Tau<- lapply(jsdm_tau_list, function(x) list(Rho_mean=x$Tau,Rho_sign=x$Tau_sign))
-mean_corr_val_p<- mean_cor_other(jsdm_Tau, lab="CM")
-
-#########################################################
-
 hm_inter<-function(name){
   mod<- load_object(name)
   getOmega = function(a,r=1)
@@ -886,7 +880,7 @@ hm_inter<-function(name){
   
   Toplot_R<-postRMean*(!(postRUp>0 & postRLo<0))
   Toplot_T<-postTMean*(!(postTUp>0 & postTLo<0))
-
+  
   return(list(Rho_mean=postRMean,Rho_sign=Toplot_R, Tau=postTMean,Tau_sign=Toplot_T)) 
 }
 
@@ -931,30 +925,30 @@ gjam_Rho<-function(name){
   J<-ncol(gj_mod$m1$inputs$y)
   gjam_bs<- mcmc.list(mcmc(gj_mod$m1$chains$bgibbsUn[-(1:burn),]),mcmc(gj_mod$m2$chains$bgibbsUn[-(1:burn),]))
   gjam_sigma<- mcmc.list(mcmc(gj_mod$m1$chains$sgibbs[-(1:burn),]),mcmc(gj_mod$m2$chains$sgibbs[-(1:burn),]))
-   gjam_mods_2sgibbs<-abind(gj_mod$m1$chains$sgibbs,gj_mod$m2$chains$sgibbs, along = 3)
-   postH<- apply(gjam_mods_2sgibbs, 2, quantile,0.95)
-   postL<-apply(gjam_mods_2sgibbs, 2, quantile,0.05)
-   post_mean<-apply(gjam_mods_2sgibbs, 2, mean)
-   pH<-convert_to_m(postH)
-   pL<-convert_to_m(postL)
-   post_mean_s<-convert_to_m(post_mean)
-   S_mean<-cov2cor(post_mean_s)
-   R_sign<-cov2cor(post_mean_s)*(!(pH>0 & pL<0))
-   sgibbs<-abind(gj_mod$m1$chains$sgibbs[-(1:burn),],gj_mod$m2$chains$sgibbs[-(1:burn),],along=1)
-   
-   tau<-array(NA,dim=c(J,J,dim(sgibbs)[1]))
-   for(j in 1:dim(sgibbs)[1]){
-     ss <- expandSigma_rmd(sgibbs[j,], S = J)
-     si <- solve(ss)
-     tau[,,j] <- -cov2cor(si)
-   }
-   
-   tau_mean<-apply(tau,c(1,2), mean)
-   tau_HI<-apply(tau,c(1,2),quantile,0.95)
-   tau_LO<-apply(tau,c(1,2),quantile,0.05)
-   Tau_sign<-tau_mean*(!(tau_HI>0 & tau_LO<0))
- 
- return(list(Rho_mean=S_mean,Rho_sign=R_sign, Tau=tau_mean,Tau_sign=Tau_sign))
+  gjam_mods_2sgibbs<-abind(gj_mod$m1$chains$sgibbs,gj_mod$m2$chains$sgibbs, along = 3)
+  postH<- apply(gjam_mods_2sgibbs, 2, quantile,0.95)
+  postL<-apply(gjam_mods_2sgibbs, 2, quantile,0.05)
+  post_mean<-apply(gjam_mods_2sgibbs, 2, mean)
+  pH<-convert_to_m(postH)
+  pL<-convert_to_m(postL)
+  post_mean_s<-convert_to_m(post_mean)
+  S_mean<-cov2cor(post_mean_s)
+  R_sign<-cov2cor(post_mean_s)*(!(pH>0 & pL<0))
+  sgibbs<-abind(gj_mod$m1$chains$sgibbs[-(1:burn),],gj_mod$m2$chains$sgibbs[-(1:burn),],along=1)
+  
+  tau<-array(NA,dim=c(J,J,dim(sgibbs)[1]))
+  for(j in 1:dim(sgibbs)[1]){
+    ss <- expandSigma_rmd(sgibbs[j,], S = J)
+    si <- solve(ss)
+    tau[,,j] <- -cov2cor(si)
+  }
+  
+  tau_mean<-apply(tau,c(1,2), mean)
+  tau_HI<-apply(tau,c(1,2),quantile,0.95)
+  tau_LO<-apply(tau,c(1,2),quantile,0.05)
+  Tau_sign<-tau_mean*(!(tau_HI>0 & tau_LO<0))
+  
+  return(list(Rho_mean=S_mean,Rho_sign=R_sign, Tau=tau_mean,Tau_sign=Tau_sign))
 }
 
 
@@ -968,35 +962,35 @@ gjam_mean_cor_p<-mean_cor_other(Tau_list_gjam,lab="GJAM")
 
 #####GJAM DR#########################################################################################################
 gjam_dr_Rho<-function(name){
-    gjam_dr_mods<-load_object(name)
-    mod_gjam_red_1<-gjam_dr_mods$m1
-    mod_gjam_red_2<-gjam_dr_mods$m2
-    ns<-ncol(mod_gjam_red_1$inputs$y)
-    ng<-mod_gjam_red_2$modelList$ng
-    burnin<-mod_gjam_red_2$modelList$burnin  
-    gjam_sigma<- mcmc.list(mcmc(mod_gjam_red_1$chains$sgibbs[-(1:burnin),]),mcmc(mod_gjam_red_2$chains$sgibbs[-(1:burnin),]))
-    sgibbs<-abind(mod_gjam_red_1$chains$sgibbs[-(1:burnin),],mod_gjam_red_2$chains$sgibbs[-(1:burnin),],along=1)
-    sigErrGibbs<-abind(mod_gjam_red_1$chains$sigErrGibbs[-(1:burnin)],mod_gjam_red_2$chains$sigErrGibbs[-(1:burnin)],along=1)
-    kgibbs<-abind(mod_gjam_red_1$chains$kgibbs[-(1:burnin),],mod_gjam_red_2$chains$kgibbs[-(1:burnin),],along=1)
-    sigma<-invsigma<-array(NA,dim=c(ns,ns,2*(ng-burnin))) 
-    N<-mod_gjam_red_1$modelList$reductList$N
-    r<-mod_gjam_red_1$modelList$reductList$r
-    N_dim<-2*(ng-burnin)
-    for(j in 1:N_dim){
-      Z  <- matrix(sgibbs[j,],N,r)
-      sigma[,,j] <- .expandSigma(sigErrGibbs[j], ns, Z = Z, kgibbs[j,], REDUCT = T) #sigma
-      invsigma[,,j] <- invWbyRcpp(sigErrGibbs[j], Z[kgibbs[j,],]) #inverse sigma
-    } 
-    sigma_mean<-apply(sigma,c(1,2),mean) 
-    sigma_q05<-apply(sigma,c(1,2),quantile,0.05) 
-    sigma_q95<-apply(sigma,c(1,2),quantile,0.95) 
-    S_mean<-cov2cor(sigma_mean)
-    Sigma_sign<--cov2cor(sigma_mean*(!(sigma_q95>0 & sigma_q05<0)))
-    invsigma_mean<-apply(invsigma,c(1,2),mean) 
-    invsigma_q05<-apply(invsigma,c(1,2),quantile,0.05) 
-    invsigma_q95<-apply(invsigma,c(1,2),quantile,0.95) 
-    INVSigma_sign<--cov2cor(sigma_mean*(!(invsigma_q95>0 & invsigma_q05<0)))
-    
+  gjam_dr_mods<-load_object(name)
+  mod_gjam_red_1<-gjam_dr_mods$m1
+  mod_gjam_red_2<-gjam_dr_mods$m2
+  ns<-ncol(mod_gjam_red_1$inputs$y)
+  ng<-mod_gjam_red_2$modelList$ng
+  burnin<-mod_gjam_red_2$modelList$burnin  
+  gjam_sigma<- mcmc.list(mcmc(mod_gjam_red_1$chains$sgibbs[-(1:burnin),]),mcmc(mod_gjam_red_2$chains$sgibbs[-(1:burnin),]))
+  sgibbs<-abind(mod_gjam_red_1$chains$sgibbs[-(1:burnin),],mod_gjam_red_2$chains$sgibbs[-(1:burnin),],along=1)
+  sigErrGibbs<-abind(mod_gjam_red_1$chains$sigErrGibbs[-(1:burnin)],mod_gjam_red_2$chains$sigErrGibbs[-(1:burnin)],along=1)
+  kgibbs<-abind(mod_gjam_red_1$chains$kgibbs[-(1:burnin),],mod_gjam_red_2$chains$kgibbs[-(1:burnin),],along=1)
+  sigma<-invsigma<-array(NA,dim=c(ns,ns,2*(ng-burnin))) 
+  N<-mod_gjam_red_1$modelList$reductList$N
+  r<-mod_gjam_red_1$modelList$reductList$r
+  N_dim<-2*(ng-burnin)
+  for(j in 1:N_dim){
+    Z  <- matrix(sgibbs[j,],N,r)
+    sigma[,,j] <- .expandSigma(sigErrGibbs[j], ns, Z = Z, kgibbs[j,], REDUCT = T) #sigma
+    invsigma[,,j] <- invWbyRcpp(sigErrGibbs[j], Z[kgibbs[j,],]) #inverse sigma
+  } 
+  sigma_mean<-apply(sigma,c(1,2),mean) 
+  sigma_q05<-apply(sigma,c(1,2),quantile,0.05) 
+  sigma_q95<-apply(sigma,c(1,2),quantile,0.95) 
+  S_mean<-cov2cor(sigma_mean)
+  Sigma_sign<--cov2cor(sigma_mean*(!(sigma_q95>0 & sigma_q05<0)))
+  invsigma_mean<-apply(invsigma,c(1,2),mean) 
+  invsigma_q05<-apply(invsigma,c(1,2),quantile,0.05) 
+  invsigma_q95<-apply(invsigma,c(1,2),quantile,0.95) 
+  INVSigma_sign<--cov2cor(sigma_mean*(!(invsigma_q95>0 & invsigma_q05<0)))
+  
   return(list(Rho_mean=S_mean,Rho_sign=Sigma_sign, Tau=invsigma_mean,Tau_sign=INVSigma_sign))
 }
 
@@ -1009,10 +1003,10 @@ gjam_dr_mean_cor<-mean_cor_other(gjam_dr_list_R,lab="DR-GJAM")
 # 
 gjam_dr_mean_cor_p<-mean_cor_other(Tau_list_gj_dr,lab="DR-GJAM")
 
-##no dr
+
 total_mean_cor<- rbind(mean_corr_val,hmsc_cor,gjam_mean_cor)
 
-#pdf("plot_mean_corr_nodr.pdf")
+#pdf("plot_mean_corr.pdf")
 #png("plot_mean_corr.png")
 m<- ggplot(total_mean_cor) +
   aes(factor(nsp), rho, fill = interaction) +
@@ -1029,20 +1023,18 @@ m<- ggplot(total_mean_cor) +
 m
 #dev.off()
 #####Partial correlation
+###no gjam DR
+total_mean_part_cor<- rbind(hmsc_pcor,gjam_mean_cor_p)
 
-#total_mean_part_cor<- rbind(hmsc_pcor,gjam_mean_cor_p,gjam_dr_mean_cor_p)
-
-total_mean_part_cor_no_dr<- rbind(mean_corr_val_p,hmsc_pcor,gjam_mean_cor_p)
-
-#pdf("plot_mean_part_corr_nodr.pdf")
+#pdf("plot_mean_part_corr.pdf")
 #png("plot_mean_part_corr.png")
-m<- ggplot(total_mean_part_cor_no_dr) +
+m<- ggplot(total_mean_part_cor) +
   aes(factor(nsp), rho, fill = interaction) +
   geom_hline(yintercept = 0) +
   geom_boxplot(
     outlier.size = .2, size = .1, position = position_dodge(preserve = "single")
   ) +
-  scale_fill_manual(values = c("grey", "red", "blue")) +
+  scale_fill_manual(values = c("grey", "blue", "red")) +
   facet_grid(rho_type ~ type + density) +
   xlab("Number of species") +
   ylab("Partial correlation") +
@@ -1051,15 +1043,7 @@ m<- ggplot(total_mean_part_cor_no_dr) +
 m
 #dev.off()
 #############################################################################################################################
-
-all_part_h<-hmsc_metrics
-
-all_part_g<-hmsc_metrics
-
-all_part_<-hmsc_metrics
-
-
-#
+# 
 # all_part<-list("g_metric_e5"=g_metric_e5_p,"g_dr_metric_e5"=g_dr_metric_e5_p,"h_metric_e5"=h_metric_e5_p,
 #                "g_metric_e10"=g_metric_e10_p,"g_dr_metric_e10"=g_dr_metric_e10_p,"h_metric_e10"=h_metric_e10_p,
 #                "g_metric_e20"=g_metric_e20_p,"g_dr_metric_e20"=g_dr_metric_e20_p,"h_metric_e20"=h_metric_e20_p,
@@ -1082,35 +1066,35 @@ all_part_<-hmsc_metrics
 #                "g_metric_faccompDenseSp10"= g_metric_FacCompDense10_p,"h_metric_faccompDenseSp10"=h_metric_FacCompDense10_p,"g_dr_metric_FacCompDense10"=g_dr_metric_FacCompDense10_p,
 #                "g_metric_faccompDenseSp20"= g_metric_FacCompDense20_p,"h_metric_faccompDenseSp20"=h_metric_FacCompDense20_p,"g_dr_metric_FacCompDense20"=g_dr_metric_FacCompDense20_p
 # )
-#
-#
-#
+# 
+# 
+# 
 # for(i in 1:length(names(all_part))){
 #   if(!is.null(all_part[[i]]$success_env)) table[i,"success_env"]<-all_part[[i]]$success_env
 #   if(!is.null(all_part[[i]]$success_comp)) table[i,"success_comp"]<-all_part[[i]]$success_comp
 #   if(!is.null(all_part[[i]]$success_fac)) table[i,"success_fac"]<-all_part[[i]]$success_fac
-#
+#   
 #   if(length(grep("5",names(all_part)[i]))>0) table[i,"n_sp"]<-5
 #   if(length(grep("10",names(all_part)[i]))>0) table[i,"n_sp"]<-10
 #   if(length(grep("20",names(all_part)[i]))>0) table[i,"n_sp"]<-20
-#
+#   
 #   if(length(grep("fac",names(all_part)[i]))>0){ table[i,"Facilitation"]<-"facilitation"}#else{table[i,"facilition"]<-NULL}
 #   if(length(grep("comp",names(all_part)[i]))>0){ table[i,"Competition"]<-"competition"}#else{table[i,"competition"]<-NULL}
 #   #if(!(length(grep("comp",names(all_part)[i]))>0) | length(grep("fac",names(all_part)[i]))>0) {table[i,"Comp_fac"]<-"comp_fac"}else{table[i,"Comp_fac"]<-NULL}
-#
-#
+#   
+#   
 #   if(length(grep("Dense",names(all_part)[i]))>0){ table[i,"sparsity"]<-"dense"}else{table[i,"sparsity"]<-"sparse"}
-#
+#   
 #   if(length(grep("j_",names(all_part)[i]))>0) table[i,"model"]<-"CM"
 #   if(length(grep("g_m",names(all_part)[i]))>0) table[i,"model"]<-"GJAM"
 #   if(length(grep("g_dr",names(all_part)[i]))>0) table[i,"model"]<-"DR-GJAM"
 #   if(length(grep("h_",names(all_part)[i]))>0) table[i,"model"]<-"HMSC"
-#
+#   
 # }
-#
+# 
 # table_comp<-table[which(!is.na(table$success_comp)),]
 # table_fac<-table[which(!is.na(table$success_fac)),]
-#
+# 
 # tc<-cbind(table_comp$success_comp,table_comp$model,rep("All",nrow(table_comp)),rep("Int",nrow(table_comp)))
 # tc<-rbind(tc,cbind(table_comp[which(table_comp$n_sp==5),"success_comp"],table_comp[which(table_comp$n_sp==5),"model"],rep("5",sum(table_comp$n_sp==5)),rep("Int",sum(table_comp$n_sp==5))))
 # tc<-rbind(tc,cbind(table_comp[which(table_comp$n_sp==10),"success_comp"],table_comp[which(table_comp$n_sp==10),"model"],rep("10",sum(table_comp$n_sp==10)),rep("Int",sum(table_comp$n_sp==10))))
@@ -1121,11 +1105,11 @@ all_part_<-hmsc_metrics
 # tc<-rbind(tc,cbind(table_comp[which(table_comp$n_sp==5),"success_env"],table_comp[which(table_comp$n_sp==5),"model"],rep("5_env",sum(table_comp$n_sp==5)),rep("Env",sum(table_comp$n_sp==5))))
 # tc<-rbind(tc,cbind(table_comp[which(table_comp$n_sp==10),"success_env"],table_comp[which(table_comp$n_sp==10),"model"],rep("10_env",sum(table_comp$n_sp==10)),rep("Env",sum(table_comp$n_sp==10))))
 # tc<-rbind(tc,cbind(table_comp[which(table_comp$n_sp==20),"success_env"],table_comp[which(table_comp$n_sp==20),"model"],rep("20_env",sum(table_comp$n_sp==20)),rep("Env",sum(table_comp$n_sp==20))))
-#
+# 
 # tc<-data.frame("success"=as.numeric(tc[,1]),"model"=tc[,2],"fac"=tc[,3],"int"=rep("Competition",nrow(tc)),"col"=tc[,4])
-#
-#
-#
+# 
+# 
+# 
 # tf<-cbind(table_fac$success_fac,table_fac$model,rep("All",nrow(table_fac)),rep("Int",nrow(table_fac)))
 # tf<-rbind(tf,cbind(table_fac[which(table_fac$n_sp==5),"success_fac"],table_fac[which(table_fac$n_sp==5),"model"],rep("5",sum(table_fac$n_sp==5)),rep("Int",sum(table_fac$n_sp==5))))
 # tf<-rbind(tf,cbind(table_fac[which(table_fac$n_sp==10),"success_fac"],table_fac[which(table_fac$n_sp==10),"model"],rep("10",sum(table_fac$n_sp==10)),rep("Int",sum(table_fac$n_sp==10))))
@@ -1136,17 +1120,17 @@ all_part_<-hmsc_metrics
 # tf<-rbind(tf,cbind(table_fac[which(table_fac$n_sp==5),"success_env"],table_fac[which(table_fac$n_sp==5),"model"],rep("5_env",sum(table_fac$n_sp==5)),rep("Env",sum(table_fac$n_sp==5))))
 # tf<-rbind(tf,cbind(table_fac[which(table_fac$n_sp==10),"success_env"],table_fac[which(table_fac$n_sp==10),"model"],rep("10_env",sum(table_fac$n_sp==10)),rep("Env",sum(table_fac$n_sp==10))))
 # tf<-rbind(tf,cbind(table_fac[which(table_fac$n_sp==20),"success_env"],table_fac[which(table_fac$n_sp==20),"model"],rep("20_env",sum(table_fac$n_sp==20)),rep("Env",sum(table_fac$n_sp==20))))
-#
+# 
 # tf<-data.frame("success"=as.numeric(tf[,1]),"model"=tf[,2],"fac"=tf[,3],"int"=rep("Facilitation",nrow(tf)),"col"=tf[,4])
-#
+# 
 # table<-rbind(tf,tc)
-#
+# 
 # p<-ggplot(data=table)+geom_boxplot(aes(y=as.numeric(success),x=as.factor(fac),fill=as.factor(col)))+
 #   scale_x_discrete(name="Parameters", breaks=c("All","5","10","20","dense","sparse","All_env","5_env","10_env","20_env"),
 #                    labels=c("All","5","10","20","dense","sparse","All","5","10","20"),limits=c("All","5","10","20","dense","sparse","All_env","5_env","10_env","20_env"))+
 #   scale_y_continuous(name="% success")+
 #   scale_fill_discrete(name = "Success in retrieving", labels = c("Sensibility (non int.)","Sensitivity (int.)"))+theme_bw()+theme(axis.text.x = element_text(angle = 45, hjust = 0.5),legend.position="top",plot.title = element_text(hjust = 0.5))+
-#   facet_grid( int~model , scales="free") +ggtitle("Pairs indentification by partial correlation")
+#   facet_grid( int~model , scales="free") +ggtitle("Pairs indentification by partial correlation") 
 # p
 #############################################################################################################################################################
 #Correlation_vs_Partial correlation
@@ -1193,9 +1177,11 @@ difference_jsdm_df<- as.data.frame(unlist(difference_jsdm))
 colnames(difference_jsdm_df)<-c("value")
 difference_jsdm_df$model<- "CM"
 
-tab_diff<- rbind(difference_gjam_df,difference_gjam_dr_df,difference_hmsc_df,difference_jsdm_df)
 
-#pdf("plot_diff_corr_0thr.pdf")
+###No gjam DR
+tab_diff<- rbind(difference_gjam_df,difference_hmsc_df,difference_jsdm_df)
+
+#pdf("plot_diff_corr_0thr_noDR.pdf")
 
 p<-ggplot(data=tab_diff)+geom_boxplot(aes(x=model, y=as.numeric(value),fill=as.factor(model)))+
   theme_bw()+theme(axis.text.x = element_text( hjust = 0.5),legend.position=" ",plot.title = element_text(hjust = 0.5))+ scale_y_continuous(name="% of different pairs")+
@@ -1237,18 +1223,18 @@ table_mod<- function(auc_list, lab){
     table_list[(k+1):(k+length(auc_list[[i]])),"AUC"]<-auc_list[[i]]
     if(length(grep("FacComp",names(auc_list)[[i]]))>0){
       table_list[(k+1):(k+length(auc_list[[i]])),"Filtering"]<-rep("C+F",length(auc_list[[i]]))
-     }else{if(length(grep("Fac",names(auc_list)[[i]]))>0) { table_list[(k+1):(k+length(auc_list[[i]])),"Filtering"]<-rep("Fac",length(auc_list[[i]]))
-     }else{if(length(grep("Comp",names(auc_list)[[i]]))>0) { table_list[(k+1):(k+length(auc_list[[i]])),"Filtering"]<-rep("Comp",length(auc_list[[i]])) }
-     }
-     }
-     if(length(grep("Env",names(auc_list)[[i]]))>0) table_list[(k+1):(k+length(auc_list[[i]])),"Filtering"]<-rep("Env",length(auc_list[[i]]))
-     if(length(grep("Dense",names(auc_list)[[i]]))>0){
-       table_list[(k+1):(k+length(auc_list[[i]])),"Density"]<-rep("Dense",length(auc_list[[i]]))
-     }else{ table_list[(k+1):(k+length(auc_list[[i]])),"Density"]<-rep("Sparse",length(auc_list[[i]]))
-     }
+    }else{if(length(grep("Fac",names(auc_list)[[i]]))>0) { table_list[(k+1):(k+length(auc_list[[i]])),"Filtering"]<-rep("Fac",length(auc_list[[i]]))
+    }else{if(length(grep("Comp",names(auc_list)[[i]]))>0) { table_list[(k+1):(k+length(auc_list[[i]])),"Filtering"]<-rep("Comp",length(auc_list[[i]])) }
+    }
+    }
+    if(length(grep("Env",names(auc_list)[[i]]))>0) table_list[(k+1):(k+length(auc_list[[i]])),"Filtering"]<-rep("Env",length(auc_list[[i]]))
+    if(length(grep("Dense",names(auc_list)[[i]]))>0){
+      table_list[(k+1):(k+length(auc_list[[i]])),"Density"]<-rep("Dense",length(auc_list[[i]]))
+    }else{ table_list[(k+1):(k+length(auc_list[[i]])),"Density"]<-rep("Sparse",length(auc_list[[i]]))
+    }
   }
   table_list$Model<- lab
-   return(table_list)
+  return(table_list)
 }
 
 
@@ -1301,7 +1287,7 @@ jsdm_predict_out<- function(datap, name){
   for(i in 1:S) AUC_j<-c(AUC_j,auc(roc(predY_mean[,i],factor(datap[1:np,i]))))
   return(AUC_j)
 }  
-  
+
 jsdm_AUC<-mapply(jsdm_predict_out, new_sim_data, jsdm_files_list,SIMPLIFY = TRUE)
 # jsdm_AUC_df<- as.data.frame(jsdm_AUC)
 # #colnames(jsdm_AUC_df)<-  c("SetSP","AUC_value")
@@ -1321,7 +1307,7 @@ cm_l<- table_mod(jsdm_AUC, "CM")
 
 
 table_AUC<- rbind(gj_l,gj_dr_l,hmsc_l,cm_l)
- 
+
 table_AUC[nrow(table_AUC)+1,]<-c(-1,"CM", "Env","Dense")
 table_AUC[nrow(table_AUC)+1,]<-c(-1,"GJAM", "Env","Dense")
 table_AUC[nrow(table_AUC)+1,]<-c(-1,"DR_GJAM", "Env","Dense")
