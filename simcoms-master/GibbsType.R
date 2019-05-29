@@ -2,7 +2,8 @@
 
 rm(list=ls())
 library(pracma)
-
+library(Brobdingnag)
+library(copula)
 #####Prior distribution on the number of groups.
 kval<-10
 theta<-1 
@@ -43,7 +44,7 @@ v_ng<- function(beta, sigma, kval, npoints){
   coef_high<-exp(beta)* sigma^(kval-1)
   coef<- coef_high/coef_low
   for(i in (0:(npoints-1))){
-    gn<- incgam(kval - i/sigma, beta)
+    gn<- incgam(beta,kval - i/sigma)
     ckn<- choose(npoints-1,i)
     sum<- sum + ((-1)^i)*(beta^(i/sigma))*ckn*gn
   }
@@ -75,9 +76,30 @@ prob_py<- function(kg, npoints, sigma, theta){
 prob_dir<- function(k, npoints, theta){
   n_vec<- 0:(npoints-1)
   theta_n<- prod(theta +n_vec)
-  prob<- ((theta^k) *(Stirling1(npoints,k)))/theta_n
+  prob<- ((theta^k) *(abs(Stirling1(npoints,k))))/theta_n
   return(prob)
 }
+
+
+prob_dir_large_dim<- function(k, npoints, theta){
+  n_vec<-as.brob( 0:(npoints-1))
+  theta_n<- prod(theta +n_vec)
+  stir<- as.brob(abs(Stirling1(npoints,k)))
+  powerk<- as.brob((theta^k))
+  prob_brob<- powerk*(stir/theta_n)
+  prob<- as.numeric(prob_brob)
+  return(prob)
+}
+
+
+n_vec<-as.brob( 0:(npoints-1))
+theta_n<- prod(theta +n_vec)
+stir<- as.brob(abs(Stirling1(npoints,k)))
+powerk<- as.brob((theta^k))
+prob_brob<- powerk*(stir/theta_n)
+prob<- as.numeric(prob_brob)
+
+
 
 ####################################################################################################################
 #############################Plotting###############################################################################
@@ -110,7 +132,7 @@ df<- as.data.frame(matrix(NA, nrow=500, ncol=1))
 df$k<- k_df
 df$sigma<- sigma_df
 for(l in (1: nrow(df))){
-  df$val[l]<- prob_py(df$k[l],npoints=150,theta=1,sigma=df$sigma[l])
+  df$val[l]<- prob_py(df$k[l],npoints=50,theta=1,sigma=df$sigma[l])
 }
 
 df$sigma<- as.factor(df$sigma)
@@ -122,7 +144,78 @@ p
 
 #####################################################################################################################
 
+sigma_df <- rep(seq(0.2,0.8, by=0.6/9), each=50)
+k_df<- rep(1:50, 10)
+df<- as.data.frame(matrix(NA, nrow=500, ncol=1))
+
+df$k<- k_df
+df$sigma<- sigma_df
+for(l in (1: nrow(df))){
+  df$val[l]<- prob_ng(df$k[l],npoints=50,beta=1,sigma=df$sigma[l])
+}
+
+df$sigma<- as.factor(df$sigma)
+p<- plot_ly(df, x =df$k , y = df$sigma, z = df$val, split = df$sigma, type = "scatter3d", mode = "lines") %>% 
+  layout(title="Prior density", scene = list(xaxis= list(title="K"),yaxis= list(title="sigma"), zaxis= list(title="Probability")))                                                                                          
 
 
+p
+
+##########Dirichlet
+#prob_dir<- function(k, npoints, theta)
+
+
+theta_df <- rep(seq(1,100, by=99/9), each=150)
+k_df<- rep(1:150, 10)
+df<- as.data.frame(matrix(NA, nrow=1500, ncol=1))
+
+df$k<- k_df
+df$theta<- theta_df
+for(l in (1: nrow(df))){
+  df$val[l]<- prob_dir_large_dim(df$k[l],npoints=150,theta=df$theta[l])
+}
+
+df$theta<- as.factor(df$theta)
+p150<- plot_ly(df, x =df$k , y = df$theta, z = df$val, split = df$theta, type = "scatter3d", mode = "lines") %>% 
+  layout(title="Prior density for Dirichlet prior for n=50", scene = list(xaxis= list(title="K"),yaxis= list(title="alpha"), zaxis= list(title="Probability")))                                                                                          
+
+
+p150
+
+
+
+#prob_dir(10,npoints=150,theta=60)
+
+
+###################
+# 
+# StirlingFirst<- function(n, k){
+#   if((k == 0)&(n != 0)){
+#     return(0)
+#   }
+#   else{
+#     if(k==n){return(1)}
+#     else{
+#       return((n-1)*StirlingFirst(n-1, k) + StirlingFirst(n-1, k-1))
+#       }
+#   }
+# }
+
+
+k<-60
+npoints<-150
+n_vec<-as.brob( 0:(npoints-1))
+theta_n<- prod(theta +n_vec)
+stir<- as.brob(abs(Stirling1(npoints,k)))
+powerk<- as.brob((theta^k))
+prob_brob<- powerk*(stir/theta_n)
+prob<- as.numeric(prob_brob)
+
+
+x <- as.brob(1:10)
+y <- 1e10
+x+y
+as.numeric((x+y)-1e10)
+x^(1/y)
 
 
