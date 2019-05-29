@@ -1329,8 +1329,6 @@ table_AUC[nrow(table_AUC)+1,]<-c(-1,"HMSC", "Env","Dense")
 
 
 
-
-
 table_AUC$Filtering<-factor(table_AUC$Filtering, levels=c("Env","Fac","Comp","C+F"))
 #png("plot_AUC_in.png")
 #("plot_AUC_out_sample.pdf")

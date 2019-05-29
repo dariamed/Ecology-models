@@ -32,6 +32,7 @@ library(reshape)
 library(AUC)
 library(ggthemes)
 library(mcclust.ext)
+library(LearnBayes)
 Rcpp::sourceCpp('/Users/dariabystrova/Documents/GitHub/gjamed/src/cppFns.cpp')
 source("/Users/dariabystrova/Documents/GitHub/gjamed/R/gjamHfunctions_mod.R")
 
@@ -1125,6 +1126,47 @@ title("True interactions")
 
 ```{r fsdm env5, include=TRUE,echo=FALSE,warning=FALSE,message=FALSE}
 
+
+
+predict_sdm_bayes<-function(datas){
+  data_temp<-dataprep(datas) 
+  predY<- data.frame()
+  predBeta<- data.frame()
+  for(s in 1:ncol(data_temp$Y)){
+    y_temp<-data_temp$Y[,s]
+   # sim.par<-uni_bayes_probit(datas,D=3, i_col=s, N_sim=20000)
+    sim.par <- bayes.probit(y_temp, data_temp$X, 20000)
+    betas<- apply(sim.par$beta[-(1:5000),], 2, quantile, c(0.05, 0.5, 0.95))
+    pred_j<-array(NA,dim=c(data_temp$n,15000))
+    for(j in 1:15000){
+      pred_j[,j]<-pnorm(data_temp$X%*%sim.par$beta[j+5000,])
+      
+    }
+    pred_j_mean <- apply(pred_j, 1, mean)
+    pred_j_05 <- apply(pred_j, 1, quantile,0.05)
+    pred_j_95 <- apply(pred_j, 1, quantile,0.95)
+    table_sdm<-as.data.frame(datas$env)
+    colnames(table_sdm)<-c("xx")
+    table_sdm$mean<-pred_j_mean
+    table_sdm$q_95<-pred_j_05
+    table_sdm$q_05<-pred_j_95
+    table_sdm$type<-"SDM"
+    table_sdm$species<-s
+    predY<- rbind(predY,table_sdm)
+    predBeta_tmp<- as.data.frame( t(betas))
+    names(predBeta_tmp)<- c("low","mean", "high")
+    predBeta_tmp$sp <- rep(s,3)
+    predBeta_tmp$beta<- c("inter","env","env2")
+    predBeta<- rbind(predBeta,predBeta_tmp)
+  }
+  
+  predBeta$model<-"SDM"
+  
+  return(list(beta_sdm=predBeta,pred_sdm=predY))
+}
+
+
+
 predict_sdm<-function(datas){
   data_temp<-dataprep(datas) 
   df<-cbind(data_temp$X[,-1],data_temp$Y)
@@ -1164,7 +1206,7 @@ predict_sdm<-function(datas){
   return(list(beta_sdm=predBeta,pred_sdm=predY))
 }
 
-sdm_env5<-predict_sdm(sim_data$EnvEvenSp5)
+sdm_env5<-predict_sdm_bayes(sim_data$EnvEvenSp5)
 
 
 ```
@@ -1941,7 +1983,7 @@ title("True interactions")
 
 ```{r all models rho env10, include=TRUE,warning=FALSE,message=FALSE}
 
-sdm_env10<-predict_sdm(sim_data$EnvEvenSp10)
+sdm_env10<-predict_sdm_bayes(sim_data$EnvEvenSp10)
 
 
 create_beta_plot(load_object("./gjam_models/gjam10env.rda"),me10,load_object("./new_HMmodels/hm10env.rda"), S$bchain,sdm_env10$beta_sdm)
@@ -2137,7 +2179,7 @@ title("True interactions")
 
 ```{r all models env20, include=TRUE,warning=FALSE,message=FALSE}
 
-sdm_env20<-predict_sdm(sim_data$EnvEvenSp20)
+sdm_env20<-predict_sdm_bayes(sim_data$EnvEvenSp20)
 
 
 create_beta_plot(load_object("./gjam_models/gjam20env.rda"),me20,load_object("./new_HMmodels/hm20env.rda"),S$bchain,sdm_env20$beta_sdm)
@@ -2349,7 +2391,7 @@ title("True interactions")
 
 
 ```{r all models facd5, include=TRUE,warning=FALSE,message=FALSE}
-sdm_envfcd5<-predict_sdm(sim_data$FacDenseSp5)
+sdm_envfcd5<-predict_sdm_bayes(sim_data$FacDenseSp5)
 
 
 create_beta_plot(load_object("./gjam_models/gjam5f.rda"),mfd5,load_object("./new_HMmodels/hm5fd.rda" ),S$bchain,sdm_envfcd5$beta_sdm)
@@ -2545,7 +2587,7 @@ title("True interactions")
 
 
 ```{r all models facd10, include=TRUE,warning=FALSE,message=FALSE}
-sdm_envfcd10<-predict_sdm(sim_data$FacDenseSp10)
+sdm_envfcd10<-predict_sdm_bayes(sim_data$FacDenseSp10)
 
 create_beta_plot(load_object("./gjam_models/gjam10fd.rda"),mfd10,load_object("./new_HMmodels/hm10fd.rda"),S$bchain,sdm_envfcd10$beta_sdm)
 
@@ -2710,8 +2752,14 @@ title("True interactions")
 
 ```
 
+
+
+
+### Summary plots
+
+
 ```{r all models facd20, include=TRUE,message=FALSE,warning=FALSE}
-sdm_envfcd20<-predict_sdm(sim_data$FacDenseSp20)
+sdm_envfcd20<-predict_sdm_bayes(sim_data$FacDenseSp20)
 
 
 create_beta_plot(load_object("./gjam_models/gjam20fd.rda"),mfd20,load_object("./new_HMmodels/hm20fd.rda"),S$bchain,sdm_envfcd20$beta_sdm)
@@ -2828,7 +2876,13 @@ for(i in 1:(ncol(data)-1)) AUC_g_fac_sparse<-c(AUC_g_fac_sparse,auc(roc(pred_gj_
 pred_gjam<- list(pred_gj_mean=pred_gj_mean,pred_gj_05=pred_gj_05,pred_gj_95=pred_gj_95)
 ```
 
+
 ### HMSC
+
+
+
+
+
 ```{r hmsc fs5,echo=FALSE, include=TRUE}
 data<-sim_data$FacSparseSp5
 hm_mod<-fit_hmsc(data,"Load",name="./new_HMmodels/hm5fs.rda" )
@@ -2899,9 +2953,14 @@ title("True interactions")
 
 
 
+### Summary plots
+
+
+
+
 
 ```{r all models fs5, include=TRUE,message=FALSE, warning=FALSE}
-sdm_envfcs5<-predict_sdm(sim_data$FacSparseSp5)
+sdm_envfcs5<-predict_sdm_bayes(sim_data$FacSparseSp5)
 
 create_beta_plot(load_object("./gjam_models/gjam5fs.rda"),mfs5,load_object("./new_HMmodels/hm5fs.rda"),S$bchain,sdm_envfcs5$beta_sdm)
 
@@ -3089,7 +3148,7 @@ title("True interactions")
 
 
 ```{r all models fs10, include=TRUE,message=FALSE, warning=FALSE}
-sdm_envfcs10<-predict_sdm(sim_data$FacSparseSp10)
+sdm_envfcs10<-predict_sdm_bayes(sim_data$FacSparseSp10)
 
 create_beta_plot(load_object("./gjam_models/gjam10fs.rda"),mfs10,load_object("./new_HMmodels/hm10fs.rda"),S$bchain,sdm_envfcs10$beta_sdm)
 
@@ -3293,7 +3352,7 @@ title("True interactions")
 
 ```{r all models fs20, include=TRUE,message=FALSE,warning=FALSE}
 
-sdm_envfcs20<-predict_sdm(sim_data$FacSparseSp20)
+sdm_envfcs20<-predict_sdm_bayes(sim_data$FacSparseSp20)
 
 create_beta_plot(load_object("./gjam_models/gjam20fs.rda"),mfs20,load_object("./new_HMmodels/hm20fs.rda"),S$bchain,sdm_envfcs20$beta_sdm)
 create_plot_response(sim_data$FacSparseSp20, nsp=20,pred_gjam, pred_jsdm,pred_hmsc , pred_gjam_dr,sdm_envfcs20$pred_sdm)
@@ -3477,7 +3536,7 @@ corrplot(S$Tau_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 
 title("Partial Correlation from dim. reduction")
 corrplot(comp.psm(S$k), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=gcols(200), type = "lower")
 title("Posterior clusters from dim. reduction")
-corrplot(comp_inter[[10]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+corrplot((-1)*comp_inter[[10]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
 title("True interactions")
 
 ```
@@ -3490,7 +3549,7 @@ title("True interactions")
 
 ```{r all models cmpd5, include=TRUE,warning=FALSE,message=FALSE}
 
-sdm_envcmpd5<-predict_sdm(sim_data$CompDenseSp5)
+sdm_envcmpd5<-predict_sdm_bayes(sim_data$CompDenseSp5)
 
 create_beta_plot(load_object("./gjam_models/gjam5cmpd.rda"),mcmpd5,load_object("./new_HMmodels/hm5cmpd.rda"),S$bchain,sdm_envcmpd5$beta_sdm)
 create_plot_response(sim_data$CompDenseSp5, nsp=5,pred_gjam, pred_jsdm,pred_hmsc,pred_gjam_dr,sdm_envcmpd5$pred_sdm )
@@ -3523,7 +3582,7 @@ ALL4(mod_list_Tau$jsdm,mod_list_Tau$gjam,mod_list_Tau$hmsc,(-1)*comp_inter[[10]]
 
 
 
-```{r model jsdm cmpd10, echo=FALSE,include=FALSE}
+```{r model jsdm cmpd10, echo=FALSE,include=TRUE}
 #load("model-2019-04-10-15-13-15.rda")
 mcmpd10 <- load_object("model-2019-04-16-03-39-17.rda")
 
@@ -3687,7 +3746,7 @@ corrplot(S$Tau_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 
 title("Partial Correlation from dimension reduction")
 corrplot(comp.psm(S$k), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=gcols(200),cl.lim=c(0, 1), type = "lower")
 title("Partial Correlation from dimension reduction")
-corrplot(comp_inter[[11]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+corrplot((-1)*comp_inter[[11]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
 title("True interactions")
 
 
@@ -3700,7 +3759,7 @@ title("True interactions")
 
 ```{r all models cmpd10, include=TRUE,warning=FALSE,message=FALSE}
 
-sdm_envcmpd10<-predict_sdm(sim_data$CompDenseSp10)
+sdm_envcmpd10<-predict_sdm_bayes(sim_data$CompDenseSp10)
 
 create_beta_plot(load_object("./gjam_models/gjam10cmpd.rda"),mcmpd10,load_object("./new_HMmodels/hm10cmpd.rda"),S$bchain,sdm_envcmpd10$beta_sdm)
 
@@ -3886,7 +3945,7 @@ corrplot(S$Tau_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 
 title("Partial Correlation from dimension reduction")
 corrplot(comp.psm(S$k), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=gcols(200),cl.lim=c(0, 1), type = "lower")
 title("Partial Correlation from dimension reduction")
-corrplot(comp_inter[[12]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+corrplot((-1)*comp_inter[[12]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
 title("True interactions")
 
 
@@ -3903,7 +3962,7 @@ title("True interactions")
 
 ```{r all models cmpd20, include=TRUE,warning=FALSE,message=FALSE}
 
-sdm_envcmpd20<-predict_sdm(sim_data$CompDenseSp20)
+sdm_envcmpd20<-predict_sdm_bayes(sim_data$CompDenseSp20)
 
 create_beta_plot(load_object("./gjam_models/gjam20cmpd.rda"),mcmpd20,load_object("./new_HMmodels/hm20cmpd.rda" ),S$bchain,sdm_envcmpd20$beta_sdm)
 
@@ -4095,7 +4154,7 @@ corrplot(S$Tau_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 
 title("Partial Correlation from dim. reduction")
 corrplot(comp.psm(S$k), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=gcols(200), type = "lower")
 title("Posterior clusters from dim. reduction")
-corrplot(comp_inter[[13]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+corrplot((-1)*comp_inter[[13]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
 title("True interactions")
 
 ```
@@ -4112,7 +4171,7 @@ title("True interactions")
 
 ```{r all models cmps5, include=TRUE,warning=FALSE,message=FALSE}
 
-sdm_envcmps5<-predict_sdm(sim_data$CompSparseSp5)
+sdm_envcmps5<-predict_sdm_bayes(sim_data$CompSparseSp5)
 
 create_beta_plot(load_object("./gjam_models/gjam5cmps.rda"),cmps5,load_object("./new_HMmodels/hm5cmps.rda"),S$bchain,sdm_envcmps5$beta_sdm)
 
@@ -4288,7 +4347,7 @@ corrplot(S$Tau_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 
 title("Partial Correlation from dimension reduction")
 corrplot(comp.psm(S$k), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=gcols(200),cl.lim=c(0, 1), type = "lower")
 title("Partial Correlation from dimension reduction")
-corrplot(comp_inter[[14]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+corrplot((-1)*comp_inter[[14]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
 title("True interactions")
 
 
@@ -4304,7 +4363,7 @@ title("True interactions")
 
 ```{r all models cmps10, include=TRUE,warning=FALSE,message=FALSE}
 
-sdm_envcmps10<-predict_sdm(sim_data$CompSparseSp10)
+sdm_envcmps10<-predict_sdm_bayes(sim_data$CompSparseSp10)
 
 create_beta_plot(load_object("./gjam_models/gjam10cmps.rda"),cmps10,load_object("./new_HMmodels/hm10cmps.rda"),S$bchain,sdm_envcmps10$beta_sdm)
 
@@ -4493,7 +4552,7 @@ corrplot(S$Tau_sign_d, diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 
 title("Partial Correlation from dimension reduction")
 corrplot(comp.psm(S$k), diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=gcols(200),cl.lim=c(0, 1), type = "lower")
 title("Partial Correlation from dimension reduction")
-corrplot(comp_inter[[15]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
+corrplot((-1)*comp_inter[[15]], diag = FALSE, order = "original",tl.pos = "ld", tl.cex = 0.5, method = "color",col=cols(200), type = "lower")
 title("True interactions")
 
 
@@ -4509,7 +4568,7 @@ title("True interactions")
 ```{r all models cmps20, include=TRUE,warning=FALSE,message=FALSE}
 
 
-sdm_envcmps20<-predict_sdm(sim_data$CompSparseSp20)
+sdm_envcmps20<-predict_sdm_bayes(sim_data$CompSparseSp20)
 
 create_beta_plot(load_object("./gjam_models/gjam20cmps.rda"),cmps20,load_object("./new_HMmodels/hm20cmps.rda"),S$bchain,sdm_envcmps20$beta_sdm)
 
@@ -4711,7 +4770,7 @@ title("True interactions")
 ```{r all models cmp_facd5, include=TRUE,warning=FALSE,message=FALSE}
 
 
-sdm_envcmfd5<-predict_sdm(sim_data$FacCompDenseSp5)
+sdm_envcmfd5<-predict_sdm_bayes(sim_data$FacCompDenseSp5)
 
 create_beta_plot(load_object("./gjam_models/gjam5cmp_facd2.rda"),cmp_fd5,load_object("./new_HMmodels/hmcmp_facd5.rda"), S$bchain,sdm_envcmfd5$beta_sdm)
 
@@ -4899,7 +4958,7 @@ title("True interactions")
 
 ```{r all models cmp_facd10, include=TRUE,warning=FALSE,message=FALSE}
 
-sdm_envcmfd10<-predict_sdm(sim_data$FacCompDenseSp10)
+sdm_envcmfd10<-predict_sdm_bayes(sim_data$FacCompDenseSp10)
 
 create_beta_plot(load_object("./gjam_models/gjamcmp_facd10.rda"),cmp_fd10,load_object("./new_HMmodels/hmcmp_facd10.rda"),S$bchain,sdm_envcmfd10$beta_sdm)
 
@@ -5093,7 +5152,7 @@ title("True interactions")
 ```{r all models cmp_facd20, include=TRUE,warning=FALSE,message=FALSE}
 
 
-sdm_envcmfd20<-predict_sdm(sim_data$FacCompDenseSp20)
+sdm_envcmfd20<-predict_sdm_bayes(sim_data$FacCompDenseSp20)
 
 create_beta_plot(load_object("./gjam_models/gjamcmp_facd20.rda"),cmp_fd20,load_object("./new_HMmodels/hmcmp_facd20.rda"),S$bchain,sdm_envcmfd20$beta_sdm)
 
@@ -5279,7 +5338,7 @@ title("True interactions")
 ```{r all models cmp_facs5, include=TRUE,warning=FALSE,message=FALSE}
 
 
-sdm_envcmfs5<-predict_sdm(sim_data$FacCompSparseSp5)
+sdm_envcmfs5<-predict_sdm_bayes(sim_data$FacCompSparseSp5)
 
 create_beta_plot(load_object("./gjam_models/gjamcmp_facs5.rda"),cmp_fds5,load_object("./new_HMmodels/hmcmp_facs5.rda" ),S$bchain,sdm_envcmfs5$beta_sdm)
 
@@ -5491,7 +5550,7 @@ title("True interactions")
 
 ```{r all models cmp_facs10, include=TRUE,warning=FALSE,message=FALSE}
 
-sdm_envcmfs10<-predict_sdm(sim_data$FacCompSparseSp10)
+sdm_envcmfs10<-predict_sdm_bayes(sim_data$FacCompSparseSp10)
 
 
 create_beta_plot(load_object("./gjam_models/gjamcmp_facs10.rda"),cmp_fds10,load_object("./new_HMmodels/hmcmp_facs10.rda"),S$bchain,sdm_envcmfs10$beta_sdm)
@@ -5700,7 +5759,7 @@ title("True interactions")
 
 ```{r all models cmp_facs20, include=TRUE,warning=FALSE,message=FALSE}
 
-sdm_envcmfs20<-predict_sdm(sim_data$FacCompSparseSp20)
+sdm_envcmfs20<-predict_sdm_bayes(sim_data$FacCompSparseSp20)
 
 
 create_beta_plot(load_object("./gjam_models/gjamcmp_facs20.rda"),cmp_fds20,load_object("./new_HMmodels/hmcmp_facs20.rda"), S$bchain,sdm_envcmfs20$beta_sdm)

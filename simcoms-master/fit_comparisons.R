@@ -838,7 +838,7 @@ plot_response<- function(datab,pred_gjam, pred_jsdm,pred_hmsc,sdmpred){
     Tjur_gj <- mean(pred_gjam$pred_gj_mean[indx,k]) - mean(pred_gjam$pred_gj_mean[!indx,k])
     Tjur_hm <- mean(pred_hmsc$pred_hm_mean[indx,k]) - mean(pred_hmsc$pred_hm_mean[!indx,k])
     Tjur_sdm<- mean(table_sdm$mean[which(table_sdm$species==k)][indx]) - mean(table_sdm$mean[which(table_sdm$species==k)][!indx])
-    Tjur<- sum(Tjur_j,Tjur_gj,Tjur_hm,Tjur_sdm)/4
+    Tjur<- round(sum(Tjur_j,Tjur_gj,Tjur_hm,Tjur_sdm)/4, 2)
     tjur_list<-c(tjur_list,Tjur)
   }
   
@@ -851,7 +851,7 @@ plot_response<- function(datab,pred_gjam, pred_jsdm,pred_hmsc,sdmpred){
     AUC_gj <- auc(roc(pred_gjam$pred_gj_mean[,k],factor(datap$Y[,k])))
     AUC_hm <-  auc(roc(pred_hmsc$pred_hm_mean[,k],factor(datap$Y[,k])))  
     AUC_sdm<-  auc(roc(table_sdm$mean[which(table_sdm$species==k)],factor(datap$Y[,k])))
-    AUC_mean<- sum(AUC_j,AUC_gj,AUC_hm,AUC_sdm)/4
+    AUC_mean<- round(sum(AUC_j,AUC_gj,AUC_hm,AUC_sdm)/4,2)
     Auc_list<-c(Auc_list,AUC_mean)
   }
 
@@ -871,7 +871,7 @@ plot_response<- function(datab,pred_gjam, pred_jsdm,pred_hmsc,sdmpred){
         geom_line(aes(x=tmp$xx,y=tmp$mean,col=as.factor(tmp$type)),lwd=1.5)+
         geom_point(aes(x=tmp_obs$xx,y=tmp_obs$obs),col="#000066",size=0.5) +xlab("Environmental gradient")+ylab("Probability of presence")+
         geom_line(data=tmp_fund,aes(x=tmp_fund$xx,y=tmp_fund$niche,color = "Fundamental niche"),lwd=1)+
-        labs(title=paste0("All models, Species ",i))+
+        labs(title=paste0("All models, Species ",i), caption=paste0("AUC mean: ",Auc_list[[i]]," Tjur mean:  ",tjur_list[[i]]))+
         scale_color_manual(name = c("Legend"), values = c("SDM" = "#56B4E9","CM" = "#FF6666","GJAM" = "#66CC99","DR-GJAM" = "#FFFF10","HMSC" = "#FFB266","Fundamental niche"="#9999FF")) +theme_bw()+ theme(plot.title = element_text(hjust = 0.5))
       p_4<<-list.append(p_4,g)
       assign(paste0("p",i), g, pos =1)
@@ -939,9 +939,10 @@ gjam_conv_dataset<- data.frame()
 
 ###########prediction############################################################################################
 #ind<-c(1,4,10,16)
-ind<-c(5)
+#ind<-c(2,5,11,17)
+ind<-c(3,18)
 
-pdf("Plots_CAM_10dense.pdf")
+pdf("Plots_CAM20cmpd.pdf")
 data_test<- sim_data[ind]
 hmsc_files_l<- hmsc_files_list[ind]
 gjam_files_l<-gjam_files_list[ind]
@@ -962,22 +963,5 @@ p_list
 dev.off()
 
 
-pred_jsdm$pred_j_mean[,2]
-tjur<- c()
-for(k in (1:ncol(pred_jsdm$pred_j_mean))) {
-  datap<- dataprep(data_test[[l]])
-  indx <- datap$Y[,k]==1
-  Tjur <- mean(pred_jsdm$pred_j_mean[indx,k]) - mean(pred_jsdm$pred_j_mean[!indx,k])
-  tjur<-c(tjur,Tjur)
-}
-
-tjur2<- c()
-for(k in (1:ncol(pred_jsdm$pred_j_mean))) {
-  datap<- dataprep(data_test[[l]])
-  indx <- datap$Y[,k]==1
-  Tjur <- mean(pred_hmsc$pred_hm_mean[indx,k]) - mean(pred_hmsc$pred_hm_mean[!indx,k])
-  tjur2<-c(tjur2,Tjur)
-}
-#dev.off()
 ################################################################################################################
 
