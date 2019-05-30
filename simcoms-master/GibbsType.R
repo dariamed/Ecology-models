@@ -35,9 +35,7 @@ gen_fac_coef<-function(kval,sigma,npoints){
   return(sumf)
 }
 
-
 ############### V for NGG########################
-
 v_ng<- function(beta, sigma, kval, npoints){
   sum<-0
   coef_low<-gamma(npoints)
@@ -54,8 +52,6 @@ v_ng<- function(beta, sigma, kval, npoints){
 }
 
 ########### density for  NGG #############################
-
-
 prob_ng<- function(kg, npoints, sigma, beta){
   pb_v<- v_ng(beta, sigma, kg, npoints)
   pb_gen<- gen_fac_coef(kg,sigma, npoints)
@@ -64,7 +60,6 @@ prob_ng<- function(kg, npoints, sigma, beta){
 }
 
 ########### density for PY#############################
-
 
 prob_py<- function(kg, npoints, sigma, theta){
   pb_v<- v_py(kg,sigma, theta,npoints)
@@ -106,7 +101,7 @@ prob<- as.numeric(prob_brob)
 #############################Plotting###############################################################################
 k_vec<-seq(1,50,by=49/9)
 sigma_vec<-seq(0.2,0.8, by=0.6/9)
-z<- outer(k_vec,sigma_vec,Vectorize(prob_ng),npoints=50, beta=1)
+z<- outer(k_vec,sigma_vec,Vectorize(prob_py),npoints=50, theta=1)
 
 p<- plot_ly(showscale = TRUE) %>%
    add_surface(x=k_vec, y=sigma_vec,z =z, cmin = min(z), cmax = max(z),colorbar=list(title='PY'), colorscale = list(c(0,1),c("rgb(255,112,184)","rgb(128,0,64)")),opacity = 0.98) %>%
@@ -152,7 +147,7 @@ df<- as.data.frame(matrix(NA, nrow=500, ncol=1))
 df$k<- k_df
 df$sigma<- sigma_df
 for(l in (1: nrow(df))){
-  df$val[l]<- prob_ng(df$k[l],npoints=50,beta=1,sigma=df$sigma[l])
+  df$val[l]<- prob_py(df$k[l],npoints=50,theta=1,sigma=df$sigma[l])
 }
 
 df$sigma<- as.factor(df$sigma)
@@ -190,9 +185,6 @@ prob_dir(10,npoints=150,theta=60)
 
 #####################################################################
 
-
-
-
 theta_df <- rep(seq(1,150, by=149/9), each=150)
 k_df<- rep(1:150, 10)
 df<- as.data.frame(matrix(NA, nrow=1500, ncol=1))
@@ -209,6 +201,9 @@ p150<- plot_ly(df, x =df$k , y = df$theta, z = df$val, split = df$theta, type = 
 
 p150
 #theta_df <- rep(seq(1,150, by=149/9), each=150)
+
+
+#############Varying N####################
 k_df<- rep(1:50,  by=49/9)
 npoint_df <- rep(seq(50,140, by=10), each=50)
 
@@ -217,7 +212,7 @@ df<- as.data.frame(matrix(NA, nrow=500, ncol=1))
 df$k<- k_df
 df$np<- npoint_df
 for(l in (1: nrow(df))){
-  df$val[l]<- prob_dir_large_dim(df$k[l],npoints=df$np[l],theta=20)
+  df$val[l]<- prob_dir_large_dim(df$k[l],npoints=df$np[l],theta=df$np[l]/2)
 }
 df$np<- as.factor(df$np)
 p150<- plot_ly(df, x =df$k , y = df$np, z = df$val, split = df$np, type = "scatter3d", mode = "lines") %>% 
@@ -267,6 +262,11 @@ p150<- plot_ly(df, x =df$k , y = df$np, z = df$val, split = df$np, type = "scatt
 p150
 
 
+
+
+#########################################################################################################
+#########################################################################################################
+###############Gaussian mixture and posterior: Example from GibbsType prior##############################
 
 
 
